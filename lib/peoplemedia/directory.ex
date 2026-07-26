@@ -1,4 +1,4 @@
-defmodule Presencemedia.Directory do
+defmodule Peoplemedia.Directory do
   @moduledoc """
   The people, the places, and the presences they left.
 

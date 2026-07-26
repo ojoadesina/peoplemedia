@@ -1,4 +1,4 @@
-# Presencemedia
+# Peoplemedia
 
 People Media (currently presence media) is social media where people are the
 primary focus, enabling relationships through authentic human presence.

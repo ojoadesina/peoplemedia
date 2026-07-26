@@ -1,9 +1,9 @@
-defmodule PresencemediaWeb.Layouts do
+defmodule PeoplemediaWeb.Layouts do
   @moduledoc """
   This module holds layouts and related functionality
   used by your application.
   """
-  use PresencemediaWeb, :html
+  use PeoplemediaWeb, :html
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML

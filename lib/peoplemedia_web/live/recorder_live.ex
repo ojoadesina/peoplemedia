@@ -1,4 +1,4 @@
-defmodule PresencemediaWeb.RecorderLive do
+defmodule PeoplemediaWeb.RecorderLive do
   @moduledoc """
   A REFERENCE EXHIBIT, not a feature.
 
@@ -22,7 +22,7 @@ defmodule PresencemediaWeb.RecorderLive do
 
   Delete this module the moment it has been mined for whatever it is worth.
   """
-  use PresencemediaWeb, :live_view
+  use PeoplemediaWeb, :live_view
 
   @impl true
   def mount(_params, _session, socket), do: {:ok, socket}

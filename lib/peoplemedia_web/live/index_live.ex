@@ -1,4 +1,4 @@
-defmodule PresencemediaWeb.IndexLive do
+defmodule PeoplemediaWeb.IndexLive do
   @moduledoc """
   The presence app, rebuilt on a layout system.
 
@@ -45,12 +45,12 @@ defmodule PresencemediaWeb.IndexLive do
   separately. Nothing can reach the viewport either way, because the rail is the
   outer bound and the list lives inside it.
 
-  The data lives in `Presencemedia.Directory`, so this file is about the surface
+  The data lives in `Peoplemedia.Directory`, so this file is about the surface
   and nothing else.
   """
-  use PresencemediaWeb, :live_view
+  use PeoplemediaWeb, :live_view
 
-  alias Presencemedia.Directory
+  alias Peoplemedia.Directory
 
   @impl true
   def mount(_params, _session, socket) do

@@ -1,6 +1,6 @@
 # Media attribution
 
-The fixture users in `lib/presencemedia_web/live/home_live.ex` point at real
+The fixture users in `lib/peoplemedia_web/live/home_live.ex` point at real
 media hosted by Wikimedia Commons. Nothing is vendored into this repo — the
 browser fetches each file from `upload.wikimedia.org` at play time — but the
 licences below still require attribution wherever the work is shown, so they

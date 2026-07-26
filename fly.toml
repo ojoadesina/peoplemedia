@@ -1,9 +1,7 @@
 # peoplemedia — the presence app. No database: the surface is fixture data for
 # now, and the app does not depend on Ecto at all, so there is nothing to attach.
-#
-# MIGRATION IN PROGRESS. This points at the NEW app; presencemedia is still up
-# and serving until peoplemedia has a good deploy, so there is never a gap with
-# nothing live. Destroy the old one only after the handover.
+# (There is a peoplemedia-db Postgres from an earlier, unrelated project left
+# running on its own; this app does not use it.)
 app = "peoplemedia"
 primary_region = "fra"
 

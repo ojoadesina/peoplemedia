@@ -1,11 +1,11 @@
-defmodule PresencemediaWeb.Router do
-  use PresencemediaWeb, :router
+defmodule PeoplemediaWeb.Router do
+  use PeoplemediaWeb, :router
 
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
-    plug :put_root_layout, html: {PresencemediaWeb.Layouts, :root}
+    plug :put_root_layout, html: {PeoplemediaWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
@@ -14,7 +14,7 @@ defmodule PresencemediaWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", PresencemediaWeb do
+  scope "/", PeoplemediaWeb do
     pipe_through :browser
 
     live "/", IndexLive
@@ -24,7 +24,7 @@ defmodule PresencemediaWeb.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", PresencemediaWeb do
+  # scope "/api", PeoplemediaWeb do
   #   pipe_through :api
   # end
 end

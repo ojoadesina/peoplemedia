@@ -1,4 +1,4 @@
-defmodule PresencemediaWeb.ConnCase do
+defmodule PeoplemediaWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule PresencemediaWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use PresencemediaWeb.ConnCase, async: true`, although
+  by setting `use PeoplemediaWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,14 +20,14 @@ defmodule PresencemediaWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint PresencemediaWeb.Endpoint
+      @endpoint PeoplemediaWeb.Endpoint
 
-      use PresencemediaWeb, :verified_routes
+      use PeoplemediaWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import PresencemediaWeb.ConnCase
+      import PeoplemediaWeb.ConnCase
     end
   end
 

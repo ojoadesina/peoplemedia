@@ -1,9 +1,9 @@
-defmodule Presencemedia.MixProject do
+defmodule Peoplemedia.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :presencemedia,
+      app: :peoplemedia,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -20,7 +20,7 @@ defmodule Presencemedia.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Presencemedia.Application, []},
+      mod: {Peoplemedia.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -72,10 +72,10 @@ defmodule Presencemedia.MixProject do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind presencemedia", "esbuild presencemedia"],
+      "assets.build": ["compile", "tailwind peoplemedia", "esbuild peoplemedia"],
       "assets.deploy": [
-        "tailwind presencemedia --minify",
-        "esbuild presencemedia --minify",
+        "tailwind peoplemedia --minify",
+        "esbuild peoplemedia --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

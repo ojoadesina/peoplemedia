@@ -1,17 +1,17 @@
-defmodule PresencemediaWeb.ErrorHTML do
+defmodule PeoplemediaWeb.ErrorHTML do
   @moduledoc """
   This module is invoked by your endpoint in case of errors on HTML requests.
 
   See config/config.exs.
   """
-  use PresencemediaWeb, :html
+  use PeoplemediaWeb, :html
 
   # If you want to customize your error pages,
   # uncomment the embed_templates/1 call below
   # and add pages to the error directory:
   #
-  #   * lib/presencemedia_web/controllers/error_html/404.html.heex
-  #   * lib/presencemedia_web/controllers/error_html/500.html.heex
+  #   * lib/peoplemedia_web/controllers/error_html/404.html.heex
+  #   * lib/peoplemedia_web/controllers/error_html/500.html.heex
   #
   # embed_templates "error_html/*"
 

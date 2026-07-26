@@ -31,7 +31,7 @@ COPY priv priv
 COPY lib lib
 COPY assets assets
 
-# Compile first so LiveView's colocated hooks (phoenix-colocated/presencemedia) exist
+# Compile first so LiveView's colocated hooks (phoenix-colocated/peoplemedia) exist
 # before esbuild bundles them.
 RUN mix compile
 
@@ -60,7 +60,7 @@ RUN chown nobody /app
 
 ENV MIX_ENV="prod"
 
-COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/presencemedia ./
+COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/peoplemedia ./
 
 USER nobody
 

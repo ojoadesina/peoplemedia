@@ -1,5 +1,5 @@
-defmodule PresencemediaWeb.IndexLiveTest do
-  use PresencemediaWeb.ConnCase
+defmodule PeoplemediaWeb.IndexLiveTest do
+  use PeoplemediaWeb.ConnCase
   import Phoenix.LiveViewTest
 
   test "the surface renders its line and every scoped person", %{conn: conn} do
