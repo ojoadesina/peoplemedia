@@ -253,17 +253,54 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
   end
 
-  # WHAT THE TAG SAYS, with the markup taken out of the way. It is a two-line
-  # button — the scope over the place as faded subtext — so the two halves are
-  # in separate elements and no substring of the raw HTML holds both. Stripping
-  # the tags and collapsing the whitespace asks the question the tests actually
-  # mean: does this control, read aloud, name a scope and a place together.
+  test "exactly one of the two boxes is lit, and it is the one the list obeys", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+    wash = ~r/(list-place|list-scope)[^"]*bg-primary-600\/15/
+
+    # Over people the population box is lit and the place box is not: a
+    # population is READ OUT OF a place, so lighting both would claim two things
+    # are being chosen when only one is.
+    assert Regex.scan(wash, boxes_html(live), capture: :all_but_first) == [["list-scope"]]
+
+    # Over the roll of places it swaps — and the population box goes quiet
+    # precisely because its count is now being driven by the band.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert Regex.scan(wash, boxes_html(live), capture: :all_but_first) == [["list-place"]]
+  end
+
+  test "the boxes answer the band from the rail, not the head of the column", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+
+    # The cluster is placed by app.css against the stage box, so it carries no
+    # position and no width of its own — either here would be a second opinion
+    # about where the rail is. Its OWN class attribute, not the subtree: the
+    # frame's replay control is legitimately absolute inside it.
+    boxes = boxes_html(live)
+    own = Regex.run(~r/<div class="(scope-boxes[^"]*)"/, boxes, capture: :all_but_first)
+    refute hd(own) =~ "absolute"
+    refute hd(own) =~ "ml-auto"
+    refute hd(own) =~ "--list-w"
+
+    # Three boxes, flush and in one row: place, population, then the frame on
+    # the rail's right edge.
+    assert boxes =~ "list-place"
+    assert boxes =~ "list-scope"
+    assert boxes =~ ~s(id="frame")
+    refute boxes =~ "-ml-3"
+  end
+
+  # WHAT THE BOXES SAY, with the markup taken out of the way. Each box is a
+  # button of its own and the number and its word are separate nodes, so no
+  # substring of the raw HTML holds a whole phrase. Stripping the tags and
+  # collapsing the whitespace asks the question the tests actually mean: read
+  # aloud, does this cluster name a place and a population of it.
   defp boxes_say(live) do
     live
-    |> element(".scope-boxes")
-    |> render()
+    |> boxes_html()
     |> String.replace(~r/<[^>]*>/, " ")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end
+
+  defp boxes_html(live), do: live |> element(".scope-boxes") |> render()
 end

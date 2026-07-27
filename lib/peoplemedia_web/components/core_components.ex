@@ -681,67 +681,6 @@ defmodule PeoplemediaWeb.CoreComponents do
   end
 
   @doc """
-  THE SCOPE MARK — two links, and whether they hold.
-
-  It stands in the MARK'S COLUMN at the head of the list, where every row below
-  it carries a `letter_glyph`, so the lens is built out of the same parts as the
-  things it is a lens on.
-
-    SCOPED   — two square links OVERLAPPING. A relationship is a hold, and a
-               hold is two things that cannot be pulled apart without one of
-               them opening.
-    UNSCOPED — the same two links BROKEN OPEN and drawn apart: `[` and `]`
-               facing each other across a gap. Both halves are still there and
-               still turned towards each other, which is the honest shape of a
-               stranger — someone you could scope and have not.
-
-  SQUARE, NOT ROUND, like everything else drawn here. A chain link is a circle
-  everywhere else in the world; on this surface a curve is the one thing that
-  never appears, so the link is a rectangle and the open half of it is a
-  bracket. The house's own answer to a semicircle is `[`.
-
-  IT DOES NOT DIM WITH THE ROW MARKS. There are nineteen of those and one of
-  this, so the argument for holding them quiet — that a column of marks down
-  the left is noise — does not apply to a single mark at the top of it. It takes
-  the lens's own colour instead: terracotta while you are inside the world
-  picker, muted while you are not, which is what the words beside it already do.
-  """
-  attr :scope, :string, required: true
-  attr :class, :any, default: nil
-
-  def scope_glyph(assigns) do
-    ~H"""
-    <span class={["scope-glyph flex h-[1.4em] w-[1.4em] shrink-0", @class]} aria-hidden="true">
-      <svg
-        viewBox="0 0 24 24"
-        class="h-full w-full"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="butt"
-        stroke-linejoin="miter"
-      >
-        <%!-- HELD: two closed rings, INTERSECTED — each one's edge falls inside
-             the other, so a third shape appears where they cross and neither
-             can be lifted away on its own. Two rings merely touching would be
-             two rings standing next to each other, which is what a list of
-             strangers already looks like. --%>
-        <rect :if={@scope == "SCOPED"} x="3.5" y="7" width="10" height="10" />
-        <rect :if={@scope == "SCOPED"} x="10.5" y="7" width="10" height="10" />
-        <%!-- OPEN: THE SAME TWO RINGS, STILL INTERSECTED, each with a gap cut
-             out of its top edge. Not pulled apart — pulled apart would say
-             these two have nothing to do with each other, and an unscoped
-             person is someone you could hold and have not. They are in exactly
-             the position that would hold, and neither one closes, so nothing
-             does. The two gaps read as one broken line across the top. --%>
-        <path :if={@scope != "SCOPED"} d="M7 7H3.5v10h10V7h-3.5" />
-        <path :if={@scope != "SCOPED"} d="M14 7h-3.5v10h10V7h-3.5" />
-      </svg>
-    </span>
-    """
-  end
-
-  @doc """
   THE FLOW — which way the last letters went, and whether they landed.
 
   Two arrows on the right of a row, out on the left and in on the right, the

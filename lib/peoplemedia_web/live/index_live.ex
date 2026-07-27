@@ -173,6 +173,32 @@ defmodule PeoplemediaWeb.IndexLive do
   defp other_scope("SCOPED"), do: "UNSCOPED"
   defp other_scope(_unscoped), do: "SCOPED"
 
+  # ── WHICH BOX IS LIT ────────────────────────────────────────────────────────
+  # EXACTLY ONE AT A TIME, and it is whichever the list is currently obeying —
+  # the place box over the roll of places, the population box over people.
+  #
+  # They are not equals sitting side by side. A population is READ OUT OF a
+  # place: the count in the second box is the first box's own figure, and over
+  # the roll of places it changes under your eye as countries pass through the
+  # band. Lighting both would claim two things are being chosen when only one
+  # is, and lighting the one whose value is being driven by the other is a box
+  # lying about who is in charge.
+  #
+  # Written as two functions rather than inline, because the pair has to stay
+  # identical across both boxes — a wash that is a shade off between them reads
+  # as a bug rather than as a state. They take a BOOLEAN rather than assigns, so
+  # the caller still names the assign it depends on and change tracking holds.
+  defp box_wash(true),
+    do:
+      "bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30"
+
+  defp box_wash(false),
+    do:
+      "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+
+  defp box_ink(true), do: "text-primary-600 dark:text-primary-500"
+  defp box_ink(false), do: "text-neutral-500 dark:text-neutral-400"
+
   # Swapping what the list holds makes the old index meaningless — it now points
   # at a different person, or at a country.
   defp reset_list(socket) do
@@ -420,44 +446,43 @@ defmodule PeoplemediaWeb.IndexLive do
             </ul>
           </div>
 
-          <%!-- ── THE HEAD OF THE LIST ───────────────────────────────────────
-               THREE BOXES, and between them they answer every question this
-               screen can be asked: WHERE you are, WHICH of that place's two
-               populations you are looking at, and — when there is one — WHAT
-               the person under the band is sending.
+          <%!-- ── THE TRAILING BOXES ─────────────────────────────────────────
+               THREE BOXES ON ONE LINE, and between them they answer every
+               question this screen can be asked: WHERE you are, WHICH of that
+               place's two populations you are looking at, and — when there is
+               one — WHAT the person under the band is sending.
 
-               THEY USED TO BE SCATTERED. The place and the population were a
-               two-line text lens at the top left; the two counts were a pair of
-               boxes pinned to the right rail, and only over the roll of places;
-               the frame was a third thing on that same right edge, and only
-               over people. Three controls, three positions, two of which
-               appeared and vanished depending on what you were doing — so the
-               top of the screen was never the same shape twice and nothing up
-               there could be aimed at from memory.
+               THEY ANSWER THE BAND, which is why they sit level with it on the
+               right rail and not at the head of the column. Everything below
+               the band is live scrolling list; the strip beside it is the one
+               place on this surface that is reliably clear, and a control that
+               answers "which one" belongs across from the thing doing the
+               choosing. Moving them to the top left emptied the right half of a
+               wide screen for nothing and left the band answering to nobody.
 
-               ONE CLUSTER, ALWAYS IN THE SAME PLACE, is the whole of the fix.
-               The first two boxes never leave; the third arrives inside the
-               cluster rather than somewhere else on the page.
+               WHAT DID CHANGE is that there is now one cluster instead of three
+               separately-placed things — a text lens at the top left, two count
+               boxes on the right and only over places, a frame on the same edge
+               and only over people. The first two boxes never leave now; the
+               third arrives inside the cluster rather than somewhere else.
 
-               THE PAIR IS OFFSET, not flush, and the population box overlaps
-               the place box's corner. Two identical boxes set side by side read
-               as a segmented control — two halves of one switch, where pressing
-               either picks between them. These are not that: they are two
-               different questions that happen to sit together. The offset says
-               so before a word is read, and it is the reason the boxes have
-               different widths too.
+               SIDE BY SIDE AND FLUSH, in one row, with the frame last so it
+               keeps the rail's right edge — the app's right bound, which
+               nothing crosses.
+
+               ONE OF THE TWO IS LIT AT A TIME, and it is whichever the list is
+               currently obeying: the place box over the roll of places, the
+               population box over people. They are not equals sitting side by
+               side — a population is read out of a place, so lighting both
+               would claim two things are being chosen when only one is.
 
                NO BRACKETS ON EITHER OF THEM. Brackets on this surface mean
-               AIMING — they pick out the one thing among several you have
-               chosen — and there is nothing here to pick out: each box shows
-               the state it is in, and pressing it changes that state. Colour
-               alone carries it. The frame keeps its brackets, because a frame
-               genuinely is aimed: it is the answer to whichever row the band
-               has settled on, and the brackets are what tie the two together.
-
-               THE FILL BEGINS AT THE RAIL, like the band's does, because these
-               are boxes and not words. --%>
-          <div class="scope-boxes pointer-events-none absolute top-0 left-0 z-20 flex w-(--list-w) items-start">
+               AIMING — they pick out one thing among several — and there is
+               nothing here to pick out: each box shows the state it is in, and
+               pressing it changes that state. Colour alone carries it. The
+               frame keeps its brackets, because a frame genuinely is aimed: it
+               is the answer to whichever row the band has settled on. --%>
+          <div class="scope-boxes pointer-events-none z-20 flex items-center gap-3">
             <%!-- ONE: THE PLACE, and the switch between people and the world.
                  Over people it names where you are; over the roll of places it
                  follows the band, showing whatever country has scrolled into it
@@ -474,21 +499,18 @@ defmodule PeoplemediaWeb.IndexLive do
               phx-click="place_box"
               aria-pressed={to_string(@list_mode == :location)}
               class={[
-                "list-place pointer-events-auto mt-2 flex h-(--box-h) cursor-pointer items-center",
-                "px-4 outline-none transition-colors focus-visible:underline",
-                (@list_mode == :location &&
-                   "bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30") ||
-                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+                "list-place pointer-events-auto flex h-(--box-h) cursor-pointer items-center",
+                "px-5 outline-none transition-colors focus-visible:underline",
+                box_wash(@list_mode == :location)
               ]}
             >
               <%!-- The place takes the ROW's type, not the count's, and that is
                    what keeps this box the narrower of the two: a word set at a
                    number's size would make the smaller box the wider one, and
-                   "PHILIPPINES" would run the pair past the column on a phone. --%>
+                   "PHILIPPINES" would run the three past the rail. --%>
               <span class={[
                 "text-(length:--row-type) leading-none tracking-(--row-track) transition-colors",
-                (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
-                  "text-neutral-500 dark:text-neutral-400"
+                box_ink(@list_mode == :location)
               ]}>
                 {String.upcase(@box_place)}
               </span>
@@ -507,36 +529,37 @@ defmodule PeoplemediaWeb.IndexLive do
                  That is the old counts' behaviour kept whole: pressing a
                  population under a country always answered both halves at once,
                  and a door that dropped the country you were looking at on the
-                 way through would undo the thing you had just done. --%>
+                 way through would undo the thing you had just done.
+
+                 ITS COUNT IS THE PLACE'S COUNT, which is the other half of why
+                 only one of these two can be lit: this box is not a sibling of
+                 the place box, it is READ OUT OF IT. Over the roll of places it
+                 goes quiet and follows the band — the numbers keep changing
+                 under your eye as countries pass through, and a lit box whose
+                 value is being driven by something else is a box lying about
+                 who is in charge. --%>
             <button
               type="button"
               phx-click="scope_box"
+              aria-pressed={to_string(@list_mode == :people)}
               class={[
-                "list-scope pointer-events-auto z-10 -ml-3 flex h-(--box-h) cursor-pointer items-center",
-                "gap-2 px-4 text-(length:--row-type) outline-none transition-colors focus-visible:underline",
-                "bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30"
+                "list-scope pointer-events-auto flex h-(--box-h) cursor-pointer items-baseline",
+                "gap-2.5 px-5 outline-none transition-colors focus-visible:underline",
+                box_wash(@list_mode == :people)
               ]}
             >
-              <%!-- THE RINGS LEAD, and they are the reason this box needs no
-                   second label. Intersected, the two hold; broken open at the
-                   top, in exactly the same position, they do not. A number and
-                   a word tell you which population you are in; the mark tells
-                   you what a population IS, which is the part a stranger to the
-                   app has no way to guess.
-
-                   items-center on the box and items-baseline on the pair, not
-                   both at once: the number and its word must sit on one
-                   baseline, and a mark with height and no text in it has no
-                   baseline to offer — it would align its bottom edge to theirs
-                   and drag the whole box out of line. --%>
-              <.scope_glyph scope={@scope} class="mr-1" />
-              <span class="flex items-baseline gap-2">
-                <span class="text-(length:--count-type) leading-none font-bold tracking-[0.06em] text-primary-600 dark:text-primary-500">
-                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
-                </span>
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-primary-600/55 dark:text-primary-500/55">
-                  {(@scope == "SCOPED" && "SCOPES") || "UNSCOPES"}
-                </span>
+              <span class={[
+                "text-(length:--count-type) leading-none font-bold tracking-[0.06em] transition-colors",
+                box_ink(@list_mode == :people)
+              ]}>
+                {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
+              </span>
+              <span class={[
+                "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
+                (@list_mode == :people && "text-primary-600/55 dark:text-primary-500/55") ||
+                  "text-neutral-400 dark:text-neutral-500"
+              ]}>
+                {(@scope == "SCOPED" && "SCOPES") || "UNSCOPES"}
               </span>
             </button>
 
@@ -559,7 +582,7 @@ defmodule PeoplemediaWeb.IndexLive do
               role="button"
               tabindex="0"
               aria-label="Expand frame"
-              class="frame is-empty pointer-events-auto relative mt-2 ml-3 flex size-(--box-h) shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
+              class="frame is-empty pointer-events-auto relative flex size-(--box-h) shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
             >
               <%!-- The screen is inset from the frame so the brackets bracket the
                    picture rather than cropping it, and square on every corner —
@@ -610,7 +633,7 @@ defmodule PeoplemediaWeb.IndexLive do
               type="button"
               phx-click="cancel_place"
               aria-label="Leave the world without changing place"
-              class="pointer-events-auto ml-auto cursor-pointer p-2 text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
+              class="pointer-events-auto cursor-pointer self-start p-1 text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
             >
               <svg
                 viewBox="0 0 24 24"

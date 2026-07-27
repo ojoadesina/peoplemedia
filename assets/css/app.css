@@ -1473,6 +1473,11 @@ html:not([data-theme]) .live-screen {
   --row-h: 5rem;
   --panel-row-h: 5rem;
   --band-h: 4.5rem;
+  /* ONE HEIGHT FOR THE THREE TRAILING BOXES. It lives up here rather than on
+     .scope-boxes because the stage box reads it too — the narrow layout lifts
+     the cluster out above the list and has to reserve exactly that much room —
+     and a custom property only ever inherits DOWN. */
+  --box-h: 3.4rem;
 
   /* ── THE LIST'S VOICE ────────────────────────────────────────────────────
      ONE TYPE, DECLARED ONCE. Every word that belongs to the list — a row's
@@ -1567,29 +1572,57 @@ html:not([data-theme]) .live-screen {
   --panel-top: 7.5rem;
 }
 
-/* ── THE HEAD OF THE LIST ──────────────────────────────────────────────────────
-   THREE BOXES IN ONE ROW at the top of the column, and none of them positioned
-   individually any more. This used to be three separate answers to "where does
-   this go": a text lens at the top left, two count boxes pinned to the right
-   rail and centred on the band, and a frame on that same right edge — each with
-   its own absolute rules, and its own second set of them for the phone.
+/* ── THE TRAILING BOXES ────────────────────────────────────────────────────────
+   THREE BOXES IN ONE ROW, ACROSS FROM THE BAND. They ANSWER the band — which
+   place, which population, and what the settled person is sending — so they sit
+   level with it on the right rail, which is where the frame and the two counts
+   always were. Everything below the band is live scrolling list; that strip is
+   the one place on this surface reliably clear, and it is the only side a
+   trailing box can hold without a row sliding through it.
 
-   Now the CLUSTER is positioned once and the boxes sit in it in flow, so the
-   phone needs nothing but a smaller --box-h. Everything that follows is about
-   the pair's own geometry rather than about the page's.
+   Moving them to the head of the column emptied the right half of a wide screen
+   for nothing and left the band answering to nobody. What was worth keeping
+   from that attempt is that there is now ONE cluster positioned once, with the
+   boxes in flow inside it, instead of three things each carrying their own
+   absolute rules and their own second set for the phone.
 
-   THEY MUST CLEAR THE BAND, and that is the one measurement worth stating
-   because nothing enforces it: the cluster starts at the column's top and the
-   band's upper edge is at --band-top minus half of --band-h. On the desktop
-   that is 84px against a cluster of --box-h plus its 0.5rem offset; on a phone,
-   72px against a shorter one. Grow --box-h past that and the boxes will sit on
-   top of the band with no warning. */
+   ml-auto is gone with it: the cluster is placed by these rules and ends on the
+   rail, which is the app's right bound and the edge every trailing thing holds. */
 .scope-boxes {
-  --box-h: 3.4rem;
+  position: absolute;
+  top: var(--band-top);
+  right: 0;
+  transform: translateY(-50%);
 }
-@media (max-width: 40rem) {
+
+/* ── WHEN THE RAIL RUNS OUT ────────────────────────────────────────────────────
+   ABOVE THE LIST, NOT BESIDE IT, and the threshold is arithmetic rather than a
+   device: the list column is a fixed 32rem and this cluster is roughly 27rem of
+   boxes, so the two need about 59rem of rail between them. Below 66rem of
+   viewport they would overlap — the band's own words first, which is the one
+   collision this page cannot afford.
+
+   THIS IS NOT THE PHONE BREAKPOINT and must not be folded into it. The phone
+   query at 40rem moves TOKENS; this one moves a box, and it has to fire a good
+   deal earlier because what runs out here is horizontal room, not screen size.
+   A narrow desktop window hits this long before anything else on the page
+   notices. The old layout had the same cliff and simply fell off it: the two
+   counts overlapped the list from 40rem to about 52rem with nothing to catch
+   them.
+
+   The stage box takes the cluster's height as top margin, because `bottom:
+   calc(100% + 1rem)` puts the boxes OUTSIDE it — without the margin they climb
+   into the strapline. */
+@media (max-width: 66rem) {
   .scope-boxes {
-    --box-h: 3rem;
+    top: auto;
+    right: 1.75rem;
+    bottom: calc(100% + 1rem);
+    left: auto;
+    transform: none;
+  }
+  .stage-box {
+    margin-top: calc(var(--box-h) + 2rem);
   }
 }
 
@@ -1634,6 +1667,7 @@ html:not([data-theme]) .live-screen {
        see out of step. */
     --row-h: 4.25rem;
     --band-h: 3.75rem;
+    --box-h: 3rem;
     /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
        phone has the least page to spend and the most reason not to spend it on
        empty space above a mark. */
@@ -1660,12 +1694,10 @@ html:not([data-theme]) .live-screen {
     --b: 2px;
   }
 
-  /* THE PHONE NEEDS NOTHING HERE ANY MORE. The frame used to be pinned to the
-     right rail and centred on the band, which a phone had no width for, so it
-     was re-placed above the list with its own right margin — and the two counts
-     were re-placed and re-laid-out beside it. All three now sit in the cluster
-     at the top of the column, in flow, so the only thing this screen changes is
-     --box-h. Three sets of duplicated layout rules gone with them. */
+  /* THE PHONE NEEDS NO LAYOUT HERE ANY MORE, only a smaller --box-h above. The
+     frame, and separately the two counts, each used to be re-placed and
+     re-laid-out for this screen; they are one cluster now, and the rule that
+     lifts it above the list already fired 26rem ago. */
 
   /* THE ROOM IS HELD WHETHER THE BOX IS THERE OR NOT. Opening the gap only on
      selection was correct about space and wrong about attention: the whole list
