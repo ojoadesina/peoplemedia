@@ -14,6 +14,17 @@ defmodule PeoplemediaWeb.ScopingTest do
     %{conn: check_in(conn, me), me: me}
   end
 
+  # The word on the uncovered action, with the markup taken out of the way —
+  # asserting on rendered indentation is asserting on the formatter.
+  defp act_of(row) do
+    row
+    |> String.replace(~r/<[^>]*>/, " ")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+    |> String.split()
+    |> List.last()
+  end
+
   defp stranger_row(html) do
     html
     |> then(&Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, &1))
@@ -22,22 +33,24 @@ defmodule PeoplemediaWeb.ScopingTest do
   end
 
   describe "the swipe" do
-    test "a stranger's row carries a scope action; someone you hold does not",
-         %{conn: conn} do
-      # UNSCOPED — everyone here is a stranger, so every row can be swiped.
+    test "each row offers the one act that applies to it", %{conn: conn} do
+      # A STRANGER CAN BE SCOPED. That is the only thing you can do to a name
+      # you do not hold.
       {:ok, live, _} = live(conn, ~p"/")
       unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
 
       rows = Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, unscoped) |> List.flatten()
       assert length(rows) == stranger_count()
-      assert Enum.all?(rows, &(&1 =~ "row-scope"))
+      assert Enum.all?(rows, &(act_of(&1) == "SCOPE"))
+      assert Enum.all?(rows, &(&1 =~ ~s(data-panel-open="scope")))
 
-      # SCOPED — scoping is the act of taking somebody up, and a row you have
-      # already taken up has nothing to offer here.
+      # SOMEONE YOU HOLD CAN BE WRITTEN TO — and cannot be scoped again, which
+      # is why the action swaps rather than doubling.
       {:ok, _live, scoped} = live(conn, ~p"/")
       rows = Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, scoped) |> List.flatten()
       assert rows != []
-      refute Enum.any?(rows, &(&1 =~ "row-scope"))
+      assert Enum.all?(rows, &(act_of(&1) == "WRITE"))
+      assert Enum.all?(rows, &(&1 =~ ~s(data-panel-open="write")))
     end
 
     test "the row is a two-page snap scroller and nothing more", %{conn: conn} do
@@ -60,7 +73,7 @@ defmodule PeoplemediaWeb.ScopingTest do
 
       # Neither half can do this alone: the panel's open state lives in the
       # browser and the target lives in the process.
-      assert row =~ ~s(phx-click="scope_person")
+      assert row =~ ~s(phx-click="pick_person")
       assert row =~ ~s(data-panel-open="scope")
     end
   end
@@ -70,7 +83,7 @@ defmodule PeoplemediaWeb.ScopingTest do
       them = person("NEWCOMER", "Brazil")
 
       {:ok, live, _} = live(conn, ~p"/")
-      html = render_click(live, :scope_person, %{"id" => them.id})
+      html = render_click(live, :pick_person, %{"id" => them.id, "act" => "scope"})
       assert html =~ "NEWCOMER"
       assert html =~ "WHAT DO YOU CALL THEM?"
 
@@ -92,7 +105,7 @@ defmodule PeoplemediaWeb.ScopingTest do
          %{conn: conn, me: me} do
       them = person("NEWCOMER", "Brazil")
       {:ok, live, _} = live(conn, ~p"/")
-      render_click(live, :scope_person, %{"id" => them.id})
+      render_click(live, :pick_person, %{"id" => them.id, "act" => "scope"})
 
       assert render_submit(live, :scope_send, %{"label" => "   "}) =~ "WHAT DO YOU CALL THEM?"
       assert Relationships.pending_scopes_for(me.id) == %{incoming: [], outgoing: []}
@@ -101,7 +114,7 @@ defmodule PeoplemediaWeb.ScopingTest do
     test "a visitor cannot scope anyone", %{} do
       them = person("NEWCOMER", "Brazil")
       {:ok, live, _} = live(build_conn(), ~p"/")
-      render_click(live, :scope_person, %{"id" => them.id})
+      render_click(live, :pick_person, %{"id" => them.id, "act" => "scope"})
 
       assert render_submit(live, :scope_send, %{"label" => "cousin"}) =~ "CHECK IN FIRST"
     end

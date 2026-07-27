@@ -63,7 +63,7 @@ defmodule PeoplemediaWeb.IndexLive do
   """
   use PeoplemediaWeb, :live_view
 
-  alias Peoplemedia.{Directory, Notifications, Relationships}
+  alias Peoplemedia.{Directory, Letters, Notifications, Relationships}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -104,6 +104,7 @@ defmodule PeoplemediaWeb.IndexLive do
     me = socket.assigns.current_person
 
     socket
+    |> assign(:list_version, (socket.assigns[:list_version] || 0) + 1)
     |> assign(scopes: Directory.scopes(me), unscopes: Directory.unscopes(me))
     |> assign(unread: unread_for(me), pending: pending_for(me))
     |> reset_list()
@@ -159,8 +160,18 @@ defmodule PeoplemediaWeb.IndexLive do
   # THE SWIPE NAMES SOMEBODY, and this is the half of that press the server
   # owns: who. The other half — opening the room — is the hook's, because the
   # panel's open state lives in the browser.
-  def handle_event("scope_person", %{"id" => id}, socket) do
-    {:noreply, assign(socket, scope_target: Peoplemedia.People.get_person(id), scope_error: nil)}
+  def handle_event("pick_person", %{"id" => id, "act" => act}, socket) do
+    them = Peoplemedia.People.get_person(id)
+    me = socket.assigns.current_person
+
+    # OPENING A THREAD IS READING IT. Asking for a second press to admit you
+    # read something is asking you to do the app's bookkeeping.
+    if (act == "write" and me) && them, do: Letters.mark_read(me.id, them.id)
+
+    {:noreply,
+     socket
+     |> assign(scope_target: them, scope_error: nil)
+     |> then(&((act == "write" && reload_lists(&1)) || &1))}
   end
 
   # WHAT YOU CALL THEM IS THE WHOLE ACT. A scope with no name is not a weaker
@@ -189,6 +200,75 @@ defmodule PeoplemediaWeb.IndexLive do
 
         {:noreply, socket |> assign(scope_target: nil, scope_error: nil) |> reload_lists()}
     end
+  end
+
+  # WRITING IS THE ONE ACT THIS APP IS FOR, and text is the whole of it for now:
+  # a voice and a face need a recorder, and this needs none. The write path is
+  # the same either way, so proving it with words proves it.
+  def handle_event("write_letter", %{"body" => body}, socket) do
+    me = socket.assigns.current_person
+    them = socket.assigns.scope_target
+    body = String.trim(body)
+
+    cond do
+      is_nil(me) or is_nil(them) ->
+        {:noreply, assign(socket, scope_error: "Check in first.")}
+
+      body == "" ->
+        {:noreply, assign(socket, scope_error: "Say something.")}
+
+      true ->
+        case Letters.write(me.id, them.id, %{kind: "text", body: body}) do
+          {:ok, _} ->
+            {:ok, _} = Notifications.notify(them.id, "letter", me.id)
+            {:noreply, socket |> assign(scope_target: nil, scope_error: nil) |> reload_lists()}
+
+          {:error, :no_relationship} ->
+            {:noreply, assign(socket, scope_error: "Scope them first.")}
+
+          {:error, _} ->
+            {:noreply, assign(socket, scope_error: "That did not go through.")}
+        end
+    end
+  end
+
+  # ── THE HANDSHAKE, ROUNDS TWO AND THREE ─────────────────────────────────────
+  # Round one is the swipe. These are the answers, and they are the whole reason
+  # the scoping room exists: a request you can see but not answer is a notice,
+  # not a handshake.
+  def handle_event("scope_back", %{"other_id" => id, "label" => label}, socket) do
+    me = socket.assigns.current_person
+    label = String.trim(label)
+
+    if label == "" do
+      {:noreply, assign(socket, scope_error: "What do you call them?")}
+    else
+      {:ok, _} = Relationships.scope_back(me.id, to_id(id), String.upcase(label))
+      {:ok, _} = Notifications.notify(to_id(id), "scope_back", me.id)
+      {:noreply, reload_lists(socket)}
+    end
+  end
+
+  def handle_event("scope_accept", %{"id" => id}, socket) do
+    me = socket.assigns.current_person
+    other = to_id(id)
+
+    case Relationships.accept(me.id, other) do
+      {:ok, _} ->
+        {:ok, _} = Notifications.notify(other, "scope_accepted", me.id)
+        {:noreply, reload_lists(socket)}
+
+      {:error, _} ->
+        {:noreply, assign(socket, scope_error: "Not ready yet.")}
+    end
+  end
+
+  # A DECLINE DELETES NOTHING. Both sides become strangers — tracked, hidden and
+  # re-askable — so "have we ever spoken?" keeps an answer.
+  def handle_event("scope_reject", %{"id" => id}, socket) do
+    me = socket.assigns.current_person
+    {:ok, _} = Relationships.reject(me.id, to_id(id))
+    {:noreply, reload_lists(socket)}
   end
 
   # ── THE TWO BOXES ───────────────────────────────────────────────────────────
@@ -275,6 +355,13 @@ defmodule PeoplemediaWeb.IndexLive do
   defp box_ink(true), do: "text-primary-600 dark:text-primary-500"
   defp box_ink(false), do: "text-neutral-500 dark:text-neutral-400"
 
+  # AN ID OFF THE WIRE IS A STRING, and an id from anywhere else is not. The
+  # browser only ever sends the first kind, so this looks redundant until
+  # something calls these directly — and then it is the difference between a
+  # handler and a crash.
+  defp to_id(id) when is_binary(id), do: String.to_integer(id)
+  defp to_id(id) when is_integer(id), do: id
+
   # Swapping what the list holds makes the old index meaningless — it now points
   # at a different person, or at a country.
   defp reset_list(socket) do
@@ -288,7 +375,15 @@ defmodule PeoplemediaWeb.IndexLive do
 
   # Stored rather than read through a function in the markup, which would switch
   # LiveView's change tracking off for the whole block.
-  defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
+  defp put_list(socket) do
+    list = current_list(socket.assigns)
+
+    socket
+    |> assign(:list, list)
+    # See the note on the scroller's id: an ignored element only re-renders when
+    # its identity changes, so the version IS the re-render.
+    |> assign(:list_version, socket.assigns[:list_version] || 0)
+  end
 
   # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
   # places the place box is showing the band's own answer — it follows the
@@ -528,7 +623,20 @@ defmodule PeoplemediaWeb.IndexLive do
                on an ignored element a new identity is the only way to swap the
                rows underneath — that is what lets three lists share one
                scroller and one band. Anything keyed on this element in CSS must
-               therefore use the CLASS, never the id. --%>
+               therefore use the CLASS, never the id.
+
+               AND IT CARRIES A VERSION, which is not decoration. `ignore` means
+               ignore: the contents are written once and no patch ever touches
+               them again. That was invisible while the list was fixtures and
+               became a real bug the moment it was not — scope somebody and they
+               would not appear, write a letter and the row would go on showing
+               the old one, until something else happened to change the mode and
+               re-mount the whole thing by accident.
+
+               So anything that changes what the list SAYS bumps the version,
+               and a new id is a new element. The cost is the scroll position,
+               which resets to the top — acceptable, because every one of those
+               events is the list itself changing, and correct beats still. --%>
           <%!-- THE SCROLLER IS A DIRECT SIBLING OF THE BAR, and must stay one.
                The rules that reveal the "--" placeholder and the FRAME are
                written `.scopes-scroll.has-selection ~ .bar .frame` — the hook
@@ -538,7 +646,7 @@ defmodule PeoplemediaWeb.IndexLive do
                frame silently never appears. The column width lives on the
                scroller itself for exactly that reason. --%>
           <div
-            id={"scopes-scroll-#{@list_mode}-#{@scope}"}
+            id={"scopes-scroll-#{@list_mode}-#{@scope}-#{@list_version}"}
             phx-hook="Scopes"
             phx-update="ignore"
             class="scopes-scroll h-full w-(--list-w) overflow-y-auto overscroll-contain"
@@ -667,23 +775,26 @@ defmodule PeoplemediaWeb.IndexLive do
                     </div>
                   </div>
 
-                  <%!-- WHAT THE SWIPE UNCOVERS. Only on someone you do NOT hold —
-                     scoping is the act of taking somebody up, and a row you have
-                     already taken up has nothing to offer here yet.
+                  <%!-- WHAT THE SWIPE UNCOVERS, and it is a different act on each
+                       side of the list. Someone you do NOT hold can be SCOPED;
+                       someone you do can be WRITTEN to. Those are the only two
+                       things you can do to a name here, and each row offers
+                       exactly the one that applies to it.
 
-                     TWO THINGS ON ONE PRESS: the server is told who, and the
-                     hook opens the room. The panel's open state lives in the
-                     browser and the target lives in the process, so neither can
-                     do this alone. --%>
+                       TWO THINGS ON ONE PRESS: the server is told who, and the
+                       hook opens the room. The panel's open state lives in the
+                       browser and the target lives in the process, so neither
+                       can do this alone. --%>
                   <button
-                    :if={@list_mode == :people and is_nil(item[:label])}
+                    :if={@list_mode == :people}
                     type="button"
-                    data-panel-open="scope"
-                    phx-click="scope_person"
+                    data-panel-open={(item[:label] && "write") || "scope"}
+                    phx-click="pick_person"
                     phx-value-id={item.id}
+                    phx-value-act={(item[:label] && "write") || "scope"}
                     class="row-scope flex h-full shrink-0 snap-start items-center bg-primary-600/15 px-8 text-(length:--sub-type) tracking-(--sub-track) text-primary-600 transition-colors hover:bg-primary-600/25 dark:bg-primary-500/20 dark:text-primary-500 dark:hover:bg-primary-500/30"
                   >
-                    SCOPE
+                    {(item[:label] && "WRITE") || "SCOPE"}
                   </button>
                 </div>
               </li>

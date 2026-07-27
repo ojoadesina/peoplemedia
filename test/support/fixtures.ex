@@ -7,7 +7,8 @@ defmodule Peoplemedia.Fixtures do
   wants a list has to say whose it is — which is the honest cost of the list
   becoming real, and worth paying in one place rather than nineteen.
   """
-  alias Peoplemedia.{Identity, People, Relationships}
+  alias Peoplemedia.{Identity, Letters, People, Relationships}
+  alias Peoplemedia.Repo
 
   @held [
     {"MUM", "SARAH"},
@@ -40,16 +41,58 @@ defmodule Peoplemedia.Fixtures do
   def cast(owner \\ nil) do
     me = owner || passported()
 
-    for {label, name} <- @held do
+    # LETTERS TOO, and deliberately varied. The row summary has four arrow
+    # states and a lit mark, and a cast whose threads all look the same would
+    # let three of them rot untested.
+    #
+    # ALL THREE KINDS TOO. The row's mark is drawn from the newest letter's
+    # kind, so a cast written entirely in text would leave the eyes and the
+    # mouth undrawn and their tests passing on nothing.
+    #
+    #   {who wrote it, whether the recipient opened it, what it arrived as}
+    threads = [
+      [{:them, false, "voice"}],
+      [{:you, true, "face"}],
+      [{:them, true, "text"}, {:you, true, "voice"}],
+      [{:you, false, "text"}, {:them, true, "face"}],
+      [{:them, false, "face"}, {:you, true, "text"}],
+      []
+    ]
+
+    for {{label, name}, thread} <- Enum.zip(@held, threads) do
       them = person(name, "Finland")
       {:ok, _} = Relationships.request_scope(me.id, them.id, label)
       {:ok, _} = Relationships.scope_back(them.id, me.id, "OJO")
       {:ok, _} = Relationships.accept(me.id, them.id)
+
+      # Oldest first, so the last one written is the newest — which is the one
+      # the row summary speaks for.
+      for {who, read, kind} <- Enum.reverse(thread) do
+        sender = (who == :you && me) || them
+        recipient = (who == :you && them) || me
+
+        attrs =
+          case kind do
+            "text" -> %{kind: "text", body: "hello"}
+            other -> %{kind: other, media: "https://example.test/#{other}.mp3"}
+          end
+
+        {:ok, letter} = Letters.write(sender.id, recipient.id, attrs)
+        if read, do: mark_read(letter)
+      end
     end
 
     for name <- @strangers, do: person(name, "Brazil")
 
     me
+  end
+
+  # Straight to the row, because `Letters.mark_read/2` marks a whole side of a
+  # thread and these need one letter at a time.
+  defp mark_read(letter) do
+    letter
+    |> Ecto.Changeset.change(read_at: DateTime.utc_now() |> DateTime.truncate(:second))
+    |> Repo.update!()
   end
 
   def held_count, do: length(@held)

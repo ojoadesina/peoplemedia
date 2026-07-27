@@ -257,7 +257,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # what app.css exempts from the resting opacity. Dimming those too was the
     # mistake in between: it flattened the one difference the marks are for.
     lit = ~r/letter-glyph[^"]*is-lit[^"]*text-primary-600/
-    assert Regex.scan(lit, html) |> length() == 3
+    assert Regex.scan(lit, html) |> length() == 2
 
     # And no mark is lit without being terracotta, or vice versa.
     marks = Regex.scan(~r/class="(letter-glyph[^"]*)"/, html, capture: :all_but_first)

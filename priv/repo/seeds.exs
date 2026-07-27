@@ -10,7 +10,7 @@
 
 import Ecto.Query
 
-alias Peoplemedia.{Identity, People, Relationships}
+alias Peoplemedia.{Identity, Letters, People, Relationships}
 alias Peoplemedia.People.Person
 alias Peoplemedia.Repo
 
@@ -63,6 +63,22 @@ held = [
     {"TEAMMATE", "CHIDI"}
 ]
 
+# AND A LETTER OR TWO EACH, in all three kinds and both directions. The row
+# summary has four arrow states, three marks and an unread signal; a cast whose
+# threads all looked the same would leave most of the surface drawing nothing.
+#
+#   {who wrote it, whether the recipient opened it, what it arrived as}
+threads = [
+  [{:them, false, "voice"}],
+  [{:you, true, "face"}],
+  [{:them, true, "text"}, {:you, true, "voice"}],
+  [{:you, false, "text"}, {:them, true, "face"}],
+  [{:them, false, "face"}, {:you, true, "text"}],
+  [],
+  [{:them, true, "voice"}],
+  [{:you, true, "text"}]
+]
+
 held
 |> Enum.with_index()
 |> Enum.each(fn {{label, name}, i} ->
@@ -74,6 +90,25 @@ held
     {:ok, _} = Relationships.request_scope(me.id, person.id, label)
     {:ok, _} = Relationships.scope_back(person.id, me.id, "OJO")
     {:ok, _} = Relationships.accept(me.id, person.id)
+  end
+
+  # Oldest written first, so the last one is the newest — the one the row speaks
+  # for. Skipped entirely if this thread already has letters, or a second run
+  # would double every conversation.
+  if Letters.thread(me.id, person.id) == [] do
+    for {who, read, kind} <- Enum.reverse(Enum.at(threads, rem(i, length(threads)))) do
+      sender = (who == :you && me) || person
+      recipient = (who == :you && person) || me
+
+      attrs =
+        case kind do
+          "text" -> %{kind: "text", body: "Thinking of you."}
+          other -> %{kind: other, media: nil}
+        end
+
+      {:ok, _} = Letters.write(sender.id, recipient.id, attrs)
+      if read, do: Letters.mark_read(recipient.id, sender.id)
+    end
   end
 end)
 
@@ -106,4 +141,10 @@ end)
 
 people = Repo.aggregate(Person, :count)
 scopes = Repo.aggregate(Peoplemedia.Relationships.Scope, :count)
-IO.puts("seeded: " <> to_string(people) <> " people, " <> to_string(scopes) <> " scopes")
+letters = Repo.aggregate(Peoplemedia.Letters.Letter, :count)
+
+IO.puts(
+  "seeded: " <>
+    to_string(people) <>
+    " people, " <> to_string(scopes) <> " scopes, " <> to_string(letters) <> " letters"
+)

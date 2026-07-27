@@ -231,6 +231,38 @@ defmodule PeoplemediaWeb.FabPanel do
             SWIPE A NAME IN THE LIST TO SCOPE THEM
           </p>
         </div>
+
+        <%!-- ── WRITE ──────────────────────────────────────────────────────
+             The one act this app is for. Text only for now: a voice and a face
+             need a recorder and this needs none, and the write path is the same
+             either way — so proving it with words proves it. --%>
+        <div data-panel-body="write" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
+          <.room_title>{(@scope_target && String.upcase(@scope_target.name)) || "WRITE"}</.room_title>
+
+          <p
+            :if={@scope_error}
+            class={[heading_cls(), "px-(--list-pad) pt-6 text-primary-600 dark:text-primary-500"]}
+          >
+            {String.upcase(@scope_error)}
+          </p>
+
+          <form :if={@scope_target} phx-submit="write_letter" class="pt-6">
+            <p class={[heading_cls(), "px-(--list-pad)"]}>A LETTER</p>
+            <textarea
+              name="body"
+              rows="5"
+              placeholder="Say something."
+              class="w-full resize-none bg-transparent pt-6 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+            ></textarea>
+            <div class="pt-6">
+              <.door type="submit" tone={:primary}>SEND IT</.door>
+            </div>
+          </form>
+
+          <p :if={is_nil(@scope_target)} class={[heading_cls(), "px-(--list-pad) pt-10"]}>
+            SWIPE A NAME YOU HOLD TO WRITE TO THEM
+          </p>
+        </div>
       </div>
     </div>
     """
@@ -335,16 +367,80 @@ defmodule PeoplemediaWeb.FabPanel do
 
   defp pending_row(assigns) do
     ~H"""
-    <div class="flex items-center gap-4 px-(--list-pad) py-3">
-      <span class="min-w-0 flex-1">
-        <span class="block truncate text-(length:--sub-type) font-semibold tracking-(--sub-track) text-neutral-600 dark:text-neutral-300">
-          {(@entry.other && String.upcase(@entry.other.name)) || "SOMEONE"}
-        </span>
-        <span class="block truncate pt-1 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500">
-          {line_for(@entry)}
-        </span>
+    <div class="px-(--list-pad) py-4">
+      <span class="block truncate text-(length:--sub-type) font-semibold tracking-(--sub-track) text-neutral-600 dark:text-neutral-300">
+        {(@entry.other && String.upcase(@entry.other.name)) || "SOMEONE"}
       </span>
+      <span class="block truncate pt-1 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500">
+        {line_for(@entry)}
+      </span>
+
+      <%!-- WHOSE MOVE IT IS, AS SOMETHING TO PRESS. A request you can see but
+           not answer is a notice, not a handshake — which is what this room was
+           until these arrived.
+
+           `respond` asks for a NAME as well as a yes, because round two is not
+           merely consent: it is where you say what you call them, and that is a
+           claim they should see before it stands. --%>
+      <form
+        :if={@entry.phase == "respond" and @entry.other}
+        phx-submit="scope_back"
+        class="flex items-end gap-3 pt-4"
+      >
+        <%!-- `other_id`, not `id`: a form field named "id" shadows the DOM id
+             of the element carrying it, and LiveView says so. --%>
+        <input type="hidden" name="other_id" value={@entry.other.id} />
+        <input
+          type="text"
+          name="label"
+          placeholder="what you call them"
+          autocomplete="off"
+          class="min-w-0 flex-1 bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+        />
+        <.answer type="submit" tone={:primary}>SCOPE BACK</.answer>
+        <.answer type="button" phx-click="scope_reject" phx-value-id={@entry.other.id}>
+          DECLINE
+        </.answer>
+      </form>
+
+      <div :if={@entry.phase == "review" and @entry.other} class="flex gap-3 pt-4">
+        <.answer type="button" tone={:primary} phx-click="scope_accept" phx-value-id={@entry.other.id}>
+          ACCEPT
+        </.answer>
+        <.answer type="button" phx-click="scope_reject" phx-value-id={@entry.other.id}>
+          DECLINE
+        </.answer>
+      </div>
+
+      <div :if={@entry.phase == "waiting_back" and @entry.other} class="flex gap-3 pt-4">
+        <.answer type="button" phx-click="scope_reject" phx-value-id={@entry.other.id}>
+          CANCEL
+        </.answer>
+      </div>
     </div>
+    """
+  end
+
+  # A small flat answer — the door's language at a row's scale. Not a door,
+  # because a door is the width of the room and these come in pairs.
+  attr :tone, :atom, values: [:primary, :quiet], default: :quiet
+  attr :rest, :global, include: ~w(type form disabled)
+  slot :inner_block, required: true
+
+  defp answer(assigns) do
+    ~H"""
+    <button
+      {@rest}
+      class={[
+        "shrink-0 cursor-pointer px-4 py-3 text-(length:--sub-type) tracking-(--sub-track)",
+        "transition-colors outline-none",
+        (@tone == :primary &&
+           "bg-primary-600/15 text-primary-600 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:text-primary-500 dark:hover:bg-primary-500/30") ||
+          "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 dark:bg-neutral-300/10 dark:text-neutral-400 dark:hover:bg-neutral-300/20"
+      ]}
+    >
+      {render_slot(@inner_block)}
+    </button>
     """
   end
 
