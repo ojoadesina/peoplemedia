@@ -76,6 +76,12 @@ defmodule PeoplemediaWeb.FabPanel do
       <%!-- The rooms wear the RAIL, so every word in here starts on the edge
            the mark, the strapline and the list all start from. A panel that
            measured itself would be a sixth left edge. --%>
+      <%!-- EVERY WORD IN HERE STARTS ON --list-pad, mark included. It did not:
+           the mark carried the inset and the rooms did not, so the head sat a
+           full step to the right of the title under it — visible the moment
+           anything was written below it. The main page has had this right from
+           the beginning (the mark and the strapline share one edge); the panel
+           simply had not been told. --%>
       <div class="fab-rooms rail relative flex h-full flex-col pt-(--head-top) pb-(--fab-foot)">
         <%!-- THE MARK COMES WITH YOU. The panel covers the page — masthead and
              all — and a room with nothing of the app at the top of it is a
@@ -97,7 +103,11 @@ defmodule PeoplemediaWeb.FabPanel do
              The reference drew these as circles with ring icons in stroke
              weight — a different vocabulary entirely, and one that would have
              read as somebody else's app dropped into this one. --%>
-        <div data-panel-body="launcher" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
+        <div
+          data-panel-body="launcher"
+          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          hidden
+        >
           <p class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
             {(@current_person && String.upcase(@current_person.name)) || "NOT CHECKED IN"}
           </p>
@@ -168,7 +178,11 @@ defmodule PeoplemediaWeb.FabPanel do
              REQUEST LEADS because this app is for people who do not have a
              passport yet; check-in is the quieter of the two and wears the
              neutral wash to say so. Square-cornered, like everything else. --%>
-        <div data-panel-body="passport" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
+        <div
+          data-panel-body="passport"
+          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          hidden
+        >
           <.room_title>PASSPORT</.room_title>
 
           <%!-- A LIVEVIEW OF ITS OWN, nested. The passport is five steps of
@@ -185,7 +199,11 @@ defmodule PeoplemediaWeb.FabPanel do
           </div>
         </div>
 
-        <div data-panel-body="scoping" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
+        <div
+          data-panel-body="scoping"
+          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          hidden
+        >
           <.room_title>SCOPING</.room_title>
           <p class="mt-6 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
             SWIPE A NAME TO SCOPE THEM

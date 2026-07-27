@@ -1511,6 +1511,47 @@ html:not([data-theme]) .live-screen {
   }
 }
 
+/* ── ONE VOICE FOR EVERY FIELD ────────────────────────────────────────────────
+   The panel's inputs carry no border and no wash — see `field/1` — so these two
+   rules are the entire difference between a field and a line of text.
+
+   THE PLACEHOLDER IS THE FAINTEST THING IN THE ROOM, and lighter in WEIGHT as
+   well as colour: a hint that merely looks grey still reads as content at a
+   glance, and "where you type" must never be mistaken for something already
+   written. The caret is terracotta, which is this surface's word for HERE and
+   the only colour a resting field shows. Between them they say "write" without
+   drawing a box to write in. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-neutral-250);
+  font-weight: 300;
+  opacity: 1;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-neutral-750);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) input::placeholder,
+  html:not([data-theme]) textarea::placeholder {
+    color: var(--color-neutral-750);
+  }
+}
+input,
+textarea {
+  caret-color: var(--color-primary-600);
+}
+[data-theme="dark"] input,
+[data-theme="dark"] textarea {
+  caret-color: var(--color-primary-500);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) input,
+  html:not([data-theme]) textarea {
+    caret-color: var(--color-primary-500);
+  }
+}
+
 /* ── THE FAB PANEL ────────────────────────────────────────────────────────────
    What the act opens: one overlay, many rooms, and a registry joining them.
    Not to be confused with `.panel`, which opens under the header when a

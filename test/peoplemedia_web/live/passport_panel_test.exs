@@ -75,8 +75,8 @@ defmodule PeoplemediaWeb.PassportPanelTest do
       pp = open_passport(conn)
       pp |> element(~s(button[phx-value-mode="join"])) |> render_click()
 
-      assert pp |> render_change(:name, %{"name" => "amina"}) =~ "THAT NAME IS FREE"
-      assert pp |> render_change(:name, %{"name" => "sarah"}) =~ "THAT NAME IS TAKEN"
+      assert pp |> render_change(:name, %{"name" => "amina"}) =~ "That name is free."
+      assert pp |> render_change(:name, %{"name" => "sarah"}) =~ "That name is taken."
     end
 
     test "a taken name will not move you on", %{conn: conn} do
@@ -88,7 +88,7 @@ defmodule PeoplemediaWeb.PassportPanelTest do
       pp |> render_change(:name, %{"name" => "sarah"})
 
       html = pp |> render_submit(:next, %{})
-      assert html =~ "TAKEN"
+      assert html =~ "taken"
       # Still on step one, and still holding what was typed.
       assert html =~ "NAME · 1 OF 5"
     end
@@ -109,7 +109,7 @@ defmodule PeoplemediaWeb.PassportPanelTest do
       html = pp |> render_submit(:next, %{})
 
       assert html =~ "THREE DIFFERENT WORDS"
-      assert html =~ "THREE WORDS · 2 OF 5"
+      assert html =~ "SECRET WORDS · 2 OF 5"
       # The work is not thrown away — a refusal that emptied the fields would
       # cost more than the mistake did.
       assert html =~ ~s(value="harbour")
@@ -151,9 +151,9 @@ defmodule PeoplemediaWeb.PassportPanelTest do
       pp |> render_change(:code, %{"code" => "4417"})
       html = pp |> render_submit(:next, %{})
 
-      assert html =~ "WRITE THESE DOWN"
-      assert html =~ "HARBOUR"
-      assert html =~ "YOU WILL NOT BE SHOWN THEM AGAIN"
+      assert html =~ "SAVE THESE · 4 OF 5"
+      assert html =~ "harbour"
+      assert html =~ "You will not be shown them again."
     end
 
     test "back steps within the room, and out of it from the first step", %{conn: conn} do
@@ -161,7 +161,7 @@ defmodule PeoplemediaWeb.PassportPanelTest do
       pp |> element(~s(button[phx-value-mode="join"])) |> render_click()
       pp |> render_change(:name, %{"name" => "amina"})
       pp |> render_submit(:next, %{})
-      assert render(pp) =~ "THREE WORDS · 2 OF 5"
+      assert render(pp) =~ "SECRET WORDS · 2 OF 5"
 
       assert pp |> render_click(:back, %{}) =~ "NAME · 1 OF 5"
       # From the first step, back leaves for the two doors rather than closing

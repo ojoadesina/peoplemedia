@@ -214,14 +214,21 @@ defmodule PeoplemediaWeb.PassportLive.Panel do
   defp locked_error(seconds), do: "Locked for #{seconds} seconds."
 
   # ── THE SURFACE ─────────────────────────────────────────────────────────────
+  # THE REFERENCE'S SHAPE, kept whole: a small tracked label saying where you
+  # are, one big quiet field per thing being asked for, a hint under it, and a
+  # grouped foot — a small back beside a larger forward — that submits the
+  # step's form from outside it.
+  #
+  # TWO CHANGES, AND ONLY TWO. It is LEFT-ALIGNED, because every word on this
+  # surface starts on one edge and a centred column in the middle of a
+  # left-aligned app reads as a different app. And the buttons are FLAT: the
+  # reference's rounded-full foot and rounded-md doors were the one place a
+  # corner radius survived, and nothing here has one.
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex flex-col">
-      <p
-        :if={@error}
-        class="pb-4 text-(length:--sub-type) tracking-(--sub-track) text-primary-600 dark:text-primary-500"
-      >
+      <p :if={@error} class={[label_cls(), "pb-4 text-primary-600 dark:text-primary-500"]}>
         {String.upcase(@error)}
       </p>
 
@@ -236,123 +243,188 @@ defmodule PeoplemediaWeb.PassportLive.Panel do
       </div>
 
       <%!-- ── JOIN ────────────────────────────────────────────────────────── --%>
-      <form :if={@mode == :join} phx-submit="next" phx-change={change_for(@step)}>
-        <.step_label :if={@step == 1} n={1} of={5}>NAME</.step_label>
-        <div :if={@step == 1}>
-          <.field name="name" value={@name} placeholder="what should we call you" />
-          <p class="mt-3 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            {(@name_free == nil && "TWO TO TEN LETTERS OR NUMBERS") ||
-              (@name_free && "THAT NAME IS FREE") || "THAT NAME IS TAKEN"}
-          </p>
-        </div>
+      <div :if={@mode == :join}>
+        <form id="pp-step" phx-submit="next" phx-change={change_for(@step)}>
+          <div :if={@step == 1}>
+            <p class={label_cls()}>NAME · 1 OF 5</p>
+            <.field name="name" value={@name} placeholder="what should we call you" />
+            <p class={hint_cls()}>
+              {(@name_free == nil && "Two to ten letters or numbers.") ||
+                (@name_free && "That name is free.") || "That name is taken."}
+            </p>
+          </div>
 
-        <.step_label :if={@step == 2} n={2} of={5}>THREE WORDS</.step_label>
-        <div :if={@step == 2} class="flex flex-col gap-4">
-          <.field
-            :for={{w, i} <- Enum.with_index(@words)}
-            name={"word_#{i}"}
-            value={w}
-            placeholder={Enum.at(~w(first second third), i)}
-          />
-          <p class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            EACH ONE IS SPENT THE FIRST TIME IT LETS YOU IN
-          </p>
-        </div>
+          <div :if={@step == 2}>
+            <p class={label_cls()}>SECRET WORDS · 2 OF 5</p>
+            <.field
+              :for={{w, i} <- Enum.with_index(@words)}
+              name={"word_#{i}"}
+              value={w}
+              placeholder={Enum.at(["First word", "Second word", "And a third"], i)}
+            />
+            <p class={hint_cls()}>Each one is spent the first time it lets you in.</p>
+          </div>
 
-        <.step_label :if={@step == 3} n={3} of={5}>CODE</.step_label>
-        <div :if={@step == 3}>
-          <.field name="code" value={@code} placeholder="1234" mode="numeric" />
-          <p class="mt-3 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            FOUR DIGITS. THIS ONE DOES NOT CHANGE
-          </p>
-        </div>
+          <div :if={@step == 3}>
+            <p class={label_cls()}>CODE · 3 OF 5</p>
+            <.field name="code" value={@code} placeholder="1234" mode="numeric" />
+            <p class={hint_cls()}>Four digits. This one never changes.</p>
+          </div>
 
-        <.step_label :if={@step == 4} n={4} of={5}>WRITE THESE DOWN</.step_label>
-        <div :if={@step == 4} class="flex flex-col gap-3">
-          <p
-            :for={w <- @words}
-            class="bg-neutral-400/10 px-5 py-4 text-(length:--row-type) tracking-(--row-track) text-light-900 dark:bg-neutral-300/10 dark:text-dark-100"
-          >
-            {String.upcase(w)}
-          </p>
-          <p class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            YOU WILL NOT BE SHOWN THEM AGAIN
-          </p>
-        </div>
+          <div :if={@step == 4}>
+            <p class={label_cls()}>SAVE THESE · 4 OF 5</p>
+            <p :for={w <- @words} class={word_cls()}>{w}</p>
+            <p class={hint_cls()}>You will not be shown them again.</p>
+          </div>
 
-        <.step_label :if={@step == 5} n={5} of={5}>WHERE IN THE WORLD</.step_label>
-        <div :if={@step == 5} class="flex flex-wrap gap-2">
-          <button
-            :for={c <- @countries}
-            type="button"
-            phx-click="country"
-            phx-value-country={c}
-            class={[
-              "cursor-pointer px-4 py-3 text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-              (@country == c &&
-                 "bg-primary-600/15 text-primary-600 dark:bg-primary-500/20 dark:text-primary-500") ||
-                "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 dark:bg-neutral-300/10 dark:text-neutral-400"
-            ]}
-          >
-            {String.upcase(c)}
-          </button>
-        </div>
+          <div :if={@step == 5}>
+            <p class={label_cls()}>HOME · 5 OF 5</p>
+            <div class="flex flex-wrap gap-2 pt-6">
+              <button
+                :for={c <- @countries}
+                type="button"
+                phx-click="country"
+                phx-value-country={c}
+                class={[
+                  "cursor-pointer px-4 py-3 text-(length:--sub-type) tracking-(--sub-track) transition-colors",
+                  (@country == c &&
+                     "bg-primary-600/15 text-primary-600 dark:bg-primary-500/20 dark:text-primary-500") ||
+                    "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 dark:bg-neutral-300/10 dark:text-neutral-400"
+                ]}
+              >
+                {String.upcase(c)}
+              </button>
+            </div>
+            <p class={hint_cls()}>Country is as fine as this gets.</p>
+          </div>
+        </form>
 
-        <div class="mt-8 flex flex-col gap-3">
-          <.door type="submit" tone={:primary} disabled={@step == 5 and is_nil(@country)}>
-            {(@step == 5 && "MAKE IT") || "NEXT"}
-          </.door>
-          <.door type="button" tone={:quiet} phx-click="back">BACK</.door>
-        </div>
-      </form>
+        <.foot
+          form="pp-step"
+          icon={(@step == 5 && :check) || :next}
+          disabled={@step == 5 and is_nil(@country)}
+        />
+      </div>
 
       <%!-- ── CHECK IN ────────────────────────────────────────────────────── --%>
-      <form :if={@mode == :checkin and @step == 1} phx-submit="credentials">
-        <.step_label n={1} of={2}>NAME AND A WORD</.step_label>
-        <div class="flex flex-col gap-4">
-          <.field name="name" value="" placeholder="your name" />
-          <.field name="word" value="" placeholder="one of your words" />
-        </div>
-        <div class="mt-8 flex flex-col gap-3">
-          <.door type="submit" tone={:primary}>NEXT</.door>
-          <.door type="button" tone={:quiet} phx-click="back">BACK</.door>
-        </div>
-      </form>
+      <div :if={@mode == :checkin}>
+        <form :if={@step == 1} id="pp-step" phx-submit="credentials">
+          <p class={label_cls()}>CHECK IN · 1 OF 2</p>
+          <.field name="name" value="" placeholder="Your name" />
+          <.field name="word" value="" placeholder="One secret word" />
+        </form>
 
-      <form :if={@mode == :checkin and @step == 2} phx-submit="verify">
-        <.step_label n={2} of={2}>CODE</.step_label>
-        <.field name="code" value="" placeholder="1234" mode="numeric" />
-        <div class="mt-8 flex flex-col gap-3">
-          <.door type="submit" tone={:primary}>CHECK IN</.door>
-          <.door type="button" tone={:quiet} phx-click="back">BACK</.door>
-        </div>
-      </form>
+        <form :if={@step == 2} id="pp-step" phx-submit="verify">
+          <p class={label_cls()}>CODE · 2 OF 2</p>
+          <.field name="code" value="" placeholder="1234" mode="numeric" />
+        </form>
+
+        <.foot form="pp-step" icon={(@step == 2 && :check) || :next} />
+      </div>
     </div>
     """
   end
 
-  # Only the steps that need to hear every keystroke ask for one. Steps 4 and 5
-  # have no field to change.
+  # ONE VOICE FOR EACH KIND OF LINE, as the reference had it — functions rather
+  # than assigns, because they depend on nothing and a template that has to be
+  # handed its own styles has stopped being a template.
+  #
+  # The step label is the smallest tracked type on the surface; the hint under a
+  # field is a plain sentence in sentence case, because it is talking to you and
+  # not labelling anything.
+  defp label_cls,
+    do: "text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500"
+
+  defp hint_cls,
+    do: "pt-3 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500"
+
+  # A word being handed back to be written down is not a field and not a label —
+  # it is the thing itself, so it gets the room's largest voice.
+  defp word_cls,
+    do: "pt-6 text-(length:--count-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
+
+  # Only the steps with a field to change ask to hear every keystroke.
   defp change_for(step) when step in [1, 2, 3], do: ~w(name words code) |> Enum.at(step - 1)
   defp change_for(_), do: nil
 
-  attr :n, :integer, required: true
-  attr :of, :integer, required: true
-  slot :inner_block, required: true
+  # ── THE FOOT ────────────────────────────────────────────────────────────────
+  # THE REFERENCE'S GROUPED PAIR, kept: a quiet back beside a larger forward,
+  # and `form=` submits the step's form from OUTSIDE it — which is what lets one
+  # foot serve every step without each step growing its own button row.
+  #
+  # SQUARE, not round, and left-aligned rather than centred. The forward is the
+  # only solid terracotta thing in the room, and it grows a check on the last
+  # step because finishing and continuing are not the same promise.
+  attr :form, :string, required: true
+  attr :icon, :atom, default: :next
+  attr :disabled, :boolean, default: false
 
-  defp step_label(assigns) do
+  defp foot(assigns) do
     ~H"""
-    <p class="pb-6 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-      {render_slot(@inner_block)} · {@n} OF {@of}
-    </p>
+    <div class="flex items-center gap-4 pt-10">
+      <button
+        type="button"
+        phx-click="back"
+        aria-label="Back"
+        class="flex size-12 cursor-pointer items-center justify-center bg-neutral-400/10 text-neutral-500 transition-colors hover:bg-neutral-400/20 hover:text-neutral-600 dark:bg-neutral-300/10 dark:text-neutral-400 dark:hover:bg-neutral-300/20"
+      >
+        <.chevron dir="left" />
+      </button>
+      <button
+        type="submit"
+        form={@form}
+        disabled={@disabled}
+        aria-label={(@icon == :check && "Finish") || "Continue"}
+        class="flex size-16 cursor-pointer items-center justify-center bg-primary-500 text-primary-50 transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-primary-600 dark:hover:bg-primary-500"
+      >
+        <.chevron :if={@icon == :next} dir="right" />
+        <svg
+          :if={@icon == :check}
+          viewBox="0 0 24 24"
+          class="size-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="butt"
+          stroke-linejoin="miter"
+          aria-hidden="true"
+        >
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </button>
+    </div>
     """
   end
 
-  # AN INPUT ON THIS SURFACE IS A LINE, not a box. Everything filled here is a
-  # control you press; a field is somewhere you write, and giving it the same
-  # wash would make the page look like it had two kinds of button. The rule
-  # under it is the only chrome, and it takes the terracotta on focus because
-  # that is this surface's word for "here".
+  attr :dir, :string, required: true
+
+  defp chevron(assigns) do
+    ~H"""
+    <svg
+      viewBox="0 0 24 24"
+      class="size-6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="butt"
+      stroke-linejoin="miter"
+      aria-hidden="true"
+    >
+      <path d={(@dir == "left" && "M15 19l-7-7 7-7") || "M9 5l7 7-7 7"} />
+    </svg>
+    """
+  end
+
+  # ── THE FIELD ───────────────────────────────────────────────────────────────
+  # THE PANEL'S QUIET VOICE, copied from the reference and left as found:
+  # transparent, BORDERLESS, and large. It had a rule under it here for a while
+  # on the reasoning that a field should not look like the filled boxes you
+  # press — but a rule is chrome too, and the reference's answer is better. The
+  # placeholder says where to write and the caret says you are writing; nothing
+  # else is needed, and a column of underlines reads as a form to be processed
+  # rather than a question being asked.
+  #
+  # Left, not centred. That is the one change.
   attr :name, :string, required: true
   attr :value, :string, default: ""
   attr :placeholder, :string, default: nil
@@ -370,13 +442,7 @@ defmodule PeoplemediaWeb.PassportLive.Panel do
       autocapitalize="off"
       spellcheck="false"
       phx-debounce="200"
-      class={[
-        "w-full border-0 border-b-2 border-neutral-400/30 bg-transparent px-0 pb-2",
-        "text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100",
-        "placeholder:text-neutral-400/50 dark:placeholder:text-neutral-500/50",
-        "transition-colors outline-none focus:border-primary-600 dark:focus:border-primary-500",
-        "dark:border-neutral-300/20"
-      ]}
+      class="w-full bg-transparent pt-6 text-(length:--count-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
     />
     """
   end
