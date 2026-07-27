@@ -902,6 +902,9 @@ html[data-theme="dark"] {
    than appearing all at once at the moment it clears the edge. */
 .scopes-scroll {
   --list-top: calc(var(--band-top) - var(--band-h) / 2);
+  /* The mirror of the rows' `pan-x`: this scroller takes the vertical axis and
+     leaves the horizontal to whichever row the finger started on. */
+  touch-action: pan-y;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
   mask-image: linear-gradient(
@@ -1508,6 +1511,44 @@ html:not([data-theme]) .live-screen {
   .live-frame.is-empty .live-screen {
     animation: none;
     opacity: 0.16;
+  }
+}
+
+/* ── THE ROW SWIPES ───────────────────────────────────────────────────────────
+   Two scrollers at right angles in the same pixel: the LIST scrolls down, and
+   every ROW inside it scrolls sideways to uncover its action. They only coexist
+   because each one is told to keep out of the other's axis.
+
+   `touch-action: pan-x` on the row hands VERTICAL drags straight through to the
+   list — without it a finger starting on a row could drag neither reliably, and
+   which one moved depended on the angle of the first few pixels. The list has
+   the mirror instruction. Nothing here is JavaScript: `snap-mandatory` does the
+   resting, the browser does the momentum and the rubber-banding.
+
+   THE SCROLLBAR IS HIDDEN because a horizontal rail under every row would draw
+   nineteen grey lines down a page whose subject is nineteen names. The action
+   peeking at the row's edge is the affordance, and it is enough. */
+.row-swipe {
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.row-swipe::-webkit-scrollbar {
+  display: none;
+}
+
+/* A ROW THAT HAS NOTHING TO UNCOVER MUST NOT MOVE. Someone you already hold has
+   no scope action, so its scroller has one page — and a one-page scroller still
+   rubber-bands under a drag, which reads as a broken swipe rather than as no
+   swipe. `:not(:has(...))` turns the scrolling off entirely for those. */
+.row-swipe:not(:has(.row-scope)) {
+  overflow-x: hidden;
+  touch-action: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-swipe {
+    scroll-behavior: auto;
   }
 }
 

@@ -52,6 +52,9 @@ defmodule PeoplemediaWeb.FabPanel do
   attr :socket, :map, required: true
   attr :current_person, :any, default: nil
   attr :unread, :integer, default: 0
+  attr :scope_target, :any, default: nil
+  attr :scope_error, :any, default: nil
+  attr :pending, :map, default: %{incoming: [], outgoing: []}
 
   def fab_panel(assigns) do
     ~H"""
@@ -168,14 +171,64 @@ defmodule PeoplemediaWeb.FabPanel do
           </div>
         </div>
 
-        <div
-          data-panel-body="scoping"
-          class="fab-body min-h-0 flex-1 overflow-y-auto"
-          hidden
-        >
+        <%!-- ── SCOPING ────────────────────────────────────────────────────
+             THE REFERENCE'S SHAPE: sections that only exist when they have
+             something in them, each row the other person's name over a line
+             saying what is owed and by whom. Server-rendered from the durable
+             `scoping` rows, so a reload cannot lose a handshake mid-flight. --%>
+        <div data-panel-body="scoping" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
           <.room_title>SCOPING</.room_title>
-          <p class="mt-6 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            SWIPE A NAME TO SCOPE THEM
+
+          <p
+            :if={@pending.incoming == [] and @pending.outgoing == []}
+            class={[heading_cls(), "px-(--list-pad) pt-10"]}
+          >
+            NOTHING IN MOTION — SWIPE A NAME TO SCOPE THEM
+          </p>
+
+          <.section :if={@pending.incoming != []} title="INCOMING" count={length(@pending.incoming)}>
+            <.pending_row :for={e <- @pending.incoming} entry={e} />
+          </.section>
+
+          <.section :if={@pending.outgoing != []} title="OUTGOING" count={length(@pending.outgoing)}>
+            <.pending_row :for={e <- @pending.outgoing} entry={e} />
+          </.section>
+        </div>
+
+        <%!-- ── ONE SCOPE ──────────────────────────────────────────────────
+             Where the swipe lands. One question, because the answer IS the act:
+             a scope with no name is not a weaker scope, it is a follow, and this
+             app does not have those. --%>
+        <div data-panel-body="scope" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
+          <.room_title>{(@scope_target && String.upcase(@scope_target.name)) || "SCOPE"}</.room_title>
+
+          <p
+            :if={@scope_error}
+            class={[heading_cls(), "px-(--list-pad) pt-6 text-primary-600 dark:text-primary-500"]}
+          >
+            {String.upcase(@scope_error)}
+          </p>
+
+          <form :if={@scope_target} phx-submit="scope_send" class="pt-6">
+            <p class={[heading_cls(), "px-(--list-pad)"]}>WHAT DO YOU CALL THEM?</p>
+            <input
+              type="text"
+              name="label"
+              value=""
+              placeholder="Mum"
+              autocomplete="off"
+              class="w-full bg-transparent pt-6 text-(length:--count-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+            />
+            <p class={[heading_cls(), "px-(--list-pad) pt-3"]}>
+              THEIRS TO ANSWER, AND THEIRS TO NAME YOU BACK
+            </p>
+            <div class="pt-10">
+              <.door type="submit" tone={:primary}>SCOPE THEM</.door>
+            </div>
+          </form>
+
+          <p :if={is_nil(@scope_target)} class={[heading_cls(), "px-(--list-pad) pt-10"]}>
+            SWIPE A NAME IN THE LIST TO SCOPE THEM
           </p>
         </div>
       </div>
@@ -258,6 +311,51 @@ defmodule PeoplemediaWeb.FabPanel do
     </button>
     """
   end
+
+  # A SECTION EXISTS ONLY WHEN IT HAS SOMETHING IN IT — the reference's rule, and
+  # the reason this room never shows an empty heading over nothing.
+  attr :title, :string, required: true
+  attr :count, :integer, required: true
+  slot :inner_block, required: true
+
+  defp section(assigns) do
+    ~H"""
+    <div class="pt-10">
+      <p class={[heading_cls(), "px-(--list-pad)"]}>{@title} · {@count}</p>
+      <div class="pt-4">{render_slot(@inner_block)}</div>
+    </div>
+    """
+  end
+
+  # ONE ROW PER HANDSHAKE: their name, and under it the line that says whose
+  # move it is. The phases are the reference's, and the wording is the reference's
+  # too — it is careful about which side is waiting, which is the only thing
+  # anyone reads this list to find out.
+  attr :entry, :map, required: true
+
+  defp pending_row(assigns) do
+    ~H"""
+    <div class="flex items-center gap-4 px-(--list-pad) py-3">
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-(length:--sub-type) font-semibold tracking-(--sub-track) text-neutral-600 dark:text-neutral-300">
+          {(@entry.other && String.upcase(@entry.other.name)) || "SOMEONE"}
+        </span>
+        <span class="block truncate pt-1 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500">
+          {line_for(@entry)}
+        </span>
+      </span>
+    </div>
+    """
+  end
+
+  defp line_for(%{phase: "respond", their_label: l}), do: "calls you “#{l}” — answer"
+  defp line_for(%{phase: "review", their_label: l}), do: "scoped you back “#{l}” — finalise"
+
+  defp line_for(%{phase: "waiting_accept", my_label: l}),
+    do: "you answered “#{l}” · awaiting their yes"
+
+  defp line_for(%{phase: "waiting_back", my_label: l}), do: "you call them “#{l}” · waiting"
+  defp line_for(_), do: "in motion"
 
   @doc "The panel's heading voice — the same small tracked line the list's captions use."
   def heading_cls,

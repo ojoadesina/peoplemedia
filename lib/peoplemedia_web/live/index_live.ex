@@ -63,7 +63,7 @@ defmodule PeoplemediaWeb.IndexLive do
   """
   use PeoplemediaWeb, :live_view
 
-  alias Peoplemedia.Directory
+  alias Peoplemedia.{Directory, Notifications, Relationships}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -91,13 +91,31 @@ defmodule PeoplemediaWeb.IndexLive do
      # much is waiting, for the badge. Both are assigns rather than hook state
      # because both are facts the process owns.
      |> assign(unread: unread_for(me))
+     |> assign(scope_target: nil, scope_error: nil)
+     |> assign(pending: pending_for(me))
      |> assign(live: Enum.filter(scopes, &(&1.state == "live")))
      |> put_list()
      |> put_current()}
   end
 
+  # Both lists are read for the same person, so they are reloaded together — a
+  # scope that appeared in one and not the other would be somebody in two places.
+  defp reload_lists(socket) do
+    me = socket.assigns.current_person
+
+    socket
+    |> assign(scopes: Directory.scopes(me), unscopes: Directory.unscopes(me))
+    |> assign(unread: unread_for(me), pending: pending_for(me))
+    |> reset_list()
+  end
+
   # Nobody signed in has nothing waiting — and asking the database on behalf of
   # a visitor would be a query with no subject.
+  # What is still in flight, for the scoping room. Read from the durable
+  # `scoping` rows rather than held anywhere, so a reload cannot lose it.
+  defp pending_for(nil), do: %{incoming: [], outgoing: []}
+  defp pending_for(person), do: Relationships.pending_scopes_for(person.id)
+
   defp unread_for(nil), do: 0
   defp unread_for(person), do: Peoplemedia.Notifications.unread_count(person.id)
 
@@ -134,6 +152,42 @@ defmodule PeoplemediaWeb.IndexLive do
 
       {:people, _, :list} ->
         {:noreply, assign(socket, mode: :open)}
+    end
+  end
+
+  # ── SCOPING ─────────────────────────────────────────────────────────────────
+  # THE SWIPE NAMES SOMEBODY, and this is the half of that press the server
+  # owns: who. The other half — opening the room — is the hook's, because the
+  # panel's open state lives in the browser.
+  def handle_event("scope_person", %{"id" => id}, socket) do
+    {:noreply, assign(socket, scope_target: Peoplemedia.People.get_person(id), scope_error: nil)}
+  end
+
+  # WHAT YOU CALL THEM IS THE WHOLE ACT. A scope with no name is not a weaker
+  # scope, it is a different thing — a follow — and this app does not have those.
+  def handle_event("scope_send", %{"label" => label}, socket) do
+    me = socket.assigns.current_person
+    them = socket.assigns.scope_target
+    label = String.trim(label)
+
+    cond do
+      is_nil(me) ->
+        {:noreply, assign(socket, scope_error: "Check in first.")}
+
+      is_nil(them) ->
+        {:noreply, assign(socket, scope_error: "Nobody chosen.")}
+
+      label == "" ->
+        {:noreply, assign(socket, scope_error: "What do you call them?")}
+
+      true ->
+        {:ok, _} = Relationships.request_scope(me.id, them.id, String.upcase(label))
+        # THEY ARE TOLD, durably. A scope request that rode only on a live
+        # broadcast would be lost on anyone who was not looking.
+        {:ok, _} =
+          Notifications.notify(them.id, "scope_request", me.id, %{"label" => String.upcase(label)})
+
+        {:noreply, socket |> assign(scope_target: nil, scope_error: nil) |> reload_lists()}
     end
   end
 
@@ -422,7 +476,14 @@ defmodule PeoplemediaWeb.IndexLive do
         </div>
       </div>
 
-      <.fab_panel socket={@socket} current_person={@current_person} unread={@unread} />
+      <.fab_panel
+        socket={@socket}
+        current_person={@current_person}
+        unread={@unread}
+        scope_target={@scope_target}
+        scope_error={@scope_error}
+        pending={@pending}
+      />
 
       <div class="rail flex h-screen flex-col pt-(--body-top)">
         <%!-- THE LINE, on the content edge with the mark above it and the names
@@ -519,7 +580,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 data-media={item[:media]}
                 class={
                   [
-                    "scopes-item flex cursor-pointer items-center px-(--list-pad) whitespace-nowrap",
+                    "scopes-item flex cursor-pointer whitespace-nowrap",
                     "text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100",
                     # A PLACE IS ONE LINE, so it gets a shorter row. --row-h is
                     # sized for a name with its age hung under it; a roll of
@@ -531,41 +592,50 @@ defmodule PeoplemediaWeb.IndexLive do
                   ]
                 }
               >
-                <%!-- items-start on the inner block, not on the row: the mark
-                       belongs on the NAME's line and the age hangs below it, but
-                       the block as a whole is centred in the row. Pinning the
-                       row itself to the top would have tied the block's position
-                       to a hard padding that has to be refound every time the
-                       row height moves. --%>
-                <div class="flex min-w-0 flex-1 items-start">
-                  <.letter_glyph
-                    :if={@list_mode == :people}
-                    kind={item[:letter][:kind]}
-                    lit={!!item[:letter][:unread]}
-                    class={[
-                      "mr-3 -mt-[0.125em] transition-colors duration-200",
-                      (item[:letter][:unread] && "text-primary-600 dark:text-primary-500") ||
-                        "text-neutral-400 dark:text-neutral-500"
-                    ]}
-                  />
-                  <div class="min-w-0 flex-1 leading-tight">
-                    <p class="scopes-line flex items-baseline">
-                      {String.upcase(item[:label] || item[:name])}
-                      <%!-- Their own name, quiet beside the label, arriving only
+                <%!-- ── THE ROW SWIPES ────────────────────────────────────
+                       A HORIZONTAL SCROLLER WITH TWO SNAP POINTS, and no
+                       JavaScript at all: the row is one page and the action is
+                       the next, `snap-mandatory` makes it rest on one or the
+                       other, and the browser does the dragging, the momentum and
+                       the rubber-banding for free. A hand-written swipe would be
+                       three of those four re-invented worse.
+
+                       overscroll-x-contain is what keeps a sideways drag from
+                       becoming a browser back-gesture, and `touch-pan-*` is what
+                       keeps it from fighting the VERTICAL list it sits inside —
+                       two scrollers at right angles in the same pixel, each
+                       needing the other to keep out of its axis. --%>
+                <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
+                  <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
+                    <div class="flex min-w-0 flex-1 items-start">
+                      <.letter_glyph
+                        :if={@list_mode == :people}
+                        kind={item[:letter][:kind]}
+                        lit={!!item[:letter][:unread]}
+                        class={[
+                          "mr-3 -mt-[0.125em] transition-colors duration-200",
+                          (item[:letter][:unread] && "text-primary-600 dark:text-primary-500") ||
+                            "text-neutral-400 dark:text-neutral-500"
+                        ]}
+                      />
+                      <div class="min-w-0 flex-1 leading-tight">
+                        <p class="scopes-line flex items-baseline">
+                          {String.upcase(item[:label] || item[:name])}
+                          <%!-- Their own name, quiet beside the label, arriving only
                              while the row is IN the band. It keeps its own muted
                              colour on purpose: the focused row turns terracotta,
                              and this staying grey is what stops the band reading
                              as two labels shouting. Only a scoped person has both
                              a label and a name — a stranger or a country is one
                              word. --%>
-                      <span
-                        :if={item[:label]}
-                        class="scopes-name ml-3 text-neutral-400/70 opacity-0 transition-opacity duration-200 dark:text-neutral-500/70"
-                      >
-                        {item[:name]}
-                      </span>
-                    </p>
-                    <%!-- WHEN THE LAST LETTER CAME, and nothing else.
+                          <span
+                            :if={item[:label]}
+                            class="scopes-name ml-3 text-neutral-400/70 opacity-0 transition-opacity duration-200 dark:text-neutral-500/70"
+                          >
+                            {item[:name]}
+                          </span>
+                        </p>
+                        <%!-- WHEN THE LAST LETTER CAME, and nothing else.
 
                            GREY, NOT THE WARM RAMP. It used to be `light-500`,
                            which is not a neutral at all — the light ramp runs
@@ -579,21 +649,42 @@ defmodule PeoplemediaWeb.IndexLive do
                            terracotta is about the NAME, and an age that lit with
                            it would make the band read as two things being
                            pointed at. --%>
-                    <p
-                      :if={item[:letter]}
-                      class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/75 dark:text-neutral-500/80"
-                    >
-                      {item.letter.when}
-                    </p>
-                  </div>
-                  <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
+                        <p
+                          :if={item[:letter]}
+                          class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/75 dark:text-neutral-500/80"
+                        >
+                          {item.letter.when}
+                        </p>
+                      </div>
+                      <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
                        the kind mark at top left — the row's two marks are one
                        pair and belong on one line, with the age hanging under
                        the name between them. Centred against the whole two-line
                        block it sat below both of them and read as a third thing
                        floating in the row rather than as the other half of what
                        the left mark says. --%>
-                  <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
+                      <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
+                    </div>
+                  </div>
+
+                  <%!-- WHAT THE SWIPE UNCOVERS. Only on someone you do NOT hold —
+                     scoping is the act of taking somebody up, and a row you have
+                     already taken up has nothing to offer here yet.
+
+                     TWO THINGS ON ONE PRESS: the server is told who, and the
+                     hook opens the room. The panel's open state lives in the
+                     browser and the target lives in the process, so neither can
+                     do this alone. --%>
+                  <button
+                    :if={@list_mode == :people and is_nil(item[:label])}
+                    type="button"
+                    data-panel-open="scope"
+                    phx-click="scope_person"
+                    phx-value-id={item.id}
+                    class="row-scope flex h-full shrink-0 snap-start items-center bg-primary-600/15 px-8 text-(length:--sub-type) tracking-(--sub-track) text-primary-600 transition-colors hover:bg-primary-600/25 dark:bg-primary-500/20 dark:text-primary-500 dark:hover:bg-primary-500/30"
+                  >
+                    SCOPE
+                  </button>
                 </div>
               </li>
             </ul>
