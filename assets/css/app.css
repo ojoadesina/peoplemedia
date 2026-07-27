@@ -1657,14 +1657,19 @@ html:not([data-theme]) .live-screen {
    THEY COME DOWN TO THE BAND rather than climbing out above the list. Parked
    over the top of the page they read as a masthead — a second set of furniture
    under the real one — and stopped answering the band at all, which is their
-   whole job. Sat one rem above it they are still the band's answer, just
-   stacked instead of beside.
+   whole job. Stacked above it they are still the band's answer.
 
-   THE BAND MOVES DOWN TO LET THEM IN, by exactly the 0.75rem the arithmetic is
-   short: the cluster needs half the band plus a box plus the gap above the
-   band's centre, which with a box that IS a band comes to 1.5 bands and a rem.
-   scopes.ts measures the bar rather than recomputing this, so the list follows
-   without being told.
+   THE GAP IS 3rem, NOT 1. Beside the band on a wide screen the boxes are
+   plainly separate things that happen to be level; stacked, a rem of air read
+   as one four-storey object with a line through it, and the band stopped being
+   the thing you are looking at. Two boxes on one axis need much more space
+   between them than two boxes on different ones.
+
+   THE BAND MOVES DOWN TO LET THEM IN, by exactly the 2.75rem the arithmetic is
+   short: the cluster needs half a band plus a box plus the gap above the band's
+   centre, which with a box that IS a band comes to 1.5 bands and 3rem, leaving
+   half a rem of margin at the top. scopes.ts measures the bar rather than
+   recomputing this, so the list follows without being told.
 
    THE ROOM ONLY EXISTS BECAUSE NOTHING IS DRAWN UP THERE ANY MORE — see the
    scroller's mask, which now stops dead at the band's top edge. These two
@@ -1672,21 +1677,27 @@ html:not([data-theme]) .live-screen {
    on top of them. */
 @media (max-width: 66rem) {
   .app-root {
-    --band-top: calc(var(--row-h) * 1.5 + 0.75rem);
+    --band-top: calc(var(--row-h) * 1.5 + 2.75rem);
   }
-  /* left:0 AND right:0, so the cluster is the rail's width rather than its
-     content's. Stacked above the band there is no spare rail to run into, and
-     "PHILIPPINES" beside "33256 UNSCOPES" is wider than a phone — shrink-to-fit
-     would have pushed the left end off the screen with nothing to stop it. Made
-     the full width, the place box (min-w-0, truncating) is the one that yields
-     and the count keeps its digits, which is the right way round: a clipped
-     place is still readable, a clipped number is a different number. */
+  /* THEY READ LEFT TO RIGHT, from the rail's left edge. On a wide screen the
+     cluster hangs off the RIGHT rail because it is a trailing box beside the
+     list — that edge is the app's right bound and the one every trailing thing
+     holds. Stacked above the band there is no list beside it to trail, so it is
+     just a row of boxes over a column of names, and a row of boxes that starts
+     on the left starts where every name below it starts.
+
+     left:0 AND right:0, so the cluster is the rail's width rather than its
+     content's. "PHILIPPINES" beside "33256 UNSCOPES" is wider than a phone, and
+     shrink-to-fit would have pushed one end off the screen with nothing to stop
+     it. Made the full width, the place box (min-w-0, truncating) is the one
+     that yields and the count keeps its digits, which is the right way round: a
+     clipped place is still readable, a clipped number is a different number. */
   .scope-boxes {
-    top: calc(var(--band-top) - var(--band-h) / 2 - var(--band-h) - 1rem);
+    top: calc(var(--band-top) - var(--band-h) / 2 - var(--band-h) - 3rem);
     right: 0;
     bottom: auto;
     left: 0;
-    justify-content: flex-end;
+    justify-content: flex-start;
     transform: none;
   }
 }
