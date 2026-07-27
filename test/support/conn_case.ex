@@ -28,7 +28,16 @@ defmodule PeoplemediaWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import PeoplemediaWeb.ConnCase
+      import Peoplemedia.Fixtures
     end
+  end
+
+  @doc """
+  Put a person in the session, the way the token bridge does. The list belongs
+  to somebody now, so a test about the list has to say who is looking.
+  """
+  def check_in(conn, person) do
+    Plug.Test.init_test_session(conn, %{"person_id" => person.id})
   end
 
   setup tags do

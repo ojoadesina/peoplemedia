@@ -31,7 +31,12 @@ primary_region = "fra"
 # MIGRATIONS RUN BEFORE THE NEW MACHINES TAKE TRAFFIC. Fly runs this once, in a
 # temporary machine on the new release, and aborts the deploy if it fails — so a
 # bad migration never reaches a serving machine. `bin/migrate` is a release
-# overlay calling Peoplemedia.Release.migrate, because a release has no Mix.
+# overlay calling Peoplemedia.Release.setup, because a release has no Mix.
+#
+# IT SEEDS AS WELL AS MIGRATES, while this app is still a demo of itself: the
+# list has to have people in it to be worth looking at. The seed is idempotent —
+# everyone is found by name before being created. Drop back to `migrate` alone
+# the day real people have passports; see Peoplemedia.Release.
 [deploy]
   release_command = "/app/bin/migrate"
 

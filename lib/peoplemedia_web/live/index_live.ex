@@ -67,18 +67,30 @@ defmodule PeoplemediaWeb.IndexLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    scopes = Directory.scopes()
+    # WHOSE LIST IS THIS. `current_person` arrives from the session by way of
+    # the router's on_mount, and it is what both lists are read for — a visitor
+    # holds nobody and is therefore looking at a world entirely of strangers.
+    me = socket.assigns[:current_person]
+    scopes = Directory.scopes(me)
 
     {:ok,
      socket
-     |> assign(scopes: scopes, unscopes: Directory.unscopes(), countries: Directory.countries())
-     |> assign(list_mode: :people, scope: "SCOPED", location: "Finland")
+     |> assign(scopes: scopes, unscopes: Directory.unscopes(me), countries: Directory.countries())
+     # WHICH LIST YOU OPEN ON depends on whether you have one. SCOPED is the
+     # list's subject and the right default for anyone who holds people — but
+     # for a visitor, and for a passport on its first morning, it is empty, and
+     # opening on an empty list makes an app look broken when it is merely new.
+     |> assign(
+       list_mode: :people,
+       scope: (scopes == [] && "UNSCOPED") || "SCOPED",
+       location: (me && me.country) || "Finland"
+     )
      |> assign(selected: nil, mode: :list)
      # THE FAB PANEL asks two things of the server: who is signed in, so the
      # launcher knows whether to offer a passport or a way to get one, and how
      # much is waiting, for the badge. Both are assigns rather than hook state
      # because both are facts the process owns.
-     |> assign(unread: unread_for(socket.assigns[:current_person]))
+     |> assign(unread: unread_for(me))
      |> assign(live: Enum.filter(scopes, &(&1.state == "live")))
      |> put_list()
      |> put_current()}
@@ -305,11 +317,17 @@ defmodule PeoplemediaWeb.IndexLive do
            anything — the same edge the mark takes at the top and the band's
            wash takes in the middle — and it cannot drift when the rail does.
 
-           ON THE RAIL, NOT ON --list-pad, because it is a FILL and not a word.
-           That is the whole of the two-edge rule in this file: the mark and the
-           strapline are words and step one in; the band's wash, the trailing
-           boxes and this begin at the bound. Its left edge and the band's are
-           the same line.
+           ON --list-pad, WITH THE MARK AND THE NAMES. It sat on the bare rail
+           for a while, on the rule that a FILL begins at the bound while words
+           step one in — and that rule is right about the band's wash, which is
+           a band running under a row of text. It is wrong about this. Nothing
+           is passing through the act; it is a piece of the app's furniture
+           standing on the page, and the app's furniture is the mark at the top
+           and this at the bottom. Those two have to hold one line, and the mark
+           is on --list-pad because it is a word's neighbour.
+
+           So the act steps in too, and the left edge it now shares is the one
+           every NAME in the list is written from.
 
            IT TAKES --act-h, NOT --band-h. It wore the band's height for a
            while, on the argument that everything square here should rhyme — but
@@ -364,7 +382,7 @@ defmodule PeoplemediaWeb.IndexLive do
             aria-label="Open the launcher"
             aria-expanded="false"
             class={[
-              "pointer-events-auto relative flex size-(--act-h) cursor-pointer items-center justify-center",
+              "pointer-events-auto relative ml-(--list-pad) flex size-(--act-h) cursor-pointer items-center justify-center",
               "bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600",
               "focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2",
               "focus-visible:ring-offset-light-50 dark:focus-visible:ring-offset-dark-950",

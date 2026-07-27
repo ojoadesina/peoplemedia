@@ -18,232 +18,10 @@ defmodule Peoplemedia.Directory do
   # blunt reason: Safari cannot play Ogg Vorbis at all, and the originals are
   # 9–14 MB apiece for a screen that is forty-five pixels square. The 360p
   # transcodes are roughly a tenth of that.
+  alias Peoplemedia.People.Person
+  alias Peoplemedia.Relationships
+
   @commons "https://upload.wikimedia.org/wikipedia/commons/transcoded"
-
-  # A USER is a label YOU gave them, the name they came with, and what their
-  # frame is currently carrying. The label leads because it is how you actually
-  # think of them; the name follows, faded, and only once the row is in the band.
-  #
-  # STATE and FRAME are two different questions and are kept apart on purpose.
-  # State asks about the PERSON and the line to them; frame asks what is coming
-  # THROUGH it. The two are orthogonal, and every combination means something:
-  #
-  #   "absent"  — not reachable. The screen drains to neutral rather than to a
-  #               paler terracotta, because terracotta is the colour of someone
-  #               being there and a weak version of it reads as a weak signal
-  #               rather than as nobody.
-  #   "present" — reachable. The screen keeps its colour and sits still unless
-  #               there is media to move it.
-  #   "live"    — the line is open right now. The screen breathes EVEN WITH
-  #               NOTHING COMING THROUGH, which is the whole point of the state:
-  #               a live line with no voice and no face is still a live line,
-  #               and a still screen could not say so. The frame breathes with
-  #               it, on the same period, so the two read as one thing being
-  #               alive rather than two things blinking.
-  #
-  # Absence pairs with an empty frame here for the obvious reason — you cannot
-  # be away and talking — but nothing in the code enforces that, because a line
-  # can perfectly well carry a recording of someone who has since gone. Live is
-  # deliberately spread across all three frame modes below, so the empty case
-  # that proves the state is worth having actually appears.
-  #
-  # FRAME is the state of the line to them, and it is deliberately three-valued
-  # rather than a boolean, because "nothing coming through" and "audio coming
-  # through" are different facts and the frame renders them differently:
-  #
-  #   "empty" — no signal. The screen sits still.
-  #   "voice" — audio only. The screen breathes, because there is nothing to
-  #             look at and the sound is the whole message.
-  #   "face"  — video. The screen holds still and shows it.
-  #
-  # THE MEDIA IS REAL, and chosen to match what this app is for. The voices come
-  # from Commons' Voice Intro Project, where people record a short introduction
-  # of themselves — the closest thing to a real first contact that exists under
-  # a free licence. The faces come from Wikitongues, whose recordings are single
-  # speakers talking to camera. Every clip is under a minute. Licences run CC0
-  # to CC BY-SA; attribution lives in ATTRIBUTION.md at the repo root.
-  @scopes [
-    %{
-      label: "MUM",
-      name: "SARAH",
-      state: "present",
-      frame: "voice",
-      media:
-        "#{@commons}/4/4f/Simone_Giertz_introducing_herself.ogg/" <>
-          "Simone_Giertz_introducing_herself.ogg.mp3"
-    },
-    %{
-      label: "DAD",
-      name: "MICHAEL",
-      state: "present",
-      frame: "face",
-      media:
-        "#{@commons}/6/67/WIKITONGUES-_Paulus_speaking_Mentuka.webm/" <>
-          "WIKITONGUES-_Paulus_speaking_Mentuka.webm.360p.vp9.webm"
-    },
-    %{
-      label: "BIG BROTHER",
-      name: "DANIEL OLUWASEUN",
-      state: "present",
-      frame: "voice",
-      media: "#{@commons}/0/0a/Charles_Duke_Intro.ogg/Charles_Duke_Intro.ogg.mp3"
-    },
-    %{label: "BROTHER", name: "JOSEPH", state: "absent", frame: "empty", media: nil},
-    %{
-      label: "SISTER",
-      name: "AMAKA",
-      state: "live",
-      frame: "face",
-      media:
-        "#{@commons}/0/01/WIKITONGUES-_Hermica_speaking_Bengape.webm/" <>
-          "WIKITONGUES-_Hermica_speaking_Bengape.webm.360p.vp9.webm"
-    },
-    %{
-      label: "GRANDMA",
-      name: "ROSE",
-      state: "live",
-      frame: "voice",
-      media: "#{@commons}/c/ca/Robin_Owain_en_Voice.ogg/Robin_Owain_en_Voice.ogg.mp3"
-    },
-    %{label: "COACH", name: "IBRAHIM", state: "live", frame: "empty", media: nil},
-    %{
-      label: "BEST FRIEND",
-      name: "TUNDE ADEBAYO",
-      state: "live",
-      frame: "face",
-      media:
-        "#{@commons}/3/31/WIKITONGUES-_C%C3%A9lestin_speaking_Kilega.webm/" <>
-          "WIKITONGUES-_C%C3%A9lestin_speaking_Kilega.webm.360p.vp9.webm"
-    },
-    %{label: "NEIGHBOUR", name: "ELENA", state: "absent", frame: "empty", media: nil},
-    %{
-      label: "COUSIN",
-      name: "KEMI",
-      state: "live",
-      frame: "voice",
-      media:
-        "#{@commons}/4/46/Dan_Barker_introducing_himself.ogg/" <>
-          "Dan_Barker_introducing_himself.ogg.mp3"
-    },
-    %{label: "UNCLE", name: "PETER", state: "absent", frame: "empty", media: nil},
-    %{
-      label: "AUNT",
-      name: "BLESSING",
-      state: "present",
-      frame: "face",
-      media:
-        "#{@commons}/0/04/WIKITONGUES-_Donald_speaking_Tswana.webm/" <>
-          "WIKITONGUES-_Donald_speaking_Tswana.webm.360p.vp9.webm"
-    },
-    %{
-      label: "MENTOR",
-      name: "ADEOLA",
-      state: "present",
-      frame: "voice",
-      media:
-        "#{@commons}/e/ed/Richard_Rogers_-_voice_-_en.ogg/Richard_Rogers_-_voice_-_en.ogg.mp3"
-    },
-    %{label: "ROOMMATE", name: "LUCAS", state: "present", frame: "empty", media: nil},
-    %{label: "BOSS", name: "HANNAH", state: "absent", frame: "empty", media: nil},
-    %{label: "DOCTOR", name: "NGOZI", state: "live", frame: "empty", media: nil},
-    %{label: "BARBER", name: "FEMI", state: "absent", frame: "empty", media: nil},
-    %{label: "PASTOR", name: "EMMANUEL", state: "present", frame: "empty", media: nil},
-    %{label: "TEAMMATE", name: "CHIDI", state: "absent", frame: "empty", media: nil}
-  ]
-
-  # THE UNSCOPED WORLD — everyone you have NOT made a relationship with. They
-  # carry a name but no label, because a label is a name YOU gave someone and
-  # you have given these none. This is the discovery surface: the same live
-  # frame, the same three states, but people you do not yet hold. The SCOPED
-  # button flips the list between the two — the ones you keep, and the rest.
-  @unscopes [
-    %{
-      label: nil,
-      name: "AMINA",
-      state: "live",
-      frame: "face",
-      media:
-        "#{@commons}/8/8e/WIKITONGUES-_Sedang_speaking_Iban.webm/WIKITONGUES-_Sedang_speaking_Iban.webm.360p.vp9.webm"
-    },
-    %{
-      label: nil,
-      name: "LEV",
-      state: "live",
-      frame: "voice",
-      media: "#{@commons}/9/96/Andy_Mabbett_voice.ogg/Andy_Mabbett_voice.ogg.mp3"
-    },
-    %{
-      label: nil,
-      name: "PRIYA",
-      state: "present",
-      frame: "voice",
-      media: "#{@commons}/b/bb/Bettany_Hughes_voice.ogg/Bettany_Hughes_voice.ogg.mp3"
-    },
-    %{
-      label: nil,
-      name: "TARKHAN",
-      state: "live",
-      frame: "face",
-      media:
-        "#{@commons}/2/26/WIKITONGUES-_Tarkhan_speaking_Jek.webm/WIKITONGUES-_Tarkhan_speaking_Jek.webm.360p.vp9.webm"
-    },
-    %{label: nil, name: "SOPHIE", state: "absent", frame: "empty", media: nil},
-    %{
-      label: nil,
-      name: "JERIES",
-      state: "present",
-      frame: "face",
-      media:
-        "#{@commons}/c/c9/WIKITONGUES-_Jeries_speaking_Syriac.webm/WIKITONGUES-_Jeries_speaking_Syriac.webm.360p.vp9.webm"
-    },
-    %{
-      label: nil,
-      name: "MATEO",
-      state: "live",
-      frame: "voice",
-      media: "#{@commons}/0/01/David_Lammy_voice.ogg/David_Lammy_voice.ogg.mp3"
-    },
-    %{
-      label: nil,
-      name: "YERNUR",
-      state: "present",
-      frame: "face",
-      media:
-        "#{@commons}/2/20/WIKITONGUES-_Yernur_speaking_Kazakh.webm/WIKITONGUES-_Yernur_speaking_Kazakh.webm.360p.vp9.webm"
-    },
-    %{label: nil, name: "HANA", state: "absent", frame: "empty", media: nil},
-    %{
-      label: nil,
-      name: "OMAR",
-      state: "present",
-      frame: "voice",
-      media: "#{@commons}/e/ec/David_Harewood_voice.ogg/David_Harewood_voice.ogg.mp3"
-    },
-    %{
-      label: nil,
-      name: "ULADZISLAU",
-      state: "live",
-      frame: "face",
-      media:
-        "#{@commons}/e/ea/WIKITONGUES-_Uladzislau_speaking_Belarusian.webm/WIKITONGUES-_Uladzislau_speaking_Belarusian.webm.360p.vp9.webm"
-    },
-    %{
-      label: nil,
-      name: "FREYA",
-      state: "present",
-      frame: "voice",
-      media: "#{@commons}/0/0f/Alison_Balsom_voice.ogg/Alison_Balsom_voice.ogg.mp3"
-    },
-    %{label: nil, name: "RIZKI", state: "absent", frame: "empty", media: nil},
-    %{
-      label: nil,
-      name: "NOA",
-      state: "present",
-      frame: "voice",
-      media: "#{@commons}/f/fa/Brian_Schmidt_voice.ogg/Brian_Schmidt_voice.ogg.mp3"
-    },
-    %{label: nil, name: "DIEGO", state: "absent", frame: "empty", media: nil}
-  ]
 
   # WORLD COUNTRIES — the LOCATION list. A scroll of places rather than people;
   # what settles in the band is a country, and its box shows how many are
@@ -420,24 +198,76 @@ defmodule Peoplemedia.Directory do
     }
   ]
 
-  @doc """
-  The people you hold, each carrying its thread of letters and the one-line
-  SUMMARY the list row reads.
-  """
-  def scopes do
-    @scopes
-    |> Enum.with_index()
-    |> Enum.map(fn {scope, i} ->
-      letters = letters_for(scope, i)
+  # ══ THE LIST ════════════════════════════════════════════════════════════════
+  # THE SEAM PROMISED AT THE TOP OF THIS FILE. Scopes and strangers are real
+  # rows now — `relationships`, `scopes`, `people` — and these two functions are
+  # where the surface stops caring. The SHAPE they return has not changed by a
+  # field, which is why nothing above them had to move.
+  #
+  # LETTERS ARE STILL FIXTURES, and that is the honest state of it: there is no
+  # `letters` table yet. Each real scope draws a thread from the pool below by
+  # its own id, so the list is populated and the row summary is exercised
+  # against real relationships. When the table lands, `letters_for/2` is the
+  # only thing that changes.
 
-      scope
-      |> Map.put(:letters, letters)
-      |> Map.put(:letter, summarise(letters))
+  @doc """
+  The people this person holds, each carrying its thread of letters and the
+  one-line SUMMARY the row reads.
+
+  A VISITOR HOLDS NOBODY. Not an error and not an empty page — the surface has
+  two lists, and someone without a passport simply has everything in the other
+  one. It is also exactly what a new passport looks like on its first morning.
+  """
+  def scopes(nil), do: []
+
+  def scopes(%Person{id: owner_id}) do
+    owner_id
+    |> Relationships.held_by()
+    |> Enum.map(fn {scope, person} ->
+      letters = letters_for(person, thread_seed(person))
+
+      %{
+        id: person.id,
+        # The LABEL is the owner's word for them; the NAME is their own. The row
+        # leads with the first and whispers the second, which is only possible
+        # because the two live in different tables.
+        label: String.upcase(scope.name),
+        name: String.upcase(person.name),
+        country: person.country,
+        # Presence is not persisted — see the note on `state` above. Until it is
+        # live, everyone reads as present rather than as pretend.
+        state: "present",
+        frame: "empty",
+        media: nil,
+        letters: letters,
+        letter: summarise(letters)
+      }
     end)
   end
 
-  @doc "Everyone you have not made a relationship with — the discovery surface."
-  def unscopes, do: @unscopes
+  @doc """
+  Everyone this person has NOT scoped — the discovery surface, and the reason
+  strangers are people rows at all. For a visitor that is everybody.
+  """
+  def unscopes(nil), do: Enum.map(Relationships.everyone(), &stranger/1)
+
+  def unscopes(%Person{id: owner_id}) do
+    owner_id |> Relationships.not_held_by() |> Enum.map(&stranger/1)
+  end
+
+  # A stranger has no label, because a label is a thing you gave someone, and no
+  # letters, because a letter is written to a scope.
+  defp stranger(%Person{} = person) do
+    %{
+      id: person.id,
+      label: nil,
+      name: String.upcase(person.name),
+      country: person.country,
+      state: "present",
+      frame: "empty",
+      media: nil
+    }
+  end
 
   @doc "The world, and how many are present in each place right now."
   def countries, do: @countries
@@ -554,6 +384,14 @@ defmodule Peoplemedia.Directory do
       |> Map.put(:rule, rule_width(letter.len))
     end)
   end
+
+  # WHICH FIXTURE THREAD A PERSON DRAWS, and it has to be stable. Keying this on
+  # `scope.id` was wrong in a way that only shows once there is a database: an
+  # id is assigned by insertion order, so the same person's letters changed
+  # depending on when they happened to be scoped, and no two environments agreed.
+  # Hashing the NAME gives the same answer everywhere, forever, and stops being
+  # needed at all the day letters are real rows.
+  defp thread_seed(%Person{name: name}), do: :erlang.phash2(name, 997)
 
   # HOW LONG AGO, in the compact way a feed reads it: the single largest unit
   # that fits, one letter for it. Minutes climb to hours, days, weeks, then

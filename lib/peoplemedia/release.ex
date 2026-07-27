@@ -16,6 +16,32 @@ defmodule Peoplemedia.Release do
     end
   end
 
+  @doc """
+  Migrate, then seed. What the deploy runs.
+
+  SEEDING PRODUCTION ON EVERY DEPLOY is deliberate while the app is a demo of
+  itself: the list has to have people in it for the surface to be worth looking
+  at, and `priv/repo/seeds.exs` is idempotent — everyone is found by name before
+  they are created, so running it a hundred times adds nobody.
+
+  TAKE THE SEED OUT OF THIS the day real people have passports. An idempotent
+  seed is harmless but it is not free: it keeps a demo cast alive in a database
+  that has stopped being a demo, and nobody will remember why they are there.
+  """
+  def setup do
+    migrate()
+    seed()
+  end
+
+  def seed do
+    load_app()
+    path = Application.app_dir(@app, "priv/repo/seeds.exs")
+
+    for repo <- repos() do
+      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn _ -> Code.eval_file(path) end)
+    end
+  end
+
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))

@@ -2,6 +2,17 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   use PeoplemediaWeb.ConnCase
   import Phoenix.LiveViewTest
 
+  # THE LIST BELONGS TO SOMEBODY NOW. It used to be nineteen module attributes
+  # that every test got for free; a scope is a row joining two people, so a test
+  # about the list has to say whose it is. `cast/0` drives the full three-round
+  # handshake for each — a relationship left at `scoping` is not one the list
+  # shows, and a fixture that quietly produced the wrong state would make every
+  # test built on it a lie.
+  setup %{conn: conn} do
+    me = cast()
+    %{conn: check_in(conn, me), me: me}
+  end
+
   test "the surface renders its line and every scoped person", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
@@ -10,7 +21,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~ "MUM"
     assert html =~ "SARAH"
     # one row per person, and a band for them to pass through
-    assert html |> String.split(~s(class="scopes-item)) |> length() == 20
+    assert html |> String.split(~s(class="scopes-item)) |> length() == held_count() + 1
     assert html =~ "focus-box"
   end
 
@@ -68,15 +79,19 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ "px-[1.95rem]"
   end
 
-  test "every person carries the frame its row hands to the screen", %{conn: conn} do
+  test "every row still hands the frame a state, even with nothing to put in it",
+       %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
-    for mode <- ~w(empty voice face), do: assert(html =~ ~s(data-frame="#{mode}"))
-    for state <- ~w(absent present live), do: assert(html =~ ~s(data-state="#{state}"))
-
-    # An open line with nothing coming through it — the case that justifies
-    # `live` existing as a state at all.
-    assert html =~ ~r/data-state="live" data-frame="empty"/
+    # THE ROW CARRIES ITS FRAME AS DATA and always has — the hook reads these on
+    # settle. What changed is that presence is no longer a fixture: `state` and
+    # `frame` describe a LIVE line, and there is nothing live to describe until
+    # Presence lands. So every row reads present-and-empty, which is honest,
+    # where it used to read a spread of made-up states.
+    assert html =~ ~s(data-state="present")
+    assert html =~ ~s(data-frame="empty")
+    refute html =~ ~s(data-frame="face")
+    refute html =~ ~s(data-state="live")
   end
 
   test "picking a person lifts them into a header and opens the panel", %{conn: conn} do
@@ -242,7 +257,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # what app.css exempts from the resting opacity. Dimming those too was the
     # mistake in between: it flattened the one difference the marks are for.
     lit = ~r/letter-glyph[^"]*is-lit[^"]*text-primary-600/
-    assert Regex.scan(lit, html) |> length() == 6
+    assert Regex.scan(lit, html) |> length() == 3
 
     # And no mark is lit without being terracotta, or vice versa.
     marks = Regex.scan(~r/class="(letter-glyph[^"]*)"/, html, capture: :all_but_first)
@@ -347,12 +362,30 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ "bg-white/90"
   end
 
-  test "the launcher says whether you are checked in", %{conn: conn} do
+  test "the launcher says whether you are checked in", %{conn: conn, me: me} do
+    # Checked in, the launcher greets you by name.
     {:ok, _live, html} = live(conn, ~p"/")
-    # Nobody is signed in yet, so the passport cell offers the way IN rather
-    # than a manager for a passport that does not exist.
+    assert html =~ String.upcase(me.name)
+    refute html =~ "NOT CHECKED IN"
+
+    # A VISITOR IS OFFERED THE WAY IN rather than a manager for a passport that
+    # does not exist. `build_conn/0` because the case checks everyone in.
+    {:ok, _live, html} = live(build_conn(), ~p"/")
     assert html =~ "NOT CHECKED IN"
     assert html =~ "CHECK IN"
+  end
+
+  test "a visitor holds nobody, and opens on the list that has people in it",
+       %{conn: _conn} do
+    {:ok, _live, html} = live(build_conn(), ~p"/")
+
+    # SCOPED is the list's subject and the right default for anyone who holds
+    # people — but for a visitor it is empty, and opening on an empty list makes
+    # an app look broken when it is merely new. So the strangers lead.
+    assert html =~ "UNSCOPES"
+    # Everyone the cast made is a stranger to a visitor, including the owner.
+    assert html |> String.split(~s(class="scopes-item)) |> length() ==
+             held_count() + stranger_count() + 1 + 1
   end
 
   test "the act sits on the app's own edge, opposite the mark", %{conn: conn} do
