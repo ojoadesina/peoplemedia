@@ -301,29 +301,38 @@ defmodule PeoplemediaWeb.IndexLive do
            boxes and this begin at the bound. Its left edge and the band's are
            the same line.
 
-           A SQUARE OF --band-h, so it rhymes with the band and with the three
-           trailing boxes rather than introducing a fourth size. No brackets:
-           brackets on this surface mean AIMING, and this is not aimed at
-           anything — it is where you start something.
-
-           THE MARK IS THE VOICE BAR CROSSED WITH ITSELF. A plus drawn out of
-           the same 16x6 rectangle every kind mark is cut from, which says
-           "another one of these" in the vocabulary the list already speaks,
-           rather than importing an icon that means "add" everywhere else.
+           IT TAKES --act-h, NOT --band-h. It wore the band's height for a
+           while, on the argument that everything square here should rhyme — but
+           a rhyme needs two things near enough to hear together, and this sits
+           alone in the opposite corner with nothing beside it to be measured
+           against. At the band's height it read as a fourth trailing box that
+           had wandered off. Its size is set by its job instead: a target you
+           press. No brackets either: brackets on this surface mean AIMING, and
+           this is not aimed at anything — it is where you start something.
 
            SOLID, AND THE ONLY SOLID THING HERE. Every other box on this surface
            is a WASH — a state you are in, drawn faintly because you are looking
            through it at something else. This is not a state, it is the one ACT,
-           and it is the single control that does not answer to the band or the
-           list. So the fill and the mark trade places: the terracotta goes to
-           the ground and the mark is cut out of it pale. Nothing else on the
-           page does that, which is exactly why it is legible from the corner of
-           the eye without being large.
+           and the single control that answers to neither the band nor the list.
+           So the fill and the mark trade places: terracotta to the ground, the
+           mark cut out of it pale. Nothing else on the page does that, which is
+           why it reads from the corner of the eye without being large.
 
-           AND THE MARK CAME DOWN with the swap, 60% of the box to 45%. Pale on
-           solid reads far heavier than terracotta on a wash — the same plus at
-           the same size went from a mark to a slab. Contrast bought the room to
-           make it smaller.
+           A STEP OFF THE FULL STRENGTH, IN BOTH DIRECTIONS. Solid terracotta at
+           600 was the loudest thing on a page whose subject is a list of names,
+           and being the only solid thing already gives it all the separation it
+           needs. So it steps LIGHTER on cream (500) and DARKER on black (600) —
+           the same ramp read from opposite ends, because what reduces weight on
+           one page increases it on the other. Hover restores the step, so
+           pressing still has somewhere to go.
+
+           THE PLUS IS THIN. It began as the voice bar crossed with itself — the
+           literal 16x6 rectangle every kind mark is cut from — and that was too
+           good an idea to be true at this size: bars a quarter of the box thick,
+           cut pale out of solid colour, made a slab rather than a mark. Thinned
+           to 3.5 it is no longer that same rectangle, and the honest reading is
+           the simpler one: a plus, drawn square-ended out of two bars, in a
+           surface that draws everything out of square-ended bars.
 
            IT GOES WITH THE FURNITURE when the panel opens: a floating action
            hanging over a conversation you have opened is an action pointed at
@@ -340,16 +349,16 @@ defmodule PeoplemediaWeb.IndexLive do
             type="button"
             aria-label="Write a letter"
             class={[
-              "pointer-events-auto flex size-(--band-h) cursor-pointer items-center justify-center",
-              "bg-primary-600 text-primary-50 transition-colors outline-none hover:bg-primary-700",
+              "pointer-events-auto flex size-(--act-h) cursor-pointer items-center justify-center",
+              "bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600",
               "focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2",
               "focus-visible:ring-offset-light-50 dark:focus-visible:ring-offset-dark-950",
-              "dark:bg-primary-500 dark:hover:bg-primary-600"
+              "dark:bg-primary-600 dark:hover:bg-primary-500"
             ]}
           >
-            <svg viewBox="0 0 24 24" class="h-[45%] w-[45%]" fill="currentColor" aria-hidden="true">
-              <rect x="4" y="9" width="16" height="6" />
-              <rect x="9" y="4" width="6" height="16" />
+            <svg viewBox="0 0 24 24" class="h-1/2 w-1/2" fill="currentColor" aria-hidden="true">
+              <rect x="4" y="10.25" width="16" height="3.5" />
+              <rect x="10.25" y="4" width="3.5" height="16" />
             </svg>
           </button>
         </div>

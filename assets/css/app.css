@@ -1644,6 +1644,14 @@ html:not([data-theme]) .live-screen {
      air than the masthead gets, because the page ENDS here — there is nothing
      below it to be given room from. */
   --foot-bottom: 2.5rem;
+  /* THE ACT IS NOT ONE OF THE BOXES, so it does not take their height. It wore
+     --band-h for a while on the argument that everything square on this surface
+     should rhyme — but a rhyme needs two things near enough to hear together,
+     and this sits alone in the opposite corner with nothing beside it to be
+     measured against. What decides its size is its job: a target you press,
+     which wants to be comfortably bigger than a fingertip and no bigger. At the
+     band's height it was reading as a fourth box that had wandered off. */
+  --act-h: 3.25rem;
   --body-top: 7.75rem;
   --panel-top: 7.5rem;
 }
@@ -1787,6 +1795,7 @@ html:not([data-theme]) .live-screen {
        empty space above a mark. */
     --head-top: 1.75rem;
     --foot-bottom: 1.5rem;
+    --act-h: 3rem;
     /* The same arithmetic from this screen's own head-top, and the same 2rem of
        air between mark and line: 1.75 + 1.75 + 2. */
     --body-top: 5.5rem;

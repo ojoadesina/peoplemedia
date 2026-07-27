@@ -317,14 +317,21 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     assert html =~ "Write a letter"
 
-    # A square of --band-h, so it rhymes with the band and the trailing boxes
-    # rather than introducing a fourth size.
-    assert html =~ "size-(--band-h)"
+    # Its own size, not the band's: it sits alone in the opposite corner with
+    # nothing beside it to rhyme with, so it is sized for being pressed.
+    assert html =~ "size-(--act-h)"
 
-    # THE MARK IS THE VOICE BAR CROSSED WITH ITSELF — the same 16x6 rectangle
-    # every kind mark is cut from, turned into a plus.
-    assert html =~
-             ~s(<rect x="4" y="9" width="16" height="6"></rect><rect x="9" y="4" width="6" height="16">)
+    # THE ONLY SOLID FILL ON THE SURFACE — everything else here is a wash, and
+    # this is the one act rather than a state. A step off full strength, and
+    # opposite ways in the two themes: lighter on cream, darker on black.
+    assert html =~ "bg-primary-500 text-primary-50"
+    assert html =~ "dark:bg-primary-600"
+
+    # A THIN PLUS, two square-ended bars. It began as the voice bar crossed with
+    # itself — the literal 16x6 every kind mark is cut from — and at a quarter of
+    # the box, cut pale out of solid colour, that was a slab rather than a mark.
+    assert html =~ ~s(<rect x="4" y="10.25" width="16" height="3.5"></rect>)
+    assert html =~ ~s(<rect x="10.25" y="4" width="3.5" height="16">)
   end
 
   # WHAT THE BOXES SAY, with the markup taken out of the way. Each box is a
