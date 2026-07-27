@@ -1851,15 +1851,14 @@ html:not([data-theme]) .live-screen {
      they are one cluster now, they take their height from the band, and the
      rule that stacks them above it already fired 26rem ago. */
 
-  /* THE ROOM IS HELD WHETHER THE BOX IS THERE OR NOT. Opening the gap only on
-     selection was correct about space and wrong about attention: the whole list
-     rose and fell every time the band caught or lost a row, and a page that
-     moves under the eye while you are reading it is worse than a little unused
-     room. Now the box is small the reserve costs almost nothing, so it is
-     simply always there and the list never shifts. */
-  .stage-box {
-    margin-top: calc(3.8rem + 2rem);
-  }
+  /* THE RESERVE ABOVE THE LIST IS GONE. It was 5.8rem — a 3.8rem frame plus
+     air — held permanently so the list would not rise and fall as the frame
+     came and went above it. That frame does not sit above the stage box any
+     more; it is one of three boxes INSIDE it, stacked over the band, at a
+     position that never changes. So the reserve was buying stillness that is
+     now free, and charging a phone 93px of dead page at the top of every list
+     to do it. The markup's own mt-12 is the gap.
+   */
 
   /* ── THE PANEL, AS TWO VIEWS ─────────────────────────────────────────────
      A phone cannot put the record stream and the live room side by side, and
