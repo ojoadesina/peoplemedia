@@ -144,46 +144,63 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute has_element?(live, "#bar.is-picked")
   end
 
-  test "the tag is one sentence, and it opens the world", %{conn: conn} do
+  test "the head of the list is the place its rows came out of", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
-    # A scope and a place said together, on ONE button — not two switches. The
-    # tag is a COUNT over that sentence now, the shape a headline number takes,
-    # so the two are separate nodes and `html =~ "SCOPED FINLAND"` cannot see
-    # them. What the test is about has not changed, so it reads the tag's TEXT.
-    assert tag_says(live) =~ "SCOPED FINLAND"
+    # A HIERARCHY, NOT A COMPOUND TERM. "Scoped Finland" is not a thing — it is
+    # a filter said as though it were one. Finland is a place, and the list is
+    # one of the two populations that place holds, so the place is the heading
+    # and what came out of it is the caption. Two nodes, so this reads the TEXT.
+    assert tag_says(live) =~ "FINLAND 19 SCOPES"
     assert live |> element(".scope-tags") |> render() |> String.split("<button") |> length() == 2
 
-    # THE HEAD OF A LIST COUNTS THE LIST. Nineteen scoped people, nineteen rows.
-    assert tag_says(live) =~ "19"
+    # The count is the list's own length, not a fact stored beside it.
     assert html |> String.split(~s(class="scopes-item)) |> length() == 20
 
     opened = live |> element(~s(button[phx-click="to_location"])) |> render_click()
     assert has_element?(live, ~s(button[phx-click="to_location"][aria-pressed="true"]))
     assert opened =~ "Nigeria"
 
-    # Over places the caption follows the LIST, not the lens it came from —
-    # a tally of the world under the name of one country is the one pairing
-    # this can get wrong.
-    assert tag_says(live) =~ "18 PLACES"
+    # A roll of countries had to come out of something too, and there is only
+    # one thing left for it to have come out of.
+    assert tag_says(live) =~ "WORLD 18 PLACES"
     refute tag_says(live) =~ "FINLAND"
   end
 
   test "the lens says which population it holds, in the mark's column", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
-    # SCOPED is two square links overlapping — a hold.
-    assert html =~ ~s(<rect x="2.5" y="8" width="10" height="8">)
-    assert html =~ ~s(<rect x="11.5" y="8" width="10" height="8">)
+    # SCOPED is two rings INTERSECTED — each one's edge falls inside the other,
+    # so neither can be lifted away on its own.
+    assert html =~ ~s(<rect x="3.5" y="7" width="10" height="10">)
+    assert html =~ ~s(<rect x="10.5" y="7" width="10" height="10">)
 
     live |> element(~s(button[phx-click="to_location"])) |> render_click()
     render_hook(live, "select", %{"index" => 2})
 
-    # UNSCOPED is the same two links broken open and drawn apart.
+    # UNSCOPED is the same two rings in the same place — still intersected, so
+    # it cannot read as "these two have nothing to do with each other" — but
+    # each with a gap cut out of its top, so neither one closes.
     unscoped = live |> element(~s(button[phx-value-scope="UNSCOPED"])) |> render_click()
-    assert unscoped =~ "M10 8H2.5v8H10"
-    assert unscoped =~ "M14 8h7.5v8H14"
-    refute unscoped =~ ~s(<rect x="2.5" y="8")
+    assert unscoped =~ "M7 7H3.5v10h10V7h-3.5"
+    assert unscoped =~ "M14 7h-3.5v10h10V7h-3.5"
+    refute unscoped =~ ~s(<rect x="3.5" y="7")
+  end
+
+  test "an unread mark keeps its full voice; the rest are held quiet", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # is-lit rides only on a mark whose row has an unopened letter, and it is
+    # what app.css exempts from the resting opacity. Dimming those too was the
+    # mistake in between: it flattened the one difference the marks are for.
+    lit = ~r/letter-glyph[^"]*is-lit[^"]*text-primary-600/
+    assert Regex.scan(lit, html) |> length() == 6
+
+    # And no mark is lit without being terracotta, or vice versa.
+    marks = Regex.scan(~r/class="(letter-glyph[^"]*)"/, html, capture: :all_but_first)
+
+    for [m] <- marks,
+        do: assert(String.contains?(m, "is-lit") == String.contains?(m, "text-primary-600"))
   end
 
   test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do
@@ -208,13 +225,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert counts =~ "4169"
     assert counts =~ "UNSCOPES"
 
-    # The band alone commits nothing here — it cannot say WHICH population.
+    # The band alone commits nothing here — it cannot say WHICH population, so
+    # the head of the list is still the world rather than the country under it.
     live |> element(".focus-box") |> render_click()
-    refute tag_says(live) =~ "SCOPED NIGERIA"
+    refute tag_says(live) =~ "NIGERIA"
 
     # Pressing a count answers both halves at once: the place and the people.
     scoped = live |> element(~s(button[phx-value-scope="SCOPED"])) |> render_click()
-    assert tag_says(live) =~ "SCOPED NIGERIA"
+    assert tag_says(live) =~ "NIGERIA 19 SCOPES"
     assert scoped =~ "MUM"
     refute has_element?(live, "#panel")
   end
@@ -225,7 +243,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     render_hook(live, "select", %{"index" => 2})
 
     unscoped = live |> element(~s(button[phx-value-scope="UNSCOPED"])) |> render_click()
-    assert tag_says(live) =~ "UNSCOPED BRAZIL"
+    assert tag_says(live) =~ "BRAZIL 15 UNSCOPES"
     # A stranger only the unscoped world holds, so the list really swapped.
     assert unscoped =~ "AMINA"
   end

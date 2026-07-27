@@ -150,14 +150,33 @@ defmodule PeoplemediaWeb.IndexLive do
   defp current_list(assigns), do: assigns.scopes
 
   # Both are stored rather than read through a function in the markup, which
-  # would switch LiveView's change tracking off for the whole block. The COUNT
-  # rides with the list for the same reason and in the same breath: it is the
-  # heading at the top of the column, so it can never be a step behind what is
-  # under it.
+  # would switch LiveView's change tracking off for the whole block. THE HEAD OF
+  # THE LIST rides with it for the same reason and in the same breath — the
+  # place it came out of, how many came, and what they are called — so the
+  # heading can never be a step behind the rows under it.
+  #
+  # WORLD is the super item of the place list for the same reason Finland is the
+  # super item of a people list: a roll of countries has to have come out of
+  # something too, and that something is the only thing left.
   defp put_list(socket) do
     list = current_list(socket.assigns)
-    assign(socket, list: list, list_count: length(list))
+
+    {head, noun} =
+      case socket.assigns.list_mode do
+        :location -> {"WORLD", "PLACES"}
+        :people -> {String.upcase(socket.assigns.location), population(socket.assigns.scope)}
+      end
+
+    assign(socket, list: list, list_count: length(list), list_head: head, list_noun: noun)
   end
+
+  # The lens holds the scope as the ADJECTIVE you filtered by; the head of the
+  # list needs the NOUN for what came out — the things Finland holds, not a
+  # description of Finland. It is also the word the two count buttons already
+  # carry, which is what makes pressing "41 SCOPES" under Nigeria and landing on
+  # a list headed "NIGERIA / 41 SCOPES" one continuous sentence.
+  defp population("UNSCOPED"), do: "UNSCOPES"
+  defp population(_scoped), do: "SCOPES"
 
   defp put_current(socket) do
     assign(
@@ -216,15 +235,22 @@ defmodule PeoplemediaWeb.IndexLive do
              below. Every WORD on this surface now starts here; the bare rail is
              left to structure — where a fill begins and where a trailing box
              ends. Two jobs, cleanly split. --%>
-        <%!-- dark:neutral-700, and the OLD pairing was the bug. It read
-             `text-neutral-300 dark:text-neutral-200` — one step LIGHTER in dark,
-             where every other line in this file steps DARKER (400/500, 500/400
-             the other way round). On a cream page #b0b0b0 is a 2:1 whisper; on
-             black, #d1d1d1 is nearly 14:1, so the same strapline whispered in
-             one theme and shouted in the other. Exact parity would be
-             neutral-800; this is one step brighter than that, because a black
-             page washes out in ambient light where a cream one does not. --%>
-        <p class="lede px-(--list-pad) text-(length:--row-type) tracking-[0.15em] text-neutral-300 dark:text-neutral-700">
+        <%!-- THE PAIRING IS THE WHOLE OF IT, and it was once a bug worth
+             remembering: this read `text-neutral-300 dark:text-neutral-200` —
+             one step LIGHTER in dark, where every other line in this file steps
+             DARKER. On a cream page #b0b0b0 is a whisper; on black, #d1d1d1 is
+             nearly 14:1, so the same strapline whispered in one theme and
+             shouted in the other.
+
+             ONE STEP QUIETER AGAIN, BOTH WAYS — 300/700 down to 200/800. This
+             line is the only thing on the page that says nothing about the
+             list: it is a standing sentence, read once, and after that it is
+             furniture. At 300 on cream it was still legible enough to catch the
+             eye on every visit, which for a line you have already read is a
+             small tax charged over and over. The dark half moves with it, or
+             the two themes stop meaning the same thing — which is exactly how
+             this went wrong the last time. --%>
+        <p class="lede px-(--list-pad) text-(length:--row-type) tracking-[0.15em] text-neutral-200 dark:text-neutral-800">
           SO YOU DON'T DO LIFE ALONE
         </p>
 
@@ -307,6 +333,7 @@ defmodule PeoplemediaWeb.IndexLive do
                   <.letter_glyph
                     :if={@list_mode == :people}
                     kind={item[:letter][:kind]}
+                    lit={!!item[:letter][:unread]}
                     class={[
                       "mr-3 -mt-[0.125em] transition-colors duration-200",
                       (item[:letter][:unread] && "text-primary-600 dark:text-primary-500") ||
@@ -318,33 +345,48 @@ defmodule PeoplemediaWeb.IndexLive do
                       {item[:label] || item[:name]}
                       <%!-- Their own name, quiet beside the label, arriving only
                              while the row is IN the band. It keeps its own muted
-                             colour and its own weight on purpose: the focused row
-                             turns terracotta and the label carries the list's
-                             bold, and this staying grey and regular is what stops
-                             the band reading as two labels shouting. Only a scoped
-                             person has both a label and a name — a stranger or a
-                             country is one word. --%>
+                             colour on purpose: the focused row turns terracotta,
+                             and this staying grey is what stops the band reading
+                             as two labels shouting. Only a scoped person has both
+                             a label and a name — a stranger or a country is one
+                             word. --%>
                       <span
                         :if={item[:label]}
-                        class="scopes-name ml-3 text-light-300 opacity-0 transition-opacity duration-200 dark:text-dark-600"
+                        class="scopes-name ml-3 text-neutral-400/70 opacity-0 transition-opacity duration-200 dark:text-neutral-500/70"
                       >
                         {item[:name]}
                       </span>
                     </p>
-                    <%!-- WHEN THE LAST LETTER CAME, and nothing else. It keeps a
-                           muted colour through the focus too — the row turning
+                    <%!-- WHEN THE LAST LETTER CAME, and nothing else.
+
+                           GREY, NOT THE WARM RAMP. It used to be `light-500`,
+                           which is not a neutral at all — the light ramp runs
+                           cream to cocoa, so its middle is a muted terracotta,
+                           and an age drawn in it read as a quiet version of the
+                           colour this surface uses for ATTENTION. Every subtext
+                           here is grey for that reason: terracotta has one job
+                           and a timestamp is not it.
+
+                           It stays grey through the focus too — the row turning
                            terracotta is about the NAME, and an age that lit with
                            it would make the band read as two things being
                            pointed at. --%>
                     <p
                       :if={item[:letter]}
-                      class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-light-500 dark:text-dark-500"
+                      class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/75 dark:text-neutral-500/80"
                     >
                       {item.letter.when}
                     </p>
                   </div>
+                  <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
+                       the kind mark at top left — the row's two marks are one
+                       pair and belong on one line, with the age hanging under
+                       the name between them. Centred against the whole two-line
+                       block it sat below both of them and read as a third thing
+                       floating in the row rather than as the other half of what
+                       the left mark says. --%>
+                  <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
                 </div>
-                <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
               </li>
             </ul>
           </div>
@@ -371,25 +413,36 @@ defmodule PeoplemediaWeb.IndexLive do
                joins the column that was already there, which is what makes it
                read as the list's own head rather than a control parked nearby.
 
-               THE COUNT IS THE HEADING, AND THE LENS IS ITS LABEL. It used to
-               be the term over the place — SCOPED over FINLAND — which stacked
-               two halves of one sentence and made you read both to learn
-               nothing you did not already know, since the term is also the
-               thing you just pressed. What the head of a list is actually for
-               is HOW MANY ARE IN IT, and that is the reference's own shape: a
-               number, and under it the quiet words saying what was counted.
+               THE PLACE IS THE SUPER ITEM, AND THE LIST IS WHAT COMES OUT OF
+               IT. This went through two wrong shapes before landing here, and
+               both were wrong the same way — they treated "scoped" and
+               "Finland" as two halves of ONE term.
 
-               So it is the count over "SCOPED FINLAND" — the sentence back on
-               ONE line where it always belonged, now that it is a caption
-               rather than a heading. The number takes --count-type, which is
-               the size the two population counts already use, because it is
-               the same kind of thing: a number that is a DOOR. Press it and
-               the world opens; the counts press back the other way.
+                 SCOPED           …a term stacked on a place, read as two
+                 FINLAND            unrelated switches.
 
-               IT WEARS THE ROW'S OWN ANATOMY — the mark's column reserved and
-               empty, then the two-line block — so the number lands exactly
-               over the names below it and the caption exactly over their ages.
-               The head of a list should be built out of the list.
+                 19               …a count captioned by that same compound.
+                 SCOPED FINLAND     Better, but "scoped Finland" is not a
+                                    thing; it is a filter said as if it were.
+
+               What is actually true is a HIERARCHY. Finland is a place, and
+               everyone in this app is somewhere; the list below is one of the
+               two populations that place holds. So the place is the heading —
+               the item every row descends from — and under it, quietly, how
+               many came out of it and which population they are:
+
+                 FINLAND
+                 19 SCOPES
+
+               Which makes the button obvious rather than merely pressable. It
+               shows a country, so pressing it changes the country. The two
+               counts press the other way: they are the door back, and they
+               pick which of the place's two populations you meant.
+
+               IT WEARS THE ROW'S OWN ANATOMY — the mark's column, then the
+               two-line block — so the place lands exactly over the names below
+               it and its caption over their ages. The head of a list should be
+               built out of the list.
 
                TEXT, NOT A CHIP. A filled box reads as a control you press once
                and are done with; this is a lens you live in, and the lit state
@@ -434,17 +487,22 @@ defmodule PeoplemediaWeb.IndexLive do
               <.scope_glyph :if={@list_mode == :people} scope={@scope} class="mr-3" />
               <.letter_glyph :if={@list_mode == :location} kind={nil} class="mr-3" />
               <div class="flex flex-col leading-tight">
-                <span class="text-(length:--count-type) leading-none font-bold tracking-[0.06em]">
-                  {@list_count}
+                <%!-- THE PLACE, or THE WORLD while you are choosing one. Weight
+                     here and nowhere else on the surface: this is the one thing
+                     everything below it descends from, and a heading that is
+                     the same weight as its own contents is not a heading. --%>
+                <span class="text-(length:--count-type) leading-none font-bold tracking-(--row-track)">
+                  {@list_head}
                 </span>
-                <%!-- THE CAPTION NAMES WHAT WAS COUNTED, so it has to follow
-                     the list rather than the lens. Over places the number is a
-                     count of PLACES, and captioning it "SCOPED FINLAND" would
-                     have put a tally of the world under the name of one
-                     country — the one combination this pairing can get wrong. --%>
+                <%!-- WHAT CAME OUT OF IT: how many, and which of the place's
+                     two populations they are. It names the LIST, so over places
+                     it counts places — a tally of the world captioned with one
+                     country's populations is the one thing this pair can get
+                     wrong.
+
+                     SCOPES rather than SCOPED — see `population/1`. --%>
                 <span class="mt-1 text-(length:--sub-type) tracking-(--sub-track) opacity-60">
-                  {(@list_mode == :location && "PLACES") ||
-                    "#{@scope} #{String.upcase(@location)}"}
+                  {@list_count} {@list_noun}
                 </span>
               </div>
             </button>
@@ -542,7 +600,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 {@current[:label] || @current[:name]}
                 <span
                   :if={@current[:label]}
-                  class="ml-3 text-light-500 dark:text-dark-500"
+                  class="ml-3 text-neutral-400/70 dark:text-neutral-500/70"
                 >
                   {@current[:name]}
                 </span>

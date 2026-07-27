@@ -1201,26 +1201,31 @@ html:not([data-theme]) .presence-row .stream-name {
   color: var(--rg-accent);
 }
 
-/* ── THE MARKS ARE HELD QUIET ─────────────────────────────────────────────────
-   A filled rectangle is the heaviest shape this surface draws, and the list now
-   puts one at the head of every row. At full strength that column read as a
-   SECOND LIST running down the left, louder than the names it was annotating —
-   and the unread ones, in terracotta, could not then get any louder, which is
-   the one thing they exist to do.
+/* ── QUIET IS FOR THE MARKS WITH NOTHING TO SAY ───────────────────────────────
+   A filled rectangle is the heaviest shape this surface draws, and the list
+   puts one at the head of every row, so the column wants holding down. But it
+   is NOT a uniform column: a handful of those marks sit on rows with an
+   unopened letter, and those are the only thing on this page asking anything of
+   you. Turning the whole column down flattens exactly the difference the marks
+   exist to draw — and terracotta held at 60% is a terracotta that cannot then
+   get any louder.
 
-   So the resting state is soft, and THE BAND GIVES IT BACK: the row you are on
-   states its kind plainly while the eighteen you are not stay out of the way.
-   Opacity rather than a paler colour, because the mark has to hold over three
-   different things — the page, the band's wash, and a face playing in the
+   So `is-lit` stays at full strength and everything else is soft. Opacity
+   rather than a paler colour for the soft ones, because a mark has to hold over
+   three different things — the page, the band's wash, and a face playing in the
    panel's box — and only opacity means the same on all three.
+
+   THE BAND GIVES IT BACK to the rest: the row you are on states its kind
+   plainly while the ones you are not stay out of the way.
 
    THE FLOW ARROWS ARE NOT LIFTED WITH IT. They are already at their own two
    strengths, and the lit one is a STATE rather than a highlight: brightening it
    on the focused row would read as the letter having just changed. */
 .letter-glyph {
-  opacity: 0.6;
+  opacity: 0.55;
   transition: opacity 200ms ease-out;
 }
+.letter-glyph.is-lit,
 .scopes-item.is-focused .letter-glyph,
 .panel-item.is-focused .letter-glyph {
   opacity: 1;

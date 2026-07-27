@@ -627,21 +627,29 @@ defmodule PeoplemediaWeb.CoreComponents do
   ancestor, or its mark will be sized against the page default and stand in a
   narrower column than the rows do.
 
-  ## IT IS HELD QUIET
+  ## QUIET IS FOR THE ONES WITH NOTHING TO SAY
 
-  1.4em and, in app.css, a resting opacity — down from 1.7em at full strength,
-  which was wrong the moment there were NINETEEN of them. One mark beside one
-  name is a label; a column of solid bars down the left of a list is a second
-  list, and it was reading louder than the names it was meant to be annotating.
-  Filled rectangles are the heaviest shape in this vocabulary, so they earn
-  their place by being small and soft rather than by being drawn lightly.
+  `lit` is the whole of it. A mark on a row with an unopened letter is drawn at
+  FULL strength in terracotta, because that is the one thing on this surface
+  that is asking for you and holding it back would be holding back the only
+  signal the list has. Every other mark — a letter you have read, anything in
+  the panel — is grey and soft.
 
-  THE BAND GIVES IT BACK. `.is-focused` returns the mark to full strength, so
-  the row you are actually on states its kind plainly while the eighteen you
-  are not stay out of the way. That is the same bargain the row's own colour
-  makes, and it is why the quiet setting can be as quiet as it is.
+  Dimming both was the mistake in between, and it is worth writing down why it
+  was tempting: nineteen filled rectangles down the left DO read as a second
+  list, louder than the names they annotate, so the instinct to turn the whole
+  column down is right. What it misses is that the column is not uniform. Six
+  of those nineteen are asking for something and thirteen are not, and turning
+  all nineteen down flattens exactly the difference the marks exist to draw.
+  The size came down for everyone (1.7em to 1.4em); the STRENGTH came down only
+  for the ones with nothing to say.
+
+  THE BAND GIVES IT BACK to the rest. `.is-focused` returns any mark to full
+  strength, so the row you are on states its kind plainly while the ones you
+  are not stay out of the way.
   """
   attr :kind, :any, required: true
+  attr :lit, :boolean, default: false
   attr :class, :any, default: nil
 
   def letter_glyph(assigns) do
@@ -650,6 +658,7 @@ defmodule PeoplemediaWeb.CoreComponents do
       class={[
         "letter-glyph shrink-0 w-[1.4em]",
         @kind && "flex h-[1.4em]",
+        @lit && "is-lit",
         @class
       ]}
       aria-hidden="true"
@@ -712,15 +721,21 @@ defmodule PeoplemediaWeb.CoreComponents do
         stroke-linecap="butt"
         stroke-linejoin="miter"
       >
-        <%!-- Held: the right link's left edge sits inside the left link, so the
-             two read as passing through one another rather than as two boxes
-             set side by side. --%>
-        <rect :if={@scope == "SCOPED"} x="2.5" y="8" width="10" height="8" />
-        <rect :if={@scope == "SCOPED"} x="11.5" y="8" width="10" height="8" />
-        <%!-- Open: each link keeps three sides and loses the one facing the
-             other, so the gap between them is made of the two missing edges. --%>
-        <path :if={@scope != "SCOPED"} d="M10 8H2.5v8H10" />
-        <path :if={@scope != "SCOPED"} d="M14 8h7.5v8H14" />
+        <%!-- HELD: two closed rings, INTERSECTED — each one's edge falls inside
+             the other, so a third shape appears where they cross and neither
+             can be lifted away on its own. Two rings merely touching would be
+             two rings standing next to each other, which is what a list of
+             strangers already looks like. --%>
+        <rect :if={@scope == "SCOPED"} x="3.5" y="7" width="10" height="10" />
+        <rect :if={@scope == "SCOPED"} x="10.5" y="7" width="10" height="10" />
+        <%!-- OPEN: THE SAME TWO RINGS, STILL INTERSECTED, each with a gap cut
+             out of its top edge. Not pulled apart — pulled apart would say
+             these two have nothing to do with each other, and an unscoped
+             person is someone you could hold and have not. They are in exactly
+             the position that would hold, and neither one closes, so nothing
+             does. The two gaps read as one broken line across the top. --%>
+        <path :if={@scope != "SCOPED"} d="M7 7H3.5v10h10V7h-3.5" />
+        <path :if={@scope != "SCOPED"} d="M14 7h-3.5v10h10V7h-3.5" />
       </svg>
     </span>
     """
@@ -767,7 +782,12 @@ defmodule PeoplemediaWeb.CoreComponents do
 
   def letter_flow(assigns) do
     ~H"""
-    <span class={["letter-flow flex shrink-0 items-center gap-2 self-stretch", @class]}>
+    <%!-- ON THE NAME'S LINE, not centred in the row. It used to stretch the
+         row's full height, which put the pair below both lines of text and made
+         them read as a third thing floating at the right rather than as the
+         other half of what the kind mark on the left is saying. The two marks
+         are one pair; a pair sits on one line. --%>
+    <span class={["letter-flow flex shrink-0 items-center gap-2", @class]}>
       <.flow_arrow
         :if={@letter.outgoing}
         dir="up"
