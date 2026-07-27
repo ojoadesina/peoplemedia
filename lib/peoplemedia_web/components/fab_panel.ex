@@ -40,11 +40,16 @@ defmodule PeoplemediaWeb.FabPanel do
   # CoreComponents sits on the same footing for the same reason.
   use Phoenix.Component
 
+  # The mark, and only the mark. A blanket `import CoreComponents` would be a
+  # cycle waiting to happen the day CoreComponents wants anything from here.
+  import PeoplemediaWeb.CoreComponents, only: [head: 1]
+
   @doc """
   The panel and its rooms. `current_person` decides which cells the launcher
   offers — there is no point showing someone a passport manager before they have
   a passport.
   """
+  attr :socket, :map, required: true
   attr :current_person, :any, default: nil
   attr :unread, :integer, default: 0
 
@@ -71,7 +76,18 @@ defmodule PeoplemediaWeb.FabPanel do
       <%!-- The rooms wear the RAIL, so every word in here starts on the edge
            the mark, the strapline and the list all start from. A panel that
            measured itself would be a sixth left edge. --%>
-      <div class="fab-rooms rail relative flex h-full flex-col pt-(--body-top) pb-(--fab-foot)">
+      <div class="fab-rooms rail relative flex h-full flex-col pt-(--head-top) pb-(--fab-foot)">
+        <%!-- THE MARK COMES WITH YOU. The panel covers the page — masthead and
+             all — and a room with nothing of the app at the top of it is a
+             screen you could have arrived at from anywhere. It sits on the same
+             --list-pad every word does, and the hook replays its entrance each
+             time a room opens, so the eyes are drawn on rather than simply
+             being there. That replay is the reference's one gesture kept whole:
+             the head answering the door. --%>
+        <div class="fab-head px-(--list-pad) pb-10">
+          <.head class="h-7 text-primary-600 dark:text-primary-500" />
+        </div>
+
         <%!-- ── THE LAUNCHER ───────────────────────────────────────────────
              Every door the app has, as a grid of squares. Squares because
              everything here is square; a wash rather than an outline because
@@ -86,7 +102,15 @@ defmodule PeoplemediaWeb.FabPanel do
             {(@current_person && String.upcase(@current_person.name)) || "NOT CHECKED IN"}
           </p>
 
-          <div class="mt-8 grid grid-cols-3 gap-4 sm:grid-cols-4">
+          <%!-- HELD TO THE LIST'S OWN WIDTH. Left to the rail, four cells on a
+               wide screen come out a quarter of a metre across — a launcher
+               reading as a wall of doors rather than a handful of them. The
+               list column is the measure everything else on this surface uses,
+               so it is the measure here too.
+
+               RECTANGLES, NOT SQUARES. A square cell is an icon with a caption;
+               a wider-than-tall one is a door. --%>
+          <div class="mt-8 grid w-(--list-w) max-w-full grid-cols-3 gap-4">
             <.cell
               name="passport"
               label={(@current_person && "PASSPORT") || "CHECK IN"}
@@ -136,11 +160,29 @@ defmodule PeoplemediaWeb.FabPanel do
              Reachable, and deliberately empty until the work that fills them
              lands. An empty room you can open and step back out of proves the
              mechanism; a cell that opens nothing would not. --%>
+        <%!-- ── THE PASSPORT ───────────────────────────────────────────────
+             TWO DOORS, FULL WIDTH, and nothing else on the screen. There is
+             exactly one question here — have you been before? — and a door for
+             each answer is the whole of it.
+
+             REQUEST LEADS because this app is for people who do not have a
+             passport yet; check-in is the quieter of the two and wears the
+             neutral wash to say so. Square-cornered, like everything else. --%>
         <div data-panel-body="passport" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
           <.room_title>PASSPORT</.room_title>
-          <p class="mt-6 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-            CHECK IN AND REQUEST ARRIVE NEXT
-          </p>
+
+          <%!-- A LIVEVIEW OF ITS OWN, nested. The passport is five steps of
+               form state — a name, three words, a code, a country — and none of
+               it is the surface's business; IndexLive's own moduledoc says that
+               file is about the surface and nothing else. The registry knows
+               only that there is a room called "passport"; what happens inside
+               it is somebody else's process. --%>
+          <div class="mt-8 w-(--list-w) max-w-full">
+            {live_render(@socket, PeoplemediaWeb.PassportLive.Panel,
+              id: "passport-panel",
+              session: %{}
+            )}
+          </div>
         </div>
 
         <div data-panel-body="scoping" class="fab-body min-h-0 flex-1 overflow-y-auto" hidden>
@@ -170,7 +212,7 @@ defmodule PeoplemediaWeb.FabPanel do
       class="group flex cursor-pointer flex-col items-center gap-3 outline-none"
     >
       <span class={[
-        "fab-cell relative flex aspect-square w-full items-center justify-center",
+        "fab-cell relative flex aspect-[4/3] w-full items-center justify-center",
         "bg-primary-600/15 text-primary-600 transition-colors",
         "group-hover:bg-primary-600/25 group-focus-visible:bg-primary-600/25",
         "dark:bg-primary-500/20 dark:text-primary-500",
@@ -189,6 +231,39 @@ defmodule PeoplemediaWeb.FabPanel do
       <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 transition-colors group-hover:text-neutral-600 dark:text-neutral-400 dark:group-hover:text-neutral-300">
         {@label}
       </span>
+    </button>
+    """
+  end
+
+  # The reference drew these with `rounded-md` and a drop shadow; both are gone.
+  # Nothing on this surface has a corner radius, and a shadow implies a card
+  # lifted off the page when this IS the page.
+  @doc """
+  A DOOR: full width, a band tall, one word across it. Public because the
+  passport flow's forward buttons are the same object — a step that moves you on
+  is a door like any other, and two nearly-identical buttons would drift.
+  """
+  attr :name, :string, default: nil
+  attr :tone, :atom, values: [:primary, :quiet], default: :quiet
+  attr :rest, :global, include: ~w(type form disabled)
+  slot :inner_block, required: true
+
+  def door(assigns) do
+    ~H"""
+    <button
+      data-panel-open={@name}
+      {@rest}
+      class={[
+        "flex h-(--band-h) w-full cursor-pointer items-center justify-center",
+        "text-(length:--sub-type) font-bold tracking-[0.25em] transition-colors outline-none",
+        "focus-visible:ring-2 focus-visible:ring-primary-500/40",
+        "disabled:cursor-not-allowed disabled:opacity-40",
+        (@tone == :primary &&
+           "bg-primary-500 text-primary-50 hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500") ||
+          "bg-neutral-400/15 text-neutral-600 hover:bg-neutral-400/25 dark:bg-neutral-300/15 dark:text-neutral-300 dark:hover:bg-neutral-300/25"
+      ]}
+    >
+      {render_slot(@inner_block)}
     </button>
     """
   end

@@ -359,10 +359,12 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     {:ok, _live, html} = live(conn, ~p"/")
 
     # Built like the masthead — fixed, full width, one .rail inside — so it
-    # lands on the app's left edge without measuring anything.
+    # lands on the app's left edge without measuring anything. z-50 puts it
+    # ABOVE the panel it controls: the ground is opaque, and at z-30 the thing
+    # you press to close a room was painted over by the room.
     # ~s|...|, not ~s(...): the paren in `bottom-(` closes the sigil early.
     assert html =~
-             ~s|class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30"|
+             ~s|class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-50"|
 
     # It opens the LAUNCHER now rather than writing directly. Writing is one
     # door among several, and a button that did only that would have to be

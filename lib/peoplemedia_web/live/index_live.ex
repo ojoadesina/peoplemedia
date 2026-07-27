@@ -353,7 +353,10 @@ defmodule PeoplemediaWeb.IndexLive do
            the surface being designed before the thing it stands on, the same
            way `Directory` is fixtures and `/recorder` records nothing. Wire the
            phx-click the day there is somewhere for it to go. --%>
-      <div class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30">
+      <%!-- z-50, ABOVE the panel it controls. The act is the only way out of an
+           open room, and the panel's ground is opaque — at z-30 the thing you
+           press to close it was painted over by the thing it closes. --%>
+      <div class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-50">
         <div class="rail">
           <button
             id="act"
@@ -401,7 +404,7 @@ defmodule PeoplemediaWeb.IndexLive do
         </div>
       </div>
 
-      <.fab_panel current_person={@current_person} unread={@unread} />
+      <.fab_panel socket={@socket} current_person={@current_person} unread={@unread} />
 
       <div class="rail flex h-screen flex-col pt-(--body-top)">
         <%!-- THE LINE, on the content edge with the mark above it and the names

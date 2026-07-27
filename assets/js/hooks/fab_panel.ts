@@ -83,7 +83,13 @@ export const FabPanel = {
     const setPanel = (name: string | null) => {
       mode = name;
       stamp();
-      if (name) replay(room(name));
+      if (!name) return;
+      replay(room(name));
+      // THE HEAD ANSWERS THE DOOR. Its eyes are drawn on again every time a
+      // room opens — the reference's one gesture, and the reason the mark is
+      // in here at all rather than just the app's own furniture showing
+      // through. Re-query it: the server owns this markup.
+      replay(panel.querySelector(".fab-head .head"));
     };
 
     // ── The three ways in and out ──────────────────────────────────────────
