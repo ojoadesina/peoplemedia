@@ -368,11 +368,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~ String.upcase(me.name)
     refute html =~ "NOT CHECKED IN"
 
-    # A VISITOR IS OFFERED THE WAY IN rather than a manager for a passport that
-    # does not exist. `build_conn/0` because the case checks everyone in.
     {:ok, _live, html} = live(build_conn(), ~p"/")
     assert html =~ "NOT CHECKED IN"
-    assert html =~ "CHECK IN"
+
+    # THE CELL IS ALWAYS "PASSPORT". It leads to a room holding BOTH doors —
+    # request one, or check in with one you have — so naming it after either
+    # half would be a door lying about where it goes.
+    assert html =~ ">\n    Passport\n  <"
+    refute html =~ ">\n    Check in\n  <"
   end
 
   test "a visitor holds nobody, and opens on the list that has people in it",

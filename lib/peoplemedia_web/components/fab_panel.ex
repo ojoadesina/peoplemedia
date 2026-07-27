@@ -76,12 +76,15 @@ defmodule PeoplemediaWeb.FabPanel do
       <%!-- The rooms wear the RAIL, so every word in here starts on the edge
            the mark, the strapline and the list all start from. A panel that
            measured itself would be a sixth left edge. --%>
-      <%!-- EVERY WORD IN HERE STARTS ON --list-pad, mark included. It did not:
-           the mark carried the inset and the rooms did not, so the head sat a
-           full step to the right of the title under it — visible the moment
-           anything was written below it. The main page has had this right from
-           the beginning (the mark and the strapline share one edge); the panel
-           simply had not been told. --%>
+      <%!-- TWO EDGES IN HERE, THE SAME TWO THE PAGE HAS. The mark and the
+           HEADINGS sit on --list-pad, because they are words and words step one
+           in. The CONTENT — cells, doors, fields, the foot — begins at the
+           rail, because that is where a fill begins and it is the same edge the
+           band's wash and the trailing boxes take on the page behind.
+
+           Forcing all of it onto one edge was the mistake: it made the panel
+           read as an indented column floating inside the app rather than as the
+           app's own surface, and it is not what the page it covers does. --%>
       <div class="fab-rooms rail relative flex h-full flex-col pt-(--head-top) pb-(--fab-foot)">
         <%!-- THE MARK COMES WITH YOU. The panel covers the page — masthead and
              all — and a room with nothing of the app at the top of it is a
@@ -105,71 +108,37 @@ defmodule PeoplemediaWeb.FabPanel do
              read as somebody else's app dropped into this one. --%>
         <div
           data-panel-body="launcher"
-          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          class="fab-body min-h-0 flex-1 overflow-y-auto"
           hidden
         >
-          <p class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+          <p class={[heading_cls(), "px-(--list-pad)"]}>
             {(@current_person && String.upcase(@current_person.name)) || "NOT CHECKED IN"}
           </p>
 
-          <%!-- HELD TO THE LIST'S OWN WIDTH. Left to the rail, four cells on a
-               wide screen come out a quarter of a metre across — a launcher
-               reading as a wall of doors rather than a handful of them. The
-               list column is the measure everything else on this surface uses,
-               so it is the measure here too.
+          <%!-- THE REFERENCE'S CELLS, TAKEN AS FOUND. Same size, same neutral
+               wash, same stroke icons, same wide-tracked label underneath. The
+               only change is the corner radius, which is gone.
 
-               RECTANGLES, NOT SQUARES. A square cell is an icon with a caption;
-               a wider-than-tall one is a door. --%>
-          <div class="mt-8 grid w-(--list-w) max-w-full grid-cols-3 gap-4">
-            <.cell
-              name="passport"
-              label={(@current_person && "PASSPORT") || "CHECK IN"}
-              badge={0}
-            >
-              <%!-- A passport is a held thing with a mark in it: the box, and
-                   the two eyes of the app's own head sitting inside. --%>
-              <rect
-                x="3"
-                y="5"
-                width="18"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+               They are NOT rebuilt in this app's own marks, and that was the
+               mistake worth naming: a launcher is a place you arrive at from
+               anywhere, and its cells were already doing their job. --%>
+          <div class="mt-8 flex flex-wrap gap-x-10 gap-y-12">
+            <.cell name="passport" label="Passport">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5a2.25 2.25 0 0 0 2.25 2.25Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z"
               />
-              <rect x="7" y="10" width="3.5" height="3.5" />
-              <rect x="13.5" y="10" width="3.5" height="3.5" />
             </.cell>
 
-            <.cell name="scoping" label="SCOPING" badge={@unread}>
-              <%!-- The two intersected rings, square — the same mark the list
-                   used for its scope lens before the boxes took over. --%>
-              <rect
-                x="3.5"
-                y="7"
-                width="10"
-                height="10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <rect
-                x="10.5"
-                y="7"
-                width="10"
-                height="10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              />
+            <.cell name="scoping" label="Scoping" badge={@unread}>
+              <%!-- two interlocked rings — a mutual tie --%>
+              <circle cx="8.5" cy="12" r="6" />
+              <circle cx="15.5" cy="12" r="6" />
             </.cell>
           </div>
         </div>
 
-        <%!-- ── THE ROOMS ──────────────────────────────────────────────────
-             Reachable, and deliberately empty until the work that fills them
-             lands. An empty room you can open and step back out of proves the
-             mechanism; a cell that opens nothing would not. --%>
         <%!-- ── THE PASSPORT ───────────────────────────────────────────────
              TWO DOORS, FULL WIDTH, and nothing else on the screen. There is
              exactly one question here — have you been before? — and a door for
@@ -180,7 +149,7 @@ defmodule PeoplemediaWeb.FabPanel do
              neutral wash to say so. Square-cornered, like everything else. --%>
         <div
           data-panel-body="passport"
-          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          class="fab-body min-h-0 flex-1 overflow-y-auto"
           hidden
         >
           <.room_title>PASSPORT</.room_title>
@@ -201,7 +170,7 @@ defmodule PeoplemediaWeb.FabPanel do
 
         <div
           data-panel-body="scoping"
-          class="fab-body min-h-0 flex-1 overflow-y-auto px-(--list-pad)"
+          class="fab-body min-h-0 flex-1 overflow-y-auto"
           hidden
         >
           <.room_title>SCOPING</.room_title>
@@ -214,9 +183,9 @@ defmodule PeoplemediaWeb.FabPanel do
     """
   end
 
-  # A launcher cell: a square of wash, a mark cut out of it, a word underneath.
-  # The badge rides the corner and only ever appears — nothing here opens
-  # uninvited.
+  # THE REFERENCE'S LAUNCHER CELL, kept whole: a 4.5rem square of neutral wash
+  # with a stroke icon in it and a wide-tracked word underneath. Flattened, and
+  # given the dark twin this app requires of every colour — nothing else moved.
   attr :name, :string, required: true
   attr :label, :string, required: true
   attr :badge, :integer, default: 0
@@ -230,13 +199,20 @@ defmodule PeoplemediaWeb.FabPanel do
       class="group flex cursor-pointer flex-col items-center gap-3 outline-none"
     >
       <span class={[
-        "fab-cell relative flex aspect-[4/3] w-full items-center justify-center",
-        "bg-primary-600/15 text-primary-600 transition-colors",
-        "group-hover:bg-primary-600/25 group-focus-visible:bg-primary-600/25",
-        "dark:bg-primary-500/20 dark:text-primary-500",
-        "dark:group-hover:bg-primary-500/30 dark:group-focus-visible:bg-primary-500/30"
+        "fab-cell relative flex h-[4.5rem] w-[4.5rem] items-center justify-center transition",
+        "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200 group-hover:text-neutral-800",
+        "group-active:scale-95",
+        "dark:bg-neutral-800 dark:text-neutral-300 dark:group-hover:bg-neutral-700",
+        "dark:group-hover:text-neutral-100"
       ]}>
-        <svg viewBox="0 0 24 24" class="h-2/5 w-2/5" fill="currentColor" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="h-7 w-7"
+          aria-hidden="true"
+        >
           {render_slot(@inner_block)}
         </svg>
         <span
@@ -246,16 +222,13 @@ defmodule PeoplemediaWeb.FabPanel do
           {(@badge > 9 && "9+") || @badge}
         </span>
       </span>
-      <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 transition-colors group-hover:text-neutral-600 dark:text-neutral-400 dark:group-hover:text-neutral-300">
+      <span class="text-(length:--text-xs) font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
         {@label}
       </span>
     </button>
     """
   end
 
-  # The reference drew these with `rounded-md` and a drop shadow; both are gone.
-  # Nothing on this surface has a corner radius, and a shadow implies a card
-  # lifted off the page when this IS the page.
   @doc """
   A DOOR: full width, a band tall, one word across it. Public because the
   passport flow's forward buttons are the same object — a step that moves you on
@@ -286,11 +259,15 @@ defmodule PeoplemediaWeb.FabPanel do
     """
   end
 
+  @doc "The panel's heading voice — the same small tracked line the list's captions use."
+  def heading_cls,
+    do: "text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500"
+
   slot :inner_block, required: true
 
   defp room_title(assigns) do
     ~H"""
-    <p class="text-(length:--count-type) leading-none font-bold tracking-(--row-track) text-light-900 dark:text-dark-100">
+    <p class="px-(--list-pad) text-(length:--count-type) leading-none font-bold tracking-(--row-track) text-light-900 dark:text-dark-100">
       {render_slot(@inner_block)}
     </p>
     """

@@ -332,11 +332,15 @@ defmodule PeoplemediaWeb.PassportLive.Panel do
   # The step label is the smallest tracked type on the surface; the hint under a
   # field is a plain sentence in sentence case, because it is talking to you and
   # not labelling anything.
+  # HEADINGS AND HINTS ARE WORDS, so they step in to --list-pad with the mark
+  # and the room title. Fields, doors and the foot are CONTENT and begin at the
+  # rail — the same two edges the page behind this panel has always had.
   defp label_cls,
-    do: "text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500"
+    do:
+      "px-(--list-pad) text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500"
 
   defp hint_cls,
-    do: "pt-3 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500"
+    do: "px-(--list-pad) pt-3 text-(length:--sub-type) text-neutral-400 dark:text-neutral-500"
 
   # A word being handed back to be written down is not a field and not a label —
   # it is the thing itself, so it gets the room's largest voice.
