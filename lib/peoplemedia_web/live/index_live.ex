@@ -1,6 +1,6 @@
 defmodule PeoplemediaWeb.IndexLive do
   @moduledoc """
-  The presence app, rebuilt on a layout system.
+  The people, the letters between them, and who is on the line right now.
 
   This is the same surface HomeLive carries, with the same behaviour and the
   same hooks — the difference is entirely in how it is MEASURED. HomeLive grew
@@ -26,6 +26,19 @@ defmodule PeoplemediaWeb.IndexLive do
     sharing it is what keeps a row's label exactly on top of the band's as it
     passes through, and the mark and the line joining them is what stops the
     app's furniture reading as pressed flat against the bound.
+
+    A ROW NOW LEADS WITH A MARK, so its NAME starts one mark-width past
+    `--list-pad` while the mark itself starts on it. That is not a third edge —
+    it is one edge with two columns standing on it, and everything that has to
+    line up with a row carries BOTH: the band's empty dots sit in the mark's
+    column, and the band's label, the picked header and the lens at the head of
+    the list each carry an empty `letter_glyph` so their words land in the
+    name's. Every people row reserves the mark's column whether or not it has a
+    letter to put in it, for the same reason.
+
+    The spacer is a real element rather than a padding, and deliberately: a
+    `pl-` utility would lose to `.list-box`, which sets `padding-inline`
+    unlayered in app.css while Tailwind's utilities live in `@layer utilities`.
 
   So the split is not page-versus-list, it is structure-versus-words — which is
   why one number governs every text on the page and moving it moves them
@@ -137,8 +150,14 @@ defmodule PeoplemediaWeb.IndexLive do
   defp current_list(assigns), do: assigns.scopes
 
   # Both are stored rather than read through a function in the markup, which
-  # would switch LiveView's change tracking off for the whole block.
-  defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
+  # would switch LiveView's change tracking off for the whole block. The COUNT
+  # rides with the list for the same reason and in the same breath: it is the
+  # heading at the top of the column, so it can never be a step behind what is
+  # under it.
+  defp put_list(socket) do
+    list = current_list(socket.assigns)
+    assign(socket, list: list, list_count: length(list))
+  end
 
   defp put_current(socket) do
     assign(
@@ -169,7 +188,15 @@ defmodule PeoplemediaWeb.IndexLive do
 
            A BUTTON, not a link: home is this page, so the click had nothing to
            point at. It flips the theme and replays its own entrance doing it, so
-           the thing you pressed is the thing that answers. --%>
+           the thing you pressed is the thing that answers.
+
+           THE MARK STANDS ALONE HERE. It wore a full-width bar for a while —
+           lead, eyes, tail, all at the eyes' own height — and that geometry is
+           still in app.css under THE APP RULE, still shown on /logo, and still
+           two spans away from coming back. What decided against it is not how it
+           looked: a bar is a LAYOUT, and a logo has to survive being cropped
+           square, shrunk to a favicon and dropped on someone else's surface,
+           none of which a page-width rule can do. --%>
       <header class="app-head pointer-events-none absolute inset-x-0 top-(--head-top) z-30">
         <div class="rail">
           <button
@@ -189,7 +216,15 @@ defmodule PeoplemediaWeb.IndexLive do
              below. Every WORD on this surface now starts here; the bare rail is
              left to structure — where a fill begins and where a trailing box
              ends. Two jobs, cleanly split. --%>
-        <p class="lede px-(--list-pad) text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.15em] text-neutral-300 dark:text-neutral-200">
+        <%!-- dark:neutral-700, and the OLD pairing was the bug. It read
+             `text-neutral-300 dark:text-neutral-200` — one step LIGHTER in dark,
+             where every other line in this file steps DARKER (400/500, 500/400
+             the other way round). On a cream page #b0b0b0 is a 2:1 whisper; on
+             black, #d1d1d1 is nearly 14:1, so the same strapline whispered in
+             one theme and shouted in the other. Exact parity would be
+             neutral-800; this is one step brighter than that, because a black
+             page washes out in ambient light where a cream one does not. --%>
+        <p class="lede px-(--list-pad) text-(length:--row-type) tracking-[0.15em] text-neutral-300 dark:text-neutral-700">
           SO YOU DON'T DO LIFE ALONE
         </p>
 
@@ -234,64 +269,184 @@ defmodule PeoplemediaWeb.IndexLive do
                      nineteen attributes rather than nineteen media elements. A
                      country carries none — its answer is a headcount the server
                      renders, not a face. --%>
+              <%!-- ── THE ROW IS THE PANEL'S ROW ────────────────────────────
+                     One shape for a list item in this app, and the panel is
+                     where it was worked out: a KIND MARK, then the name with
+                     its age hung under it. What was here before was the name
+                     alone, which is why the two lists read as unrelated
+                     surfaces despite being the same gesture one level apart.
+
+                     What the home row adds is the FLOW, on the right — the
+                     panel does not need it because a thread is already sorted
+                     by direction and time, and a list of nineteen threads is
+                     not. See `letter_flow/1` for what the two arrows mean.
+
+                     THE MARK COLUMN IS ON EVERY PEOPLE ROW, filled or not. A
+                     stranger has no letters — a letter is written to a SCOPE,
+                     not to a person — but their row still reserves the mark's
+                     width, because the SCOPED and UNSCOPED lists share one
+                     scroller and one band, and a name that jumps sideways when
+                     you switch between them would make the two look like
+                     different columns. A country gets no mark at all: that
+                     list is a roll of places, it never opens a header, and
+                     there is no name of a person for it to line up with. --%>
               <li
                 :for={item <- @list}
                 data-state={item[:state] || "present"}
                 data-frame={item[:frame] || "empty"}
                 data-media={item[:media]}
-                class="scopes-item flex h-(--row-h) cursor-pointer items-center px-(--list-pad) whitespace-nowrap text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.14em] text-light-900 dark:text-dark-100"
+                class="scopes-item flex h-(--row-h) cursor-pointer items-center px-(--list-pad) whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
               >
-                <span>{item[:label] || item[:name]}</span>
-                <%!-- Their own name, quiet beside the label, arriving only
-                       while the row is IN the band. It keeps its own muted
-                       colour on purpose: the focused row turns terracotta, and
-                       this staying grey is what stops the band reading as two
-                       labels shouting. Only a scoped person has both a label and
-                       a name — a stranger or a country is one word. --%>
-                <span
-                  :if={item[:label]}
-                  class="scopes-name ml-3 text-light-300 opacity-0 transition-opacity duration-200 dark:text-dark-600"
-                >
-                  {item[:name]}
-                </span>
+                <%!-- items-start on the inner block, not on the row: the mark
+                       belongs on the NAME's line and the age hangs below it, but
+                       the block as a whole is centred in the row. Pinning the
+                       row itself to the top would have tied the block's position
+                       to a hard padding that has to be refound every time the
+                       row height moves. --%>
+                <div class="flex min-w-0 flex-1 items-start">
+                  <.letter_glyph
+                    :if={@list_mode == :people}
+                    kind={item[:letter][:kind]}
+                    class={[
+                      "mr-3 -mt-[0.125em] transition-colors duration-200",
+                      (item[:letter][:unread] && "text-primary-600 dark:text-primary-500") ||
+                        "text-neutral-400 dark:text-neutral-500"
+                    ]}
+                  />
+                  <div class="min-w-0 flex-1 leading-tight">
+                    <p class="scopes-line flex items-baseline">
+                      {item[:label] || item[:name]}
+                      <%!-- Their own name, quiet beside the label, arriving only
+                             while the row is IN the band. It keeps its own muted
+                             colour and its own weight on purpose: the focused row
+                             turns terracotta and the label carries the list's
+                             bold, and this staying grey and regular is what stops
+                             the band reading as two labels shouting. Only a scoped
+                             person has both a label and a name — a stranger or a
+                             country is one word. --%>
+                      <span
+                        :if={item[:label]}
+                        class="scopes-name ml-3 text-light-300 opacity-0 transition-opacity duration-200 dark:text-dark-600"
+                      >
+                        {item[:name]}
+                      </span>
+                    </p>
+                    <%!-- WHEN THE LAST LETTER CAME, and nothing else. It keeps a
+                           muted colour through the focus too — the row turning
+                           terracotta is about the NAME, and an age that lit with
+                           it would make the band read as two things being
+                           pointed at. --%>
+                    <p
+                      :if={item[:letter]}
+                      class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-light-500 dark:text-dark-500"
+                    >
+                      {item.letter.when}
+                    </p>
+                  </div>
+                </div>
+                <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
               </li>
             </ul>
           </div>
 
-          <%!-- THE TWO LENSES, hung off the SELECTION BOX itself rather than
-               floating somewhere near it. They sit immediately under the band
-               and end on its right edge, so they read as that box's own
-               controls — which is what they are: they decide what the box is
-               choosing between.
+          <%!-- THE LENS, at the head of the list it governs.
 
-               RIGHT-ALIGNED IS LOAD-BEARING, not a preference. Everything below
-               the band is live scrolling list, and rows would slide straight
-               through a label parked there. Row labels are short and left-
-               aligned against --list-pad, so the band's far right is the one
-               strip of that column reliably empty — putting the tags there is
-               what lets them touch the box without ever colliding with it.
+               IT USED TO HANG OFF THE BAND, one line, right-aligned, tucked
+               under the band's far corner — and the argument for that corner was
+               that everything below the band is live scrolling list, so a label
+               parked in the column would have rows sliding through it. The far
+               right was the one strip reliably empty, because row labels are
+               short and left-aligned.
 
-               Offset is the band's half-height plus a hair, so the two stay
-               welded however --band-top moves.
+               THE TOP OF THE COLUMN IS THE OTHER SAFE PLACE, and it is the
+               better one. The scroller is masked — transparent to 14% down — so
+               rows in that band are faded to nothing before they ever reach
+               here; the list already refuses to draw anything at its own top.
+               What was true of the right edge is true of this strip too, and
+               this strip is where a heading belongs.
 
-               TEXT, NOT CHIPS. A filled box reads as a control you press once
-               and are done with; these are a pair you live in, and the lit one
+               So it sits on --list-pad, which is the edge every WORD on this
+               surface starts from — the row labels below it, the band's label,
+               the strapline above. Nothing is aligned to it specially; it simply
+               joins the column that was already there, which is what makes it
+               read as the list's own head rather than a control parked nearby.
+
+               THE COUNT IS THE HEADING, AND THE LENS IS ITS LABEL. It used to
+               be the term over the place — SCOPED over FINLAND — which stacked
+               two halves of one sentence and made you read both to learn
+               nothing you did not already know, since the term is also the
+               thing you just pressed. What the head of a list is actually for
+               is HOW MANY ARE IN IT, and that is the reference's own shape: a
+               number, and under it the quiet words saying what was counted.
+
+               So it is the count over "SCOPED FINLAND" — the sentence back on
+               ONE line where it always belonged, now that it is a caption
+               rather than a heading. The number takes --count-type, which is
+               the size the two population counts already use, because it is
+               the same kind of thing: a number that is a DOOR. Press it and
+               the world opens; the counts press back the other way.
+
+               IT WEARS THE ROW'S OWN ANATOMY — the mark's column reserved and
+               empty, then the two-line block — so the number lands exactly
+               over the names below it and the caption exactly over their ages.
+               The head of a list should be built out of the list.
+
+               TEXT, NOT A CHIP. A filled box reads as a control you press once
+               and are done with; this is a lens you live in, and the lit state
                is the one you are inside. Colour alone says so — PRIMARY for
                where you are, muted for where you are not — the language the
-               focused row and the band already speak. The location lens wears
-               its PLACE as its name: "LOCATION FINLAND" said it twice. --%>
-          <div class="scope-tags pointer-events-none absolute top-[calc(var(--band-top)+2.25rem)] left-0 z-20 flex w-(--list-w) justify-end">
+               focused row and the band already speak. --%>
+          <div class="scope-tags pointer-events-none absolute top-0 left-0 z-20 flex w-(--list-w) px-(--list-pad)">
+            <%!-- THE COLOUR IS ON THE BUTTON, not on the words inside it, and
+                 that is what lets the mark below be drawn in `currentColor`
+                 without restating the lens's whole state a second time. It
+                 cannot be `group-hover:` for the same reason it works: the
+                 button IS the group, and Tailwind compiles group-hover to
+                 `.group:hover &`, which only ever matches a DESCENDANT. Its own
+                 hover is plain `hover:`. --%>
             <button
               type="button"
               phx-click="to_location"
               aria-pressed={to_string(@list_mode == :location)}
               class={[
-                "pointer-events-auto cursor-pointer text-sm tracking-[0.22em] transition-colors outline-none focus-visible:underline",
+                "group pointer-events-auto flex cursor-pointer items-start text-left",
+                "text-(length:--row-type) transition-colors outline-none focus-visible:underline",
                 (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
                   "text-neutral-400 hover:text-neutral-500 dark:text-neutral-500 dark:hover:text-neutral-400"
               ]}
             >
-              {@scope} {String.upcase(@location)}
+              <%!-- THE MARK'S COLUMN, AND THE LENS PUTS SOMETHING IN IT. Two
+                   square links: overlapping for SCOPED, broken open and drawn
+                   apart for UNSCOPED. The head of the list is built out of the
+                   same parts as the rows under it, which is the whole point of
+                   giving it a row's anatomy — and it means the one thing this
+                   button cannot say in words (it has only a number and a
+                   caption) gets said in the column where a row would say it.
+
+                   OVER PLACES IT IS EMPTY, exactly as a country's row is. That
+                   list is a roll of places; a scope mark over it would name a
+                   population that is not what is being counted.
+
+                   The font-size on the button is here for these two and nothing
+                   else: both marks are sized in em, so without the row's type
+                   they would measure themselves against the page default and
+                   stand in a narrower column than the rows below. --%>
+              <.scope_glyph :if={@list_mode == :people} scope={@scope} class="mr-3" />
+              <.letter_glyph :if={@list_mode == :location} kind={nil} class="mr-3" />
+              <div class="flex flex-col leading-tight">
+                <span class="text-(length:--count-type) leading-none font-bold tracking-[0.06em]">
+                  {@list_count}
+                </span>
+                <%!-- THE CAPTION NAMES WHAT WAS COUNTED, so it has to follow
+                     the list rather than the lens. Over places the number is a
+                     count of PLACES, and captioning it "SCOPED FINLAND" would
+                     have put a tally of the world under the name of one
+                     country — the one combination this pairing can get wrong. --%>
+                <span class="mt-1 text-(length:--sub-type) tracking-(--sub-track) opacity-60">
+                  {(@list_mode == :location && "PLACES") ||
+                    "#{@scope} #{String.upcase(@location)}"}
+                </span>
+              </div>
             </button>
           </div>
 
@@ -319,16 +474,36 @@ defmodule PeoplemediaWeb.IndexLive do
             <div
               phx-click="toggle_open"
               class={[
-                "focus-box list-box pointer-events-auto relative flex h-14 shrink-0 items-center",
+                "focus-box list-box pointer-events-auto relative flex h-(--band-h) shrink-0 items-center",
                 "bg-primary-600/15 dark:bg-primary-500/20",
                 @selected && "cursor-pointer"
               ]}
             >
               <%!-- ABSOLUTE, not merely transparent: in flow its width sat in
                    front of the header's label and pushed the text off the rail.
-                   Invisible is not the same as absent. --%>
-              <span class="focus-empty absolute text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.14em] text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500">
-                --
+                   Invisible is not the same as absent.
+
+                   IT STANDS IN THE MARK'S COLUMN, not the name's, because that
+                   is the column a mark would arrive in. Which is why it does
+                   not take the name's indent below.
+
+                   DOTS, AND IT USED TO BE "--". Two dashes was the wrong
+                   drawing for one blunt reason: THE MARK IS TWO DASHES. The
+                   app's logo is a pair of thin closed eyes, and the voice glyph
+                   is a single bar as wide as they span — so an empty band was
+                   showing, in terracotta, at the head of the list, something
+                   the eye reads as the logo appearing in the middle of the
+                   page. A placeholder must not be a sign that already means
+                   something else.
+
+                   A ROW OF DOTS means what no other mark here means: WAITING.
+                   It is an ellipsis, which is a well-worn way to say "nothing
+                   yet, and something is expected" — exactly the empty band's
+                   state — and it is the one shape in this vocabulary that is
+                   neither a rectangle nor made of them, so it can never be
+                   mistaken for a face, a voice, a letter or the mark. --%>
+              <span class="focus-empty absolute text-(length:--row-type) tracking-(--row-track) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500">
+                ...
               </span>
               <%!-- The bar takes over the words only at the moment of the pick.
                    In the list what you read is the ROW's label showing through a
@@ -336,13 +511,39 @@ defmodule PeoplemediaWeb.IndexLive do
                    on top of each other means there is nothing to see. Neutral,
                    not terracotta — once this is a header it is the label on what
                    is below it, and terracotta is this surface's word for "look
-                   here". --%>
+                   here".
+
+                   IT CARRIES THE MARK'S COLUMN AS A REAL, EMPTY SLOT, and that
+                   is what keeps the handover invisible now that a row leads
+                   with a glyph. The whole trick of the pick is that the band's
+                   label is already sitting exactly where the row's label is at
+                   the moment of the swap; without the column the name would
+                   jump left by the width of a mark just as you are watching it.
+
+                   AN ELEMENT RATHER THAN A PADDING, for two reasons. It is the
+                   same `letter_glyph` the row uses, so the two widths are one
+                   number and cannot drift. And a `pl-` utility would have lost
+                   the cascade outright: `.list-box` sets `padding-inline`
+                   unlayered in app.css, Tailwind's utilities live in
+                   `@layer utilities`, and unlayered beats layered no matter how
+                   specific the layered rule is. The indent would simply not
+                   have appeared.
+
+                   EMPTY RATHER THAN THE CURRENT KIND. A mark here would be the
+                   first row of the panel below said twice, and the header has
+                   already given up its brackets and its terracotta for exactly
+                   that reason: once it is a title, it stops competing with what
+                   it is a title for. --%>
               <span
                 :if={@mode == :open && @current}
-                class="focus-name flex min-w-0 flex-1 items-baseline overflow-hidden whitespace-nowrap text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.14em] text-light-900 dark:text-dark-100"
+                class="focus-name flex min-w-0 flex-1 items-baseline overflow-hidden whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
               >
+                <.letter_glyph kind={nil} class="mr-3" />
                 {@current[:label] || @current[:name]}
-                <span :if={@current[:label]} class="ml-3 text-light-500 dark:text-dark-500">
+                <span
+                  :if={@current[:label]}
+                  class="ml-3 text-light-500 dark:text-dark-500"
+                >
                   {@current[:name]}
                 </span>
               </span>
@@ -442,14 +643,14 @@ defmodule PeoplemediaWeb.IndexLive do
               ]}
             >
               <span class={[
-                "text-[clamp(var(--text-2xl),0.9rem+0.5vw,var(--text-6xl))] leading-none tracking-[0.06em]",
+                "text-(length:--count-type) leading-none font-bold tracking-[0.06em]",
                 (@scope == "SCOPED" && "text-primary-600 dark:text-primary-500") ||
                   "text-neutral-500 dark:text-neutral-400"
               ]}>
                 {@current && @current.scopes}
               </span>
               <span class={[
-                "text-sm tracking-[0.18em]",
+                "text-(length:--sub-type) tracking-(--sub-track)",
                 (@scope == "SCOPED" && "text-primary-600/55 dark:text-primary-500/55") ||
                   "text-neutral-400 dark:text-neutral-500"
               ]}>
@@ -472,14 +673,14 @@ defmodule PeoplemediaWeb.IndexLive do
               ]}
             >
               <span class={[
-                "text-[clamp(var(--text-2xl),0.9rem+0.5vw,var(--text-6xl))] leading-none tracking-[0.06em]",
+                "text-(length:--count-type) leading-none font-bold tracking-[0.06em]",
                 (@scope == "UNSCOPED" && "text-primary-600 dark:text-primary-500") ||
                   "text-neutral-500 dark:text-neutral-400"
               ]}>
                 {@current && @current.unscopes}
               </span>
               <span class={[
-                "text-sm tracking-[0.18em]",
+                "text-(length:--sub-type) tracking-(--sub-track)",
                 (@scope == "UNSCOPED" && "text-primary-600/55 dark:text-primary-500/55") ||
                   "text-neutral-400 dark:text-neutral-500"
               ]}>
@@ -497,29 +698,39 @@ defmodule PeoplemediaWeb.IndexLive do
            is positioned against the list's box, so a collapsing container would
            drag the header off its own line mid-flight.
 
-           TWO VIEWS, ONE ROOM: RECORD on the left is what this relationship
-           LEFT — presences, held — and LIVE on the right is who is on the line
-           right now. It wears the same .rail, so RECORD lands on the very edge
-           the mark, the line, the tags and the rows all use. --%>
+           TWO VIEWS, ONE ROOM: LETTERS on the left is what has passed between
+           you — held, finished, re-readable — and LIVE on the right is who is
+           on the line right now. It wears the same .rail, so LETTERS lands on
+           the very edge the mark, the line, the tags and the rows all use.
+
+           IT USED TO SAY RECORD, and the word was wrong in a way that only
+           showed once a third kind arrived. "Record" names the ACT OF
+           CAPTURING, which a face and a voice share and words do not, so a
+           typed letter could not be filed under it without the heading lying.
+           A LETTER names what the thing IS rather than how it was made, and
+           all three are letters: one carries a face, one carries a voice, one
+           carries only itself. It is also written TO A SCOPE and not to a
+           person — the scope is the relationship, and the relationship is what
+           the correspondence belongs to. --%>
       <div
         :if={@mode == :open && @current}
-        id="presence-panel"
-        class="presence-panel fixed inset-x-0 top-(--panel-top) bottom-0 z-20"
+        id="panel"
+        class="panel fixed inset-x-0 top-(--panel-top) bottom-0 z-20"
       >
         <div class="rail h-full">
           <div class="panel-views flex h-full items-start gap-14 pt-8">
             <div
-              id="record-view"
+              id="panel-letters"
               phx-hook="SubPanel"
-              class="record-view relative h-full w-full shrink-0 lg:w-(--list-w)"
+              class="panel-letters relative h-full w-full shrink-0 lg:w-(--list-w)"
             >
-              <%!-- THE HANDLE, phone only. The record list rides OVER the live
+              <%!-- THE HANDLE, phone only. The letters list rides OVER the live
                    view there, so it needs somewhere to be taken hold of — and a
                    handle is also the only honest way to say "this moves", which
                    a panel that simply sits there does not. --%>
               <div class="sub-handle lg:hidden" aria-hidden="true"><span></span></div>
-              <p class="absolute top-6 left-0 z-20 text-sm tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
-                RECORD
+              <p class="absolute top-6 left-0 z-20 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
+                LETTERS
               </p>
 
               <%!-- THE BOX — the list's own selection box kept whole: the wash,
@@ -544,8 +755,10 @@ defmodule PeoplemediaWeb.IndexLive do
                 <%!-- A voice's play effect: a translucent layer whose WIDTH is
                      the fraction played, so the box fills like a bar. --%>
                 <div class="stage-progress absolute inset-y-0 left-0"></div>
-                <span class="focus-empty text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.14em] text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500">
-                  --
+                <%!-- The list's own empty mark, for the same reason and in the
+                     same shape — see the band above. --%>
+                <span class="focus-empty text-(length:--row-type) tracking-(--row-track) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500">
+                  ...
                 </span>
                 <audio class="stage-audio" preload="none"></audio>
               </div>
@@ -554,30 +767,31 @@ defmodule PeoplemediaWeb.IndexLive do
                    the list rests unselected and every row can still reach the
                    band. --%>
               <div
-                id={"presence-scroll-#{@selected}"}
-                phx-hook="PresencePanel"
+                id={"panel-scroll-#{@selected}"}
+                phx-hook="Panel"
                 phx-update="ignore"
-                class="presence-scroll relative z-10 h-full overflow-y-auto overscroll-contain"
+                class="panel-scroll relative z-10 h-full overflow-y-auto overscroll-contain"
               >
                 <ul class="pt-[calc(34vh+4rem)] pb-[30vh]">
                   <li
-                    :for={presence <- @current.presences}
-                    data-kind={presence.kind}
-                    data-media={presence.media}
-                    class="presence-item flex h-(--panel-row-h) cursor-pointer items-start px-(--list-pad) whitespace-nowrap pt-[1.15rem] text-[clamp(var(--text-xl),0.85rem+0.38vw,var(--text-4xl))] tracking-[0.14em] text-neutral-900 dark:text-neutral-100"
+                    :for={letter <- @current.letters}
+                    data-kind={letter.kind}
+                    data-media={letter.media}
+                    class="panel-item flex h-(--panel-row-h) cursor-pointer items-start px-(--list-pad) whitespace-nowrap pt-[1.15rem] text-(length:--row-type) tracking-(--row-track) text-neutral-900 dark:text-neutral-100"
                   >
                     <%!-- The kind mark leads — two eyes for a face, one mouth for
-                         a voice — pinned to the TOP beside the name rather than
-                         centred against the two-line block, so it reads on the
-                         name's line and the age hangs below it. --%>
-                    <.presence_glyph
-                      kind={presence.kind}
-                      class="mr-3 -mt-[0.28em] text-neutral-400 dark:text-neutral-500"
+                         a voice, the mouth struck through for a letter that is
+                         only words — pinned to the TOP beside the name rather
+                         than centred against the two-line block, so it reads on
+                         the name's line and the age hangs below it. --%>
+                    <.letter_glyph
+                      kind={letter.kind}
+                      class="mr-3 -mt-[0.125em] text-neutral-400 dark:text-neutral-500"
                     />
                     <div class="flex flex-col leading-tight">
-                      <span>{presence.by}</span>
-                      <span class="presence-when mt-1 text-neutral-400/55 dark:text-neutral-500/60">
-                        {presence.when}
+                      <span>{letter.by}</span>
+                      <span class="panel-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/55 dark:text-neutral-500/60">
+                        {letter.when}
                       </span>
                     </div>
                   </li>
@@ -596,7 +810,7 @@ defmodule PeoplemediaWeb.IndexLive do
               phx-update="ignore"
               class="live-grid pointer-events-none min-w-0 flex-1 pt-6"
             >
-              <p class="mb-5 flex items-center gap-3 text-sm tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
+              <p class="mb-5 flex items-center gap-3 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
                 LIVE <span class="text-neutral-300 dark:text-neutral-600">{length(@live)}</span>
                 <%!-- THE PAGER, which the hook hides whenever there is only one
                      page — a control that can never do anything is furniture,

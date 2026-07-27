@@ -1,6 +1,6 @@
 defmodule Peoplemedia.Directory do
   @moduledoc """
-  The people, the places, and the presences they left.
+  The people, the places, and the letters between them.
 
   FIXTURE DATA, deliberately. This app has no database and does not depend on
   Ecto: the surface is being designed before the spine is built, so nothing here
@@ -277,41 +277,60 @@ defmodule Peoplemedia.Directory do
     %{name: "Argentina", scopes: 10, unscopes: 1230}
   ]
 
-  # A LEFT PRESENCE is one someone recorded and left behind, as opposed to the
-  # live presence the frame carries. The two are not the same object and must
-  # not look alike: a live presence has no duration and no shape, which is why
-  # it breathes; a left one is FINISHED, so it has a beginning, an end and a
-  # length you can see. Shape is what a recording earns by being over.
+  # ── LETTERS ─────────────────────────────────────────────────────────────────
+  # A LETTER is what one side leaves for the other, as opposed to the live
+  # presence the frame carries. The two are not the same object and must not
+  # look alike: a live presence has no duration and no shape, which is why it
+  # breathes; a letter is FINISHED, so it has a beginning, an end and a length
+  # you can see. Shape is what a recording earns by being over.
   #
-  # `from` is here from the start because this row becomes the chat row later —
-  # the only difference then is the order they are stacked in. `heard` is the
-  # one piece of state a left presence has that a live one cannot: you can miss
-  # it, and it should say so.
-  @presence_pool [
+  # A LETTER IS WRITTEN TO A SCOPE, NOT TO A PERSON, and that is the whole
+  # reason the word changed. "Presence" named the medium — a face, a voice —
+  # which made a written one impossible to name at all. A letter names the ACT,
+  # and the act is the same whichever of the three it arrives as:
+  #
+  #   "voice" — you hear them. The mark is the MOUTH, one bar.
+  #   "face"  — you see them. The mark is the EYES, two squares.
+  #   "text"  — neither. The mark is the mouth STRUCK THROUGH, one bar turned
+  #             halfway over: no face here and no voice here, only the words.
+  #             A letter is words by default, so this is the plain case and the
+  #             other two are what a letter can carry on top of it.
+  #
+  # `from` says which way it went. `read` is the one piece of state a letter has
+  # that a live presence cannot, and it means THE RECIPIENT HAS OPENED IT —
+  # so on a letter from them it is "you heard it", and on one of yours it is
+  # "they heard it". One field, read from whichever end you are standing at,
+  # which is what lets the row say both halves of a conversation at once.
+  #
+  # THE MEDIA IS REAL for the two recorded kinds; a text letter has none, and
+  # no length either, which `rule_width/1` already returns nil for.
+  @letter_pool [
     %{
       kind: "voice",
       ago: 3,
       len: "0:10",
       from: "them",
-      heard: true,
+      read: false,
       media: "#{@commons}/9/96/Andy_Mabbett_voice.ogg/Andy_Mabbett_voice.ogg.mp3"
     },
+    %{kind: "text", ago: 11, len: nil, from: "them", read: false, media: nil},
     %{
       kind: "face",
       ago: 18,
       len: "0:37",
       from: "you",
-      heard: true,
+      read: true,
       media:
         "#{@commons}/8/8e/WIKITONGUES-_Sedang_speaking_Iban.webm/" <>
           "WIKITONGUES-_Sedang_speaking_Iban.webm.360p.vp9.webm"
     },
+    %{kind: "text", ago: 42, len: nil, from: "you", read: false, media: nil},
     %{
       kind: "voice",
       ago: 60,
       len: "0:15",
       from: "them",
-      heard: true,
+      read: true,
       media: "#{@commons}/b/bb/Bettany_Hughes_voice.ogg/Bettany_Hughes_voice.ogg.mp3"
     },
     %{
@@ -319,15 +338,16 @@ defmodule Peoplemedia.Directory do
       ago: 240,
       len: "0:17",
       from: "you",
-      heard: true,
+      read: true,
       media: "#{@commons}/0/01/David_Lammy_voice.ogg/David_Lammy_voice.ogg.mp3"
     },
+    %{kind: "text", ago: 320, len: nil, from: "you", read: true, media: nil},
     %{
       kind: "face",
       ago: 540,
       len: "0:46",
       from: "them",
-      heard: true,
+      read: true,
       media:
         "#{@commons}/2/26/WIKITONGUES-_Tarkhan_speaking_Jek.webm/" <>
           "WIKITONGUES-_Tarkhan_speaking_Jek.webm.360p.vp9.webm"
@@ -337,7 +357,7 @@ defmodule Peoplemedia.Directory do
       ago: 1440,
       len: "0:16",
       from: "them",
-      heard: true,
+      read: true,
       media: "#{@commons}/e/ec/David_Harewood_voice.ogg/David_Harewood_voice.ogg.mp3"
     },
     %{
@@ -345,17 +365,18 @@ defmodule Peoplemedia.Directory do
       ago: 2880,
       len: "0:54",
       from: "you",
-      heard: true,
+      read: false,
       media:
         "#{@commons}/e/ea/WIKITONGUES-_Uladzislau_speaking_Belarusian.webm/" <>
           "WIKITONGUES-_Uladzislau_speaking_Belarusian.webm.360p.vp9.webm"
     },
+    %{kind: "text", ago: 4320, len: nil, from: "you", read: true, media: nil},
     %{
       kind: "voice",
       ago: 7200,
       len: "0:18",
       from: "them",
-      heard: true,
+      read: true,
       media: "#{@commons}/0/0f/Alison_Balsom_voice.ogg/Alison_Balsom_voice.ogg.mp3"
     },
     %{
@@ -363,7 +384,7 @@ defmodule Peoplemedia.Directory do
       ago: 20160,
       len: "0:48",
       from: "them",
-      heard: false,
+      read: false,
       media:
         "#{@commons}/c/c9/WIKITONGUES-_Jeries_speaking_Syriac.webm/" <>
           "WIKITONGUES-_Jeries_speaking_Syriac.webm.360p.vp9.webm"
@@ -373,15 +394,16 @@ defmodule Peoplemedia.Directory do
       ago: 43200,
       len: "0:16",
       from: "you",
-      heard: true,
+      read: true,
       media: "#{@commons}/f/fa/Brian_Schmidt_voice.ogg/Brian_Schmidt_voice.ogg.mp3"
     },
+    %{kind: "text", ago: 100_800, len: nil, from: "you", read: false, media: nil},
     %{
       kind: "face",
       ago: 216_000,
       len: "0:56",
       from: "them",
-      heard: false,
+      read: false,
       media:
         "#{@commons}/2/20/WIKITONGUES-_Yernur_speaking_Kazakh.webm/" <>
           "WIKITONGUES-_Yernur_speaking_Kazakh.webm.360p.vp9.webm"
@@ -391,18 +413,27 @@ defmodule Peoplemedia.Directory do
       ago: 525_600,
       len: "0:58",
       from: "them",
-      heard: false,
+      read: false,
       media:
         "#{@commons}/0/05/WIKITONGUES-_Rizki_speaking_Malay.webm/" <>
           "WIKITONGUES-_Rizki_speaking_Malay.webm.360p.vp9.webm"
     }
   ]
 
-  @doc "The people you hold, each already carrying the presences they left."
+  @doc """
+  The people you hold, each carrying its thread of letters and the one-line
+  SUMMARY the list row reads.
+  """
   def scopes do
     @scopes
     |> Enum.with_index()
-    |> Enum.map(fn {scope, i} -> Map.put(scope, :presences, presences_for(scope, i)) end)
+    |> Enum.map(fn {scope, i} ->
+      letters = letters_for(scope, i)
+
+      scope
+      |> Map.put(:letters, letters)
+      |> Map.put(:letter, summarise(letters))
+    end)
   end
 
   @doc "Everyone you have not made a relationship with — the discovery surface."
@@ -411,11 +442,63 @@ defmodule Peoplemedia.Directory do
   @doc "The world, and how many are present in each place right now."
   def countries, do: @countries
 
+  # ── WHAT A ROW SAYS ABOUT A THREAD ──────────────────────────────────────────
+  # The list row is not a letter, it is the STATE OF THE CORRESPONDENCE, said in
+  # three marks. Everything it shows is derived from the thread rather than
+  # stored beside it, so a row can never disagree with the letters it stands for.
+  #
+  #   THE KIND MARK, on the left, is the LATEST letter's kind — the shape of the
+  #   last thing that happened here. It LIGHTS when that letter came from them
+  #   and you have not opened it: colour on this surface means "look here", and
+  #   an unopened letter is the only thing on a row that is asking for you.
+  #   It only ever lights for an incoming letter — lighting the mark on one of
+  #   YOUR letters would say you had not read your own.
+  #
+  #   THE TWO ARROWS, on the right, are the correspondence's two directions,
+  #   and each answers a different question:
+  #
+  #     ↓ INCOMING — has this person ever written? Shown if they have, lit if
+  #       their newest letter is still unopened by you, faded once you read it.
+  #
+  #     ↑ OUTGOING — is the last word yours? Shown ONLY while the newest letter
+  #       in the thread is one of yours, lit once they have opened it, faded
+  #       while they have not. It EXPIRES the moment they write back, which is
+  #       the point of the rule: an arrow still up for a letter you sent last
+  #       week would read as a reply that has not landed, when in truth the
+  #       conversation has moved on past it.
+  #
+  # So both arrows showing means "you had the last word and it arrived"; ↓ alone
+  # means the ball is theirs to have thrown and yours to catch; neither means
+  # nothing has ever passed between you.
+  defp summarise([]), do: nil
+
+  defp summarise([latest | _] = letters) do
+    %{
+      kind: latest.kind,
+      when: latest.when,
+      unread: latest.from == "them" and not latest.read,
+      incoming: opened(Enum.find(letters, &(&1.from == "them"))),
+      outgoing: if(latest.from == "you", do: opened(latest))
+    }
+  end
+
+  # nil means "there is no such letter, so draw no arrow" — which is a different
+  # answer from either :read or :unread and must not collapse into them.
+  defp opened(nil), do: nil
+  defp opened(%{read: true}), do: :read
+  defp opened(%{read: false}), do: :unread
+
   # Newest first, the way a feed reads. `by` is resolved here rather than stored
-  # on the pool, because who left a presence depends on whose stream it is
+  # on the pool, because who wrote a letter depends on whose thread it is
   # appearing in — the same clip is "them" in one and "YOU" in another.
-  defp presences_for(user, index) do
-    n = length(@presence_pool)
+  #
+  # THE WINDOW LENGTH VARIES WITH THE SCOPE, and that is fixture work rather
+  # than design: a fixed six-letter slice of one pool gives every relationship
+  # the same shape, and the row summary above has states — never written to,
+  # never written back — that a uniform thread can never produce. Two to seven
+  # letters, rotated, is enough for all of them to appear somewhere in the list.
+  defp letters_for(user, index) do
+    n = length(@letter_pool)
 
     # A CONVERSATION HAS TWO COLOURS, always maximally apart. Where /presence is
     # a feed of many creators each holding their own hue, a relationship's stream
@@ -427,19 +510,27 @@ defmodule Peoplemedia.Directory do
     person_hue = index |> Kernel.*(137.508) |> round() |> Integer.mod(360)
     you_hue = Integer.mod(person_hue + 180, 360)
 
-    # Rotated so no two people's streams are identical, then SORTED newest first
-    # by age — a stream that is not chronological is not a stream. `when` is the
-    # age FORMATTED for the eye (3m, 2d, 1y); `ago` is the number it sorts on.
-    for k <- 0..5 do
-      Enum.at(@presence_pool, rem(index * 4 + k, n))
+    # Rotated so no two threads are identical, then SORTED newest first by age —
+    # a thread that is not chronological is not a thread. `when` is the age
+    # FORMATTED for the eye (3m, 2d, 1y); `ago` is the number it sorts on.
+    # EVERY THREAD RUNS ON ITS OWN CLOCK, shifted a few minutes per scope. The
+    # pool is one shared timeline, so without this the same newest entry lands
+    # at the head of a third of the windows and a third of the list reads "3m" —
+    # a column of identical times that says the fixture is one list wearing
+    # nineteen names. A constant offset per scope leaves the order inside each
+    # thread untouched and only moves where that thread sits in the past.
+    skew = index * 11
+
+    for k <- 0..(1 + Integer.mod(index, 6)) do
+      Enum.at(@letter_pool, Integer.mod(index * 5 + k, n))
     end
     |> Enum.sort_by(& &1.ago)
-    |> Enum.map(fn presence ->
-      presence
-      |> Map.put(:by, (presence.from == "you" && "YOU") || user.name)
-      |> Map.put(:hue, (presence.from == "you" && you_hue) || person_hue)
-      |> Map.put(:when, relative(presence.ago))
-      |> Map.put(:rule, rule_width(presence.len))
+    |> Enum.map(fn letter ->
+      letter
+      |> Map.put(:by, (letter.from == "you" && "YOU") || user.name)
+      |> Map.put(:hue, (letter.from == "you" && you_hue) || person_hue)
+      |> Map.put(:when, relative(letter.ago + skew))
+      |> Map.put(:rule, rule_width(letter.len))
     end)
   end
 

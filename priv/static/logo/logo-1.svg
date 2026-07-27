@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" role="img" aria-label="Kuisk">
+  <title>Kuisk — the mark</title>
+  <!-- LOGO 1 — THE MARK, redrawn on the modular grid.
+
+       THE SYSTEM, read off the reference: one MODULE (16), one stroke weight
+       (also 16, because the stroke IS the module), letters standing in a 3x3
+       box of them, a HALF MODULE (8) between boxes, square corners everywhere
+       and a single ink. Nothing is ever half-filled: a cell is on or it is off,
+       and the negative space is drawn as deliberately as the positive.
+
+       THE MARK IS ONE SUCH BOX, and what stands in it is the app's own face.
+       This surface already answers "how do you draw a face" — presence_glyph
+       says a FACE is two rectangles and a VOICE is one, and that the mouth is
+       exactly as wide as the eyes span END TO END. On the grid that sentence
+       lands without adjustment: eyes at the two top corners, mouth across the
+       whole bottom. The old mark was the eyes alone; the module is what gives
+       the mouth somewhere to live, so the mark now carries both halves of what
+       the app holds.
+
+       THE GAP IS A HALF MODULE (8), NOT A FULL ONE, and it is the only number
+       here that is not simply the module. A whole empty row between the eyes
+       and the mouth left them reading as two marks stacked in one box rather
+       than as one face — the eyes floated, and the mouth sat under them like a
+       rule. Closed to 8 they become features of a single head. And 8 is not an
+       invented figure: it is the same half module the reference puts between
+       its letters, so the one distance in the mark that is not a module is a
+       distance the system already had a name for.
+
+       AND THE MOUTH IS HALF A MODULE DEEP, which is the one place this mark
+       leaves the reference behind: there, stroke and module are the same thing
+       and no shape is ever thinner than one cell. At a full module the mouth
+       was the same square as an eye stretched across the whole width, and it
+       took over — the mark read mouth-first, with the eyes as two marks above
+       it. Halved, it is a line the eyes sit over, and the face reads as a face.
+       It is still the same half module as the gap and the letter-spacing, so
+       the mark is now built from exactly two numbers, 16 and 8, and no others.
+
+       Which makes the box 48 x 32 — three modules across; one module of eyes, a
+       half-module of air and a half-module of mouth down. The square box was
+       never the point; the grid is.
+
+       THEY OPEN, THEY WINK, THEY BLINK, on the same twelve-second cycle as the
+       one in app.css — the wink early and held (a fast asymmetric flick reads
+       as a dropped frame, not a wink), the blink shared by both eyes past the
+       middle. ONE ANIMATION PER EYE carries both events, so the two cannot
+       drift apart. THE MOUTH NEVER MOVES: it is the still thing the eyes are
+       measured against. -->
+  <style>
+    /* The ink follows the page it is opened on, and a host that sets
+       --logo-ink overrides both. */
+    svg {
+      color: var(--logo-ink, #ca5738);
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: var(--logo-ink, #e07a5f);
+      }
+    }
+
+    /* fill-box puts the origin at the centre of each rect's OWN box, so an eye
+       closes onto its own line instead of flying off the user-space origin. */
+    .head-eye {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* NO ENTRANCE HERE, and that is a correction rather than an omission. In the
+       app the eyes scale up from nothing on arrival, held there by fill-mode
+       until the animation runs — which is fine on a page, and fatal in a file.
+       Anything that rasterises this without running CSS (Quick Look, a favicon,
+       a thumbnailer, a PDF) samples frame zero, and frame zero of that entrance
+       is a mark with no eyes: two of the three shapes simply gone. Every
+       keyframe below opens at scaleY(1), so a renderer that ignores the
+       animation renders the logo, and one that honours it gets the blink and
+       the wink on top. The entrance belongs to the mount, not to the artwork. */
+
+    /* The quiet eye: open throughout, except for the shared blink at 55%. */
+    @keyframes eye-blink {
+      0%,
+      54%,
+      56.6%,
+      100% {
+        transform: scaleY(1);
+      }
+      55.3% {
+        transform: scaleY(0.08);
+      }
+    }
+
+    /* The winking eye: the same blink at 55%, plus its own closure at 7-11% —
+       held, not flicked. */
+    @keyframes eye-wink {
+      0%,
+      6%,
+      12%,
+      54%,
+      56.6%,
+      100% {
+        transform: scaleY(1);
+      }
+      7.5%,
+      10.5% {
+        transform: scaleY(0.08);
+      }
+      55.3% {
+        transform: scaleY(0.08);
+      }
+    }
+
+    .head-eye {
+      animation: eye-blink 12s ease-in-out 1.2s infinite;
+    }
+    /* The second eye is the one that winks. */
+    .head-eye + .head-eye {
+      animation: eye-wink 12s ease-in-out 1.2s infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .head-eye,
+      .head-eye + .head-eye {
+        animation: none;
+        transform: none;
+      }
+    }
+  </style>
+
+  <g fill="currentColor">
+    <rect class="head-eye" x="0" y="0" width="16" height="16" />
+    <rect class="head-eye" x="32" y="0" width="16" height="16" />
+    <rect class="head-mouth" x="0" y="24" width="48" height="8" />
+  </g>
+</svg>

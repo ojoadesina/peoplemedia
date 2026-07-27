@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 6" role="img" aria-label="Kuisk">
+  <title>Kuisk — the mark, set in a bar</title>
+  <!-- LOGO 4 — THE ORIGINAL MARK, SET IN A BAR.
+
+       THE EYES ARE THE ORIGINAL ONES, UNTOUCHED: the two 6 x 6 squares, 4 apart,
+       open at rest, blinking and winking on the twelve-second cycle they have
+       always had. This adds two rects and changes nothing else — a short lead to
+       the left, a long tail to the right, both AT THE EYES' OWN HEIGHT, so the
+       whole thing is one bar of eye-height broken into four segments and two of
+       those segments happen to be eyes.
+
+       THE GAPS ARE THE WHOLE MECHANISM. Same height, same colour, same square
+       corners: an eye butted straight against the lead would simply BE bar, and
+       the mark would not exist until it moved. What separates them is the 4 of
+       air the two eyes already keep between themselves — one gap, used three
+       times rather than once. So the mark is not a shape placed on a line; it is
+       two segments OF the line that turn out to be alive.
+
+       AND THAT IS WHAT THE BAR BUYS: a datum. Alone, a closing eye was a mark
+       doing something. Against a bar of its own height, the same closure is two
+       pieces of the header dropping out and snapping back — the rule blinks. The
+       hold on the wink matters more here, not less: a bar segment that flicks
+       reads as a rendering fault, and one that goes and stays gone for a beat
+       reads as an eye.
+
+       THE TAIL RUNS TO THE BOX'S RIGHT EDGE because a header has no natural
+       length; in the app it is a flex child and simply reaches the rail. What is
+       fixed here is only the part that carries meaning — lead, gap, eye, gap,
+       eye, gap — and the tail is however much page there happens to be. -->
+  <style>
+    svg {
+      color: var(--logo-ink, #ca5738);
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: var(--logo-ink, #e07a5f);
+      }
+    }
+
+    /* fill-box puts the origin at the centre of each rect's OWN box, so an eye
+       closes onto its own line rather than flying off the user-space origin.
+       The lead and the tail are not eyes and never move. */
+    .head-eye {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* No entrance: a file has no moment of arrival, and one held by fill-mode
+       would put a blank frame at time zero for every static renderer. Both
+       cycles below open at scaleY(1), which is the drawn state, so anything
+       that ignores CSS still renders the bar with its eyes in it. */
+
+    /* The quiet eye: open throughout, except for the shared blink at 55%. */
+    @keyframes eye-blink {
+      0%,
+      54%,
+      56.6%,
+      100% {
+        transform: scaleY(1);
+      }
+      55.3% {
+        transform: scaleY(0.08);
+      }
+    }
+
+    /* The winking eye: the same blink at 55%, plus its own closure at 7-11% —
+       held, not flicked, which is the whole difference between a wink and a
+       dropped frame. */
+    @keyframes eye-wink {
+      0%,
+      6%,
+      12%,
+      54%,
+      56.6%,
+      100% {
+        transform: scaleY(1);
+      }
+      7.5%,
+      10.5%,
+      55.3% {
+        transform: scaleY(0.08);
+      }
+    }
+
+    .head-eye {
+      animation: eye-blink 12s ease-in-out 1.2s infinite;
+    }
+    .head-eye + .head-eye {
+      animation: eye-wink 12s ease-in-out 1.2s infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .head-eye,
+      .head-eye + .head-eye {
+        animation: none;
+      }
+    }
+  </style>
+
+  <g fill="currentColor">
+    <rect x="0" y="0" width="4" height="6" />
+    <rect class="head-eye" x="8" y="0" width="6" height="6" />
+    <rect class="head-eye" x="18" y="0" width="6" height="6" />
+    <rect x="28" y="0" width="132" height="6" />
+  </g>
+</svg>

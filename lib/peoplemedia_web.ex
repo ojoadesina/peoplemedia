@@ -17,7 +17,10 @@ defmodule PeoplemediaWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
+  # "logo" is a contact sheet, not a feature: the two candidate marks and a page
+  # that shows them at size on both surfaces, served so they can be looked at in
+  # a browser. Drop it from this list the day one of them is chosen and wired in.
+  def static_paths, do: ~w(assets fonts images logo favicon.ico robots.txt)
 
   def router do
     quote do

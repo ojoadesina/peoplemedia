@@ -1,27 +1,33 @@
-// THE PRESENCE PANEL. The relationship list's own mechanism, one level in: a
-// band a third of the way down, presences scrolling THROUGH it, and whichever
-// settles there is chosen. What is different is what "chosen" does. There is no
-// frame off to the side — the chosen box IS the player.
+// THE PANEL. The relationship list's own mechanism, one level in: a band a
+// third of the way down, letters scrolling THROUGH it, and whichever settles
+// there is chosen. What is different is what "chosen" does. There is no frame
+// off to the side — the chosen box IS the player.
 //
 // Two stages, so scrolling the list is never a wall of noise:
 //
-//   PREVIEW — a presence that lands in the band plays MUTED. A voice breathes
+//   PREVIEW — a letter that lands in the band plays MUTED. A voice breathes
 //   the box (the pulse is the play effect); a face shows silently at rest size.
 //   Nothing is audible, so you can scroll through a whole conversation in peace.
 //
-//   COMMIT — clicking the chosen presence is what turns the sound on. A face
+//   COMMIT — clicking the chosen letter is what turns the sound on. A face
 //   also grows to full height to be looked at properly; a voice just becomes
 //   audible. There is no play/pause control anywhere — the row is the control.
+//
+// A TEXT LETTER HAS NOTHING TO PLAY, and every path here already handles that
+// without a special case: `media()` returns null for any kind that is not
+// voice or face, so preview loads nothing and commit does nothing. The box
+// keeps its placeholder, which is the honest answer — the words themselves are
+// not shown here yet.
 //
 // It reverts itself. When the media finishes, or the list moves under it, the
 // box shrinks back and mutes again. Nothing keeps playing over a moving list,
 // and nothing stays enlarged once it is done.
 type HookCtx = { el: HTMLElement; cleanup?: () => void };
 
-export const PresencePanel = {
+export const Panel = {
   mounted(this: HookCtx) {
     const scroll = this.el;
-    const items = Array.from(scroll.querySelectorAll<HTMLElement>(".presence-item"));
+    const items = Array.from(scroll.querySelectorAll<HTMLElement>(".panel-item"));
     const stage = scroll.parentElement?.querySelector<HTMLElement>(".stage") ?? null;
     const video = stage?.querySelector<HTMLVideoElement>(".stage-video") ?? null;
     const audio = stage?.querySelector<HTMLAudioElement>(".stage-audio") ?? null;

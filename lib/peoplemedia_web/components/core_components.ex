@@ -22,8 +22,11 @@ defmodule PeoplemediaWeb.CoreComponents do
     * `primary` (terracotta) means ATTENTION — the pressed button, the invalid
       field, the error flash. The palette carries no separate red, and it does
       not need one.
-    * `secondary` (sage) means AFFIRMATION — the info flash. It is also the
-      presence dot's colour, so spend it sparingly.
+    * `secondary` (sage) means AFFIRMATION — the info flash, the presence dot,
+      and the flow arrow that says a letter of yours has been read. It is the
+      RECEIPT colour: something completed, with nothing being asked of you.
+      Terracotta asks, sage reports. Spend it sparingly, and never on a state
+      the reader is meant to act on.
     * SIZES come from the custom type scale, which is tighter than Tailwind's
       stock ramp — `text-md` here is 0.875rem, and `text-xl` is 1rem, not
       1.25rem. Never assume a stock size means what it usually means.
@@ -571,42 +574,264 @@ defmodule PeoplemediaWeb.CoreComponents do
   end
 
   @doc """
-  THE KIND MARK — a small symbol that says, before the name, whether a presence
-  is a face or a voice.
+  THE KIND MARK — a small symbol that says, before the name, what a letter
+  arrived as.
 
-  Two marks, and they are the "--" placeholder drawn as rectangles:
+  Three marks, all cut from one rectangle:
 
     FACE  is the two EYES — two rectangles side by side, "- -".
     VOICE is the one MOUTH — a single rectangle, "--", as wide as the two eyes
           span END TO END: from the left edge of the left eye to the right edge
           of the right eye, gap included, so the mouth covers exactly the width
           the two eyes do.
+    TEXT  is that same mouth TURNED HALFWAY OVER — the identical rectangle, the
+          identical width, rotated 45 degrees about its own centre.
 
   A face has eyes; a voice has a mouth. Every bar shares one height, sharp
   corners, no curve anywhere.
 
-  It draws in currentColor a good deal larger than the line, so it reads as a
-  mark rather than a speck.
-  """
-  attr :kind, :string, required: true
-  attr :class, :string, default: nil
+  ## WHY TEXT IS THE MOUTH STRUCK THROUGH
 
-  def presence_glyph(assigns) do
+  Because it is the only one of the three defined by ABSENCE, and a slash is
+  what a surface says "not this" with. A text letter is a letter with no face in
+  it and no voice in it — the plain case, words and nothing else — so drawing it
+  a mark of its own (a page, a line of dashes, a quote) would have made it a
+  fourth kind of thing standing beside the other two. It is not beside them, it
+  is what is left when both are taken away, and one bar tipped off the level
+  says exactly that: the mouth is there, and it is shut.
+
+  It rises left to right rather than falling, which is the one choice with no
+  argument behind it beyond this: on a surface that reads left to right, a
+  rising stroke is a MARK, and a falling one is the cross people put through a
+  mistake. Nothing is wrong with a text letter.
+
+  ## THE EMPTY SLOT
+
+  `kind={nil}` draws nothing and still takes the width. Anything that has to
+  line up with a row carries one: a stranger's row (a letter is written to a
+  SCOPE, not to a person, so they have none), the picked header, the lens at
+  the head of the list. Without it every name in those places starts a mark's
+  width left of every name in the list.
+
+  IT HAS WIDTH BUT NO HEIGHT, and that is load-bearing rather than tidy. An
+  empty box with a HEIGHT has no baseline of its own, so in a
+  `items-baseline` flex row — which the picked header is, because the label and
+  the quiet name beside it must sit on one line — the box falls back to
+  aligning its BOTTOM EDGE to the text baseline. That drags the header's name
+  most of a mark's height down the box, and the pick, whose whole trick is that
+  the label does not appear to move, visibly jumps. With no height it cannot
+  affect the line box at all, which is exactly what a spacer should do.
+
+  BOTH VARIANTS TAKE THEIR WIDTH FROM `em`, so the column tracks the type. Any
+  caller therefore has to be setting the row's font-size on itself or on an
+  ancestor, or its mark will be sized against the page default and stand in a
+  narrower column than the rows do.
+
+  ## IT IS HELD QUIET
+
+  1.4em and, in app.css, a resting opacity — down from 1.7em at full strength,
+  which was wrong the moment there were NINETEEN of them. One mark beside one
+  name is a label; a column of solid bars down the left of a list is a second
+  list, and it was reading louder than the names it was meant to be annotating.
+  Filled rectangles are the heaviest shape in this vocabulary, so they earn
+  their place by being small and soft rather than by being drawn lightly.
+
+  THE BAND GIVES IT BACK. `.is-focused` returns the mark to full strength, so
+  the row you are actually on states its kind plainly while the eighteen you
+  are not stay out of the way. That is the same bargain the row's own colour
+  makes, and it is why the quiet setting can be as quiet as it is.
+  """
+  attr :kind, :any, required: true
+  attr :class, :any, default: nil
+
+  def letter_glyph(assigns) do
     ~H"""
-    <span class={["presence-glyph flex shrink-0", @class]} aria-hidden="true">
-      <svg :if={@kind == "face"} viewBox="0 0 24 24" class="h-[1.7em] w-[1.7em]" fill="currentColor">
+    <span
+      class={[
+        "letter-glyph shrink-0 w-[1.4em]",
+        @kind && "flex h-[1.4em]",
+        @class
+      ]}
+      aria-hidden="true"
+    >
+      <svg :if={@kind == "face"} viewBox="0 0 24 24" class="h-full w-full" fill="currentColor">
         <rect x="4" y="9" width="6" height="6" />
         <rect x="14" y="9" width="6" height="6" />
       </svg>
-      <svg
-        :if={@kind == "voice"}
-        viewBox="0 0 24 24"
-        class="h-[1.7em] w-[1.7em]"
-        fill="currentColor"
-      >
+      <svg :if={@kind == "voice"} viewBox="0 0 24 24" class="h-full w-full" fill="currentColor">
         <rect x="4" y="9" width="16" height="6" />
       </svg>
+      <%!-- The voice bar and nothing else, turned about the box's centre. Not a
+           second drawing: same x, same y, same 16x6, so the two kinds cannot
+           drift apart when either is retuned. --%>
+      <svg :if={@kind == "text"} viewBox="0 0 24 24" class="h-full w-full" fill="currentColor">
+        <rect x="4" y="9" width="16" height="6" transform="rotate(-45 12 12)" />
+      </svg>
     </span>
+    """
+  end
+
+  @doc """
+  THE SCOPE MARK — two links, and whether they hold.
+
+  It stands in the MARK'S COLUMN at the head of the list, where every row below
+  it carries a `letter_glyph`, so the lens is built out of the same parts as the
+  things it is a lens on.
+
+    SCOPED   — two square links OVERLAPPING. A relationship is a hold, and a
+               hold is two things that cannot be pulled apart without one of
+               them opening.
+    UNSCOPED — the same two links BROKEN OPEN and drawn apart: `[` and `]`
+               facing each other across a gap. Both halves are still there and
+               still turned towards each other, which is the honest shape of a
+               stranger — someone you could scope and have not.
+
+  SQUARE, NOT ROUND, like everything else drawn here. A chain link is a circle
+  everywhere else in the world; on this surface a curve is the one thing that
+  never appears, so the link is a rectangle and the open half of it is a
+  bracket. The house's own answer to a semicircle is `[`.
+
+  IT DOES NOT DIM WITH THE ROW MARKS. There are nineteen of those and one of
+  this, so the argument for holding them quiet — that a column of marks down
+  the left is noise — does not apply to a single mark at the top of it. It takes
+  the lens's own colour instead: terracotta while you are inside the world
+  picker, muted while you are not, which is what the words beside it already do.
+  """
+  attr :scope, :string, required: true
+  attr :class, :any, default: nil
+
+  def scope_glyph(assigns) do
+    ~H"""
+    <span class={["scope-glyph flex h-[1.4em] w-[1.4em] shrink-0", @class]} aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        class="h-full w-full"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="butt"
+        stroke-linejoin="miter"
+      >
+        <%!-- Held: the right link's left edge sits inside the left link, so the
+             two read as passing through one another rather than as two boxes
+             set side by side. --%>
+        <rect :if={@scope == "SCOPED"} x="2.5" y="8" width="10" height="8" />
+        <rect :if={@scope == "SCOPED"} x="11.5" y="8" width="10" height="8" />
+        <%!-- Open: each link keeps three sides and loses the one facing the
+             other, so the gap between them is made of the two missing edges. --%>
+        <path :if={@scope != "SCOPED"} d="M10 8H2.5v8H10" />
+        <path :if={@scope != "SCOPED"} d="M14 8h7.5v8H14" />
+      </svg>
+    </span>
+    """
+  end
+
+  @doc """
+  THE FLOW — which way the last letters went, and whether they landed.
+
+  Two arrows on the right of a row, out on the left and in on the right, the
+  same order a page is read in: what you sent, then what came back.
+
+  Each answers a DIFFERENT question, which is why they are two marks and not one
+  toggle:
+
+    ↑ OUT is shown only while the newest letter in the thread is YOURS. Lit once
+      they have opened it, faded while they have not. It goes away the moment
+      they write back — an arrow still up for a letter you sent last week would
+      read as a reply still in flight, when the conversation has long since
+      moved past it.
+
+    ↓ IN is shown as soon as they have ever written. Lit while their newest
+      letter is unopened, faded once you have read it.
+
+  ## TWO LIT COLOURS, AND THEY ARE NOT THE SAME COLOUR
+
+  Terracotta is this surface's word for LOOK HERE, and it is spent on the one
+  thing a row can be asking of you: an unopened letter. So ↓ lights terracotta,
+  the same colour the kind mark takes for the same reason.
+
+  ↑ lit is not a request, it is a RECEIPT — they opened what you sent, and there
+  is nothing for you to do about it. Spending terracotta on that would put a
+  finished thing and a waiting thing in the same voice, and a list where
+  everything is urgent has no way left to say that something is. So it takes
+  sage, the theme's other hue, which appears nowhere else on this surface and
+  means only this. Warm asks, cool reports.
+
+  Faded is the resting state of both and is deliberately very quiet: on a list
+  of nineteen rows these marks are almost always saying nothing has changed, and
+  a column of legible arrows down the right-hand side would be the loudest thing
+  on a page whose subject is the names.
+  """
+  attr :letter, :map, required: true
+  attr :class, :any, default: nil
+
+  def letter_flow(assigns) do
+    ~H"""
+    <span class={["letter-flow flex shrink-0 items-center gap-2 self-stretch", @class]}>
+      <.flow_arrow
+        :if={@letter.outgoing}
+        dir="up"
+        lit={@letter.outgoing == :read}
+        label={(@letter.outgoing == :read && "Your letter has been read") || "Your letter is unread"}
+      />
+      <.flow_arrow
+        :if={@letter.incoming}
+        dir="down"
+        lit={@letter.incoming == :unread}
+        label={(@letter.incoming == :unread && "Unread letter from them") || "Their letter, read"}
+      />
+    </span>
+    """
+  end
+
+  # A STEM AND A HEAD, drawn open, both 15 units long with the head spanning 13
+  # across — a 90-degree point, which is the widest an arrowhead reads as sharp.
+  #
+  # MITRED JOINS AND BUTT CAPS. The join is mitred because every corner on this
+  # surface is square and a rounded arrowhead would be the one soft thing on it.
+  # The caps are butt for a reason that is geometry rather than taste: the stem
+  # ENDS ON THE HEAD'S APEX, so a square cap would extend it half a stroke past
+  # the point and put a spike out of the top of the arrow. Butt cuts it flat
+  # exactly where the head takes over, and the head's own miter covers the seam.
+  attr :dir, :string, required: true
+  attr :lit, :boolean, required: true
+  attr :label, :string, required: true
+
+  defp flow_arrow(assigns) do
+    ~H"""
+    <svg
+      viewBox="0 0 24 24"
+      class={
+        [
+          # SIZED IN em, NOT PIXELS, so the pair tracks the row's type. At a fixed
+          # 16px they were right on a phone and visibly undersized on a wide
+          # screen, where the row grows and they did not — the marks drifted from
+          # "quiet" to "hard to find". 1.05em holds them just over the cap height
+          # of the name beside them and still under the kind mark's 1.4em,
+          # which is the order of loudness these three are meant to be read in.
+          #
+          # QUIET IS THE OPACITY'S JOB, not the size's. A small faint mark is
+          # merely illegible; a normally-sized faint one is legible when you look
+          # for it and invisible when you do not, which is the whole brief.
+          "size-[1.05em] transition-colors duration-200",
+          @lit && @dir == "down" && "text-primary-600 dark:text-primary-500",
+          @lit && @dir == "up" && "text-secondary-600 dark:text-secondary-400",
+          !@lit && "text-neutral-400/40 dark:text-neutral-500/55"
+        ]
+      }
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="butt"
+      stroke-linejoin="miter"
+      role="img"
+      aria-label={@label}
+    >
+      <path :if={@dir == "up"} d="M12 20V5" />
+      <path :if={@dir == "up"} d="M5.5 11.5 12 5l6.5 6.5" />
+      <path :if={@dir == "down"} d="M12 4v15" />
+      <path :if={@dir == "down"} d="M5.5 12.5 12 19l6.5-6.5" />
+    </svg>
     """
   end
 
@@ -746,7 +971,7 @@ defmodule PeoplemediaWeb.CoreComponents do
 
   It is the whole argument of the product in one shape — people are the primary
   focus — so it is a FACE rather than a monogram or a glyph of a network. What
-  changed is HOW it draws one. This surface already had a face: `presence_glyph`
+  changed is HOW it draws one. This surface already had a face: `letter_glyph`
   says a face is TWO RECTANGLES and a voice is ONE, and those proportions are
   deliberate (the mouth is exactly as wide as the eyes' span). The mark used to
   answer the same question differently — a circle with two round eyes — so the
@@ -757,19 +982,46 @@ defmodule PeoplemediaWeb.CoreComponents do
   So the mark is the glyph at mark scale: the same two squares, the same gap,
   cropped to their own bounds so they fill the box. One way to draw a face.
 
-  `animated` OPENS it — each eye scales up from nothing on arrival, the second a
-  beat behind the first. One motion, once. It is deliberately not a blink or a
-  breath: this surface's motion is instrument-like (the reticle glides, the band
-  snaps, the bar fills), and a mark that performs on a loop belongs to a mascot,
-  which this is not. Pass `animated={false}` where stillness matters — a
-  favicon, a print sheet, a dense list of many marks.
+  ## THE EYES ARE SHUT
+
+  And that is the whole of what changed. The box is the same 16x6, the eyes are
+  the same 6 wide at the same two ends of it — they are simply DRAWN CLOSED, one
+  unit deep, on the line they would close onto anyway. Open, they are the two
+  squares this file has always described; the cycle in app.css is what opens
+  them, and scaleY(6) is exactly the ratio between the two states, so "open" is
+  not a second drawing but the same rect at full height.
+
+  SHUT EYES ARE NOT ABSENT EYES, and it is worth writing down which reading this
+  is, because the shape does not fix its own meaning. Closed eyes are what a
+  face does laughing, wincing, listening hard, or holding something in — the
+  vocabulary people actually use for them (`^_^`) is delight far more often than
+  sleep. Add a tear and the same two lines are crying; add a curve and they are
+  loving. What decides it is the company they keep, and the company here is a
+  wink: nothing winks but a face, and nothing winks while absent.
+
+  DRAWN CLOSED, NOT HELD CLOSED, and the distinction is what makes this a rest
+  state rather than an animation trick. Anything that renders the mark without
+  running CSS — a favicon, a thumbnailer, a print sheet, `animated={false}` —
+  gets the shut eyes, because the shut eyes are the artwork. Holding a square
+  down with a transform would have made stillness a failure mode.
+
+  `animated` runs the cycle, after drawing the closed pair on: each eye sweeps
+  out from its own centre on arrival, the second a beat behind the first, so the
+  entrance reads as the eyes being drawn rather than as two lines appearing.
+  Pass `animated={false}` where stillness matters.
 
   ## Examples
 
       <.head />
       <.head class="h-7 text-primary-600" animated={false} />
   """
-  attr :class, :string, default: "h-7 text-primary-500"
+  # :any rather than :string so a caller can pass nil and mean it. THE APP RULE
+  # does: it sets the mark's height itself, because the rule's own weight and
+  # gaps are derived from that height, and it sets the colour on the wrapper so
+  # the eyes and the line they sit in cannot end up different shades. The default
+  # below carries a fixed primary-500 with no dark twin, which is exactly what
+  # that caller must be able to opt out of. Same convention `button/1` uses.
+  attr :class, :any, default: "h-7 text-primary-500"
   attr :animated, :boolean, default: true
   attr :rest, :global
 
@@ -782,8 +1034,10 @@ defmodule PeoplemediaWeb.CoreComponents do
       aria-hidden="true"
       {@rest}
     >
-      <rect class="head-eye" x="0" y="0" width="6" height="6" />
-      <rect class="head-eye" x="10" y="0" width="6" height="6" />
+      <%!-- One unit deep, centred on the line a 6-square would close onto, so
+             scaleY(6) reopens each eye into exactly the square it came from. --%>
+      <rect class="head-eye" x="0" y="2.5" width="6" height="1" />
+      <rect class="head-eye" x="10" y="2.5" width="6" height="1" />
     </svg>
     """
   end

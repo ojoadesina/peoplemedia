@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 6" role="img" aria-label="Kuisk">
+  <title>Kuisk — the mark, eyes shut</title>
+  <!-- LOGO 3 — THE OLD MARK WITH ITS EYES SHUT.
+
+       NOT A NEW DRAWING. The box is the mark's own 16 x 6, the eyes are the same
+       6 wide at the same two ends of it, and the gap between them is the gap it
+       always was. One number changed: they are 1 deep instead of 6, sitting on
+       the line a square would close onto. Open, they are exactly the two squares
+       the mark has always been — scaleY(6) is the ratio between the drawn height
+       and the full one, so "open" is the same rect at its own size rather than a
+       second piece of artwork to keep in step with the first.
+
+       DRAWN SHUT, NOT HELD SHUT. Pinning a square down with a transform would
+       have made the closed state depend on CSS running, and a logo whose rest
+       state is an animation frame is a logo that renders wrong everywhere CSS
+       does not run — favicons, thumbnailers, print. So the shut pair IS the
+       artwork, and every keyframe below opens at it.
+
+       THEY OPEN, THEY WINK, THEY LOOK. Two dashes at rest read as two dashes;
+       what makes a pair of shapes read as EYES is behaviour, and a shut pair
+       needs that more than an open pair did, not less. So the cycle is the mark's
+       own twelve seconds run the other way: the second eye opens EARLY and is
+       HELD open for a beat — the hold being the whole difference between a wink
+       and a dropped frame — and both open together past the middle. Nothing
+       moves more than once every five or six seconds; the mark is shut almost
+       all of the time, which is the point of it. -->
+  <style>
+    /* The ink follows the page it is opened on, and a host that sets
+       --logo-ink overrides both. */
+    svg {
+      color: var(--logo-ink, #ca5738);
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: var(--logo-ink, #e07a5f);
+      }
+    }
+
+    /* fill-box puts the origin at the centre of each rect's OWN box, so an eye
+       opens around its own line instead of growing off the user-space origin.
+       It is also what keeps the open state inside the viewport without a single
+       number being written down: the closed rect is centred on y=3, so scaling
+       it six times about its own centre lands it on 0 and 6 — the box's own two
+       edges. Nothing overflows, and nothing had to be positioned to make that
+       true. */
+    .head-eye {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* NO ENTRANCE HERE. In the app the eyes sweep on at mount and replay on a
+       theme switch, which is a fact about arriving at a page; a file has no
+       such moment, and an entrance held by fill-mode would put a blank frame at
+       time zero for every static renderer. */
+
+    /* The quiet eye: shut throughout, except for the shared look past the
+       middle. Six is the ratio between the drawn height and the square. */
+    @keyframes eye-look {
+      0%,
+      53%,
+      59%,
+      100% {
+        transform: scaleY(1);
+      }
+      54.5%,
+      57.5% {
+        transform: scaleY(6);
+      }
+    }
+
+    /* The winking eye: the same look, plus its own opening at 7-12%, held. */
+    @keyframes eye-wink {
+      0%,
+      6%,
+      13%,
+      53%,
+      59%,
+      100% {
+        transform: scaleY(1);
+      }
+      7.5%,
+      11.5%,
+      54.5%,
+      57.5% {
+        transform: scaleY(6);
+      }
+    }
+
+    .head-eye {
+      animation: eye-look 12s ease-in-out 1.2s infinite;
+    }
+    .head-eye + .head-eye {
+      animation: eye-wink 12s ease-in-out 1.2s infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .head-eye,
+      .head-eye + .head-eye {
+        animation: none;
+      }
+    }
+  </style>
+
+  <g fill="currentColor">
+    <rect class="head-eye" x="0" y="2.5" width="6" height="1" />
+    <rect class="head-eye" x="10" y="2.5" width="6" height="1" />
+  </g>
+</svg>

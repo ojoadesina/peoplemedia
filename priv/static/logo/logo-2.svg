@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" role="img" aria-label="Kuisk">
+  <title>Kuisk — the wordmark</title>
+  <!-- LOGO 2 — THE NAME, set in the same modules the mark is built from.
+
+       SAME SYSTEM, SAME NUMBERS: a 16 module, a 16 stroke, a half module (8)
+       between letters, square corners, one ink. A letter is a pattern of
+       filled cells and nothing else — no curve, no taper, no optical
+       correction. The reference sets its three letters in a 3x3 box; that box
+       spells O, K and X and very little else, so THE NAME TAKES FIVE ROWS.
+       Three is not a style choice there, it is the smallest grid those three
+       letters happen to fit, and S cannot be drawn in it at all: an S needs a
+       top bar, a middle bar, a bottom bar AND a stem between each pair, which
+       is five rows before you start. Widening to five keeps every rule and
+       loses only the coincidence.
+
+       DIAGONALS ARE DRAWN BY CORNER-TOUCH, which is the one move the reference
+       makes that is worth naming: its X is four corner cells and a centre, and
+       what reads as a crossing is cells meeting at their corners. K borrows it
+       exactly — stem, a cell stepped out at the waist, a cell stepped out again
+       at the top and bottom — so the arms read as travelling away from the stem
+       rather than as bars parked beside it.
+
+       I IS ONE COLUMN WIDE, not three with the middle filled. Every other
+       letter fills its box; a three-wide I would carry two empty columns and
+       open a hole in the word twice the size of any real gap. Narrow letters
+       staying narrow is what keeps the rhythm even.
+
+       IT DOES NOT MOVE. The mark is the thing that blinks; a name that also
+       performed would leave the pair with no still half to be read against. -->
+  <style>
+    svg {
+      color: var(--logo-ink, #ca5738);
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: var(--logo-ink, #e07a5f);
+      }
+    }
+  </style>
+
+  <g fill="currentColor">
+    <!-- K — stem, then two arms stepping out from the waist. -->
+    <rect x="0" y="0" width="16" height="80" />
+    <rect x="16" y="16" width="16" height="16" />
+    <rect x="32" y="0" width="16" height="16" />
+    <rect x="16" y="48" width="16" height="16" />
+    <rect x="32" y="64" width="16" height="16" />
+
+    <!-- U — two stems closed by a floor. -->
+    <rect x="56" y="0" width="16" height="64" />
+    <rect x="88" y="0" width="16" height="64" />
+    <rect x="56" y="64" width="48" height="16" />
+
+    <!-- I — one column, full height. -->
+    <rect x="112" y="0" width="16" height="80" />
+
+    <!-- S — three bars, and the two stems that make it an S and not a Z:
+         upper LEFT, lower RIGHT. -->
+    <rect x="136" y="0" width="48" height="16" />
+    <rect x="136" y="16" width="16" height="16" />
+    <rect x="136" y="32" width="48" height="16" />
+    <rect x="168" y="48" width="16" height="16" />
+    <rect x="136" y="64" width="48" height="16" />
+
+    <!-- K -->
+    <rect x="192" y="0" width="16" height="80" />
+    <rect x="208" y="16" width="16" height="16" />
+    <rect x="224" y="0" width="16" height="16" />
+    <rect x="208" y="48" width="16" height="16" />
+    <rect x="224" y="64" width="16" height="16" />
+  </g>
+</svg>

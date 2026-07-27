@@ -212,7 +212,7 @@ html[data-theme="dark"] {
 
 /* ── THE MARK ──────────────────────────────────────────────────────────────────
    TWO SQUARES, which is what this surface already means by "a face":
-   presence_glyph draws a face as two rectangles and a voice as one, with the
+   letter_glyph draws a face as two rectangles and a voice as one, with the
    mouth exactly as wide as the eyes' span. The mark is that same glyph at mark
    scale, cropped to its own bounds so it fills the box.
 
@@ -222,32 +222,46 @@ html[data-theme="dark"] {
    everywhere else, and whose own comments argue that rounding a screen turns it
    into a widget.
 
-   THEY OPEN, THEY WINK, THEY BLINK — and the order matters, because the job is
-   not decoration. Two squares at rest read as two squares; what makes a pair of
+   THE EYES ARE DRAWN SHUT — one unit deep instead of six, on the line a square
+   would close onto — and everything below opens them. That is a change of REST
+   STATE, not of vocabulary: scaleY(6) is the ratio between the two heights, so
+   an open eye here is the same rect at the size it was always drawn at, and the
+   two states are one shape rather than two drawings.
+
+   DRAWN shut rather than HELD shut, and that is the load-bearing half. A square
+   pinned down by a transform is invisible to anything that does not run CSS —
+   a favicon, a thumbnailer, a print sheet, `animated={false}` — and stillness
+   must never be a failure mode. Every keyframe here therefore opens at the
+   drawn state, so a renderer that ignores all of this still renders the mark.
+
+   THEY OPEN, THEY WINK, THEY LOOK — and the order matters, because the job is
+   not decoration. Two dashes at rest read as two dashes; what makes a pair of
    shapes read as EYES is behaviour, and only one behaviour is unambiguous. Lots
-   of things blink. Nothing winks but a face.
+   of things flash. Nothing winks but a face — and nothing winks while absent,
+   which is what stops a shut mark reading as an empty one.
 
    So the wink comes EARLY — about two seconds in, while you are still looking
-   at the mark for the first time — and it is the second eye alone, held closed
-   for a beat rather than flicked. The hold is what separates a wink from a
-   blink; a fast asymmetric flick just looks like a dropped frame.
+   at the mark for the first time — and it is the second eye alone, held OPEN
+   for a beat rather than flicked. The hold is the whole difference between an
+   eye opening and a dropped frame, and it is the same hold the open mark used
+   for its closure, running the other way.
 
    After that the two settle into a shared rhythm on one twelve-second cycle:
-   the wink near the top of it, a blink by BOTH eyes past the middle. Something
-   happens every five or six seconds, alternating, and neither is frequent
-   enough to nag. Real eyes blink together, so the blink is synchronised to the
-   frame — the only stagger in the whole mark is the 90ms on the opening, where
-   it reads as one act of opening rather than two shapes appearing.
+   the wink near the top of it, both eyes opening together past the middle.
+   Something happens every five or six seconds, alternating, and neither is
+   frequent enough to nag. Real eyes move together, so the shared one is
+   synchronised to the frame — the only stagger in the whole mark is the 90ms on
+   the entrance, where it reads as one act rather than two lines appearing.
 
-   ONE ANIMATION PER EYE, carrying both events, rather than a blink and a wink
+   ONE ANIMATION PER EYE, carrying both events, rather than a look and a wink
    layered on top of each other. Two animations driving the same transform would
    fight whenever they overlapped, and the later one would simply win; folding
    them into a single cycle per eye means the timing cannot drift and the two
    eyes cannot fall out of sync.
 
    fill-box is what makes it work without arithmetic: it puts the origin at the
-   centre of each rect's own box, so an eye closes onto its own line rather than
-   flying off the SVG user-space origin. */
+   centre of each rect's own box, so an eye opens around its own line rather
+   than growing off the SVG user-space origin. */
 .head {
   overflow: visible;
 }
@@ -256,53 +270,60 @@ html[data-theme="dark"] {
   transform-origin: center;
 }
 
+/* THE ENTRANCE SWEEPS ACROSS, not up, and that follows from the shape. On a
+   square, growing from nothing was the obvious arrival; on a line one unit
+   deep, the same motion is four pixels of nothing becoming four pixels of
+   something — imperceptible. Widening from its own centre is what a closed eye
+   arriving actually looks like, and it is the only place in the mark where the
+   x axis is touched at all. */
 @keyframes head-open {
   0% {
-    transform: scaleY(0);
+    transform: scaleX(0);
   }
   100% {
-    transform: scaleY(1);
+    transform: scaleX(1);
   }
 }
 
-/* The quiet eye: open throughout, except for the shared blink at 55%. */
-@keyframes eye-blink {
+/* The quiet eye: shut throughout, except for the shared look past the middle.
+   Six is the ratio between the drawn depth and the square it opens into. */
+@keyframes eye-look {
   0%,
-  54%,
-  56.6%,
+  53%,
+  59%,
   100% {
     transform: scaleY(1);
   }
-  55.3% {
-    transform: scaleY(0.08);
+  54.5%,
+  57.5% {
+    transform: scaleY(6);
   }
 }
 
-/* The winking eye: the same blink at 55%, plus its own closure at 7-11% —
-   held, not flicked, which is the whole difference between a wink and a
-   glitch. */
+/* The winking eye: the same look past the middle, plus its own opening at
+   7-12% — held, not flicked, which is the whole difference between a wink and
+   a glitch. */
 @keyframes eye-wink {
   0%,
   6%,
-  12%,
-  54%,
-  56.6%,
+  13%,
+  53%,
+  59%,
   100% {
     transform: scaleY(1);
   }
   7.5%,
-  10.5% {
-    transform: scaleY(0.08);
-  }
-  55.3% {
-    transform: scaleY(0.08);
+  11.5%,
+  54.5%,
+  57.5% {
+    transform: scaleY(6);
   }
 }
 
 .head.is-animated .head-eye {
   animation:
     head-open 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    eye-blink 12s ease-in-out 1.2s infinite;
+    eye-look 12s ease-in-out 1.2s infinite;
 }
 .head.is-animated .head-eye + .head-eye {
   animation:
@@ -314,11 +335,171 @@ html[data-theme="dark"] {
   .head.is-animated .head-eye,
   .head.is-animated .head-eye + .head-eye {
     animation: none;
-    /* head-open starts at scaleY(0). Cancelling without restoring this would
+    /* head-open starts at scaleX(0). Cancelling without restoring this would
        leave the mark invisible for anyone who asked for less motion — the one
-       group that must never lose content. */
+       group that must never lose content. What is left is the closed pair,
+       which is the mark's own rest state rather than a fallback. */
     transform: none;
   }
+}
+
+/* ── THE SHUT-STATE STUDY ──────────────────────────────────────────────────────
+   /logo ONLY. Four treatments of the closed eye, so "should it be tilted?" can
+   be settled by looking instead of argued about. They apply to a `head` with
+   `animated={false}`, since the question is about the resting shape and a moving
+   one answers it differently every second. Delete with the contact sheet.
+
+   NOTE WHAT THE TILT CAN AND CANNOT DO. One straight bar has one slope, so an
+   eye can only point its inner end up or down. Up is the worried face; down is
+   the angry one. The HAPPY closed eye — the one everybody actually draws — is a
+   caret, and a caret is an arch: either a curve, which this surface does not
+   own, or three stepped segments per eye, which would cost the mark the one
+   relationship it is built on, that an eye is a single rect at two heights. */
+.head-tilt-up .head-eye:first-child {
+  transform: rotate(-9deg);
+}
+.head-tilt-up .head-eye:last-child {
+  transform: rotate(9deg);
+}
+.head-tilt-down .head-eye:first-child {
+  transform: rotate(9deg);
+}
+.head-tilt-down .head-eye:last-child {
+  transform: rotate(-9deg);
+}
+.head-thick .head-eye {
+  transform: scaleY(1.5);
+}
+
+/* ── THE APP RULE ──────────────────────────────────────────────────────────────
+   THE MARK, SET IN A BAR THAT CROSSES THE PAGE. A short lead to its left, a long
+   tail to its right, both AT THE EYES' OWN HEIGHT — so the header is one bar of
+   eye-height broken into four segments, and two of those segments are eyes.
+
+   THE GAPS ARE THE WHOLE MECHANISM. At the same height and the same colour as
+   the bar, an eye butted against it would simply BE bar; what separates them is
+   the 4 units of air the two eyes already keep between themselves, used three
+   times instead of once. So the mark is not a shape placed on a line — it is
+   two segments OF the line that turn out to be alive.
+
+   AND THAT IS WHAT THE BAR BUYS: a datum. The eyes blink and wink exactly as
+   they always have, and against a bar of their own height a closure now reads
+   as two pieces of the header dropping out and snapping back. Alone, the same
+   motion was a mark doing something; here it is the page's own rule doing it.
+
+   ONE NUMBER, EVERYTHING ELSE DERIVED. --mark-h is the mark's box and therefore
+   the bar's height; a UNIT is a sixth of it, which is the mark's own grid; the
+   gap is four units, which is the gap the eyes already have. One line of
+   arithmetic keeps all four segments in step at any size.
+
+   NOTHING ABOUT THE MARK CHANGED to make this work — no redraw, no second copy,
+   no variant attribute. It is two spans either side of the same `head/1`, which
+   is the reason this is worth trying at all: if it is wrong, deleting the spans
+   is the whole revert.
+
+   THE BAR IS NOT TERRACOTTA, AND THAT IS THE WHOLE ARGUMENT. Drawn in the house
+   primary it worked — and it made a 28px slab of the ATTENTION colour the
+   loudest object on a page whose subject is the list underneath it. This file
+   already settled that case once: when a bar stops being the chosen thing and
+   becomes a header, `.bar.is-picked .focus-box` drops the terracotta for
+   light-100/dark-900, because "look here" cannot be spent on a title and its
+   contents at once. A permanent full-width rule is the same situation, more so.
+
+   So the bar is drawn from the SURFACE ramp and the eyes keep the primary. The
+   header becomes a rule made of page-substance with exactly two live things in
+   it, and the blink reads as the eyes standing out of something neutral rather
+   than as a slab flickering. It also stops the header competing with the BAND,
+   which is this page's one horizontal datum and the thing that reports position
+   — two full-width rules, one meaning "look here" and one meaning nothing, is
+   one rule too many.
+
+   AND THE INK IS TRANSLUCENT, WHICH IS NOT A STYLE CHOICE BUT A FIX. Drawn as
+   an opaque surface tone — light-150, dark-800 — the bar broke the theme wash,
+   and it was the only thing on the page that did. The wash works by painting the
+   INCOMING page colour over everything and swapping the theme underneath at full
+   coverage, and its disc sits at z-index -1 inside #scopes: above that box's
+   background, below everything in flow. The bar is in flow. So the disc covered
+   the PAGE and could not cover the BAR, which went on wearing the outgoing
+   theme's surface for the whole 620ms of the sweep and then snapped. Going dark
+   to light that is a grey slab sitting on a page that has already turned cream —
+   exactly the "greyish, then it jumps" this looked like.
+
+   A TRANSLUCENT fill cannot have that bug, because it has no colour of its own
+   to be caught wearing. What shows through it is the disc, which is already the
+   incoming colour, so the bar arrives at the new theme at the same moment the
+   page does — no transition property, no timing to keep in step, nothing to
+   drift. It is also simply quieter, which was the other half of the problem.
+
+   The two percentages differ because the ramps do: 12% of the primary reads as
+   a soft warm line on a near-white page, and needs a little more weight to read
+   at all on black. Same pattern as --rg-absent and .stage-progress, which are
+   the other two translucent fills on this surface.
+
+   --rule-ink is a variable rather than a literal so the contact sheet can show
+   both treatments side by side without a second copy of this geometry, and the
+   two inks are named once here so the sheet cannot quote a stale value. */
+:root {
+  --rule-ink-light: color-mix(in oklab, var(--color-primary-600) 12%, transparent);
+  --rule-ink-dark: color-mix(in oklab, var(--color-primary-500) 15%, transparent);
+}
+
+.app-rule {
+  --mark-h: 1.75rem;
+  --unit: calc(var(--mark-h) / 6);
+  --rule-gap: calc(var(--unit) * 4);
+  --rule-ink: var(--rule-ink-light);
+
+  display: flex;
+  align-items: center;
+  gap: var(--rule-gap);
+}
+
+/* Both branches, because a hand-written dark rule that omits the media query is
+   only dark for people who have already touched the theme toggle. */
+[data-theme="dark"] .app-rule {
+  --rule-ink: var(--rule-ink-dark);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-rule {
+    --rule-ink: var(--rule-ink-dark);
+  }
+}
+
+/* The height lives HERE rather than as a utility on the svg, because it is the
+   number the gap is derived from — stated twice, in two files, it is one edit
+   away from a bar that no longer matches its own eyes. */
+.app-rule .head {
+  height: var(--mark-h);
+}
+
+.app-rule-lead,
+.app-rule-tail {
+  height: var(--mark-h);
+  background-color: var(--rule-ink);
+}
+
+/* THE LEAD IS WHAT IS LEFT OF THE TEXT INSET once the gap is taken out of it,
+   which puts the EYES on --list-pad exactly — the same edge the strapline and
+   every row label start from. The mark did not move when it gained a bar; the
+   bar simply starts further left, at the rail, because a fill is STRUCTURE and
+   the rail is where structure begins.
+
+   The floor is for the phone, where --list-pad is barely wider than the gap and
+   this would otherwise collapse to a hairline. Two units is the shortest thing
+   that still reads as a segment rather than a speck; the eyes drift ~8px right
+   of the text edge there, which is the price of the lead existing at all. */
+.app-rule-lead {
+  flex: none;
+  /* The fallback is for the contact sheet, which shows this geometry outside
+     .app-root and therefore outside the only place --list-pad is declared. An
+     undefined var here would invalidate the whole declaration and collapse the
+     lead to nothing. */
+  width: max(calc(var(--list-pad, 1.95rem) - var(--rule-gap)), calc(var(--unit) * 2));
+}
+
+/* A header has no natural length: it ends where the page does. */
+.app-rule-tail {
+  flex: 1;
 }
 
 /* ── THE THEME WASH ────────────────────────────────────────────────────────────
@@ -377,7 +558,7 @@ html[data-theme="dark"] {
    the two branches mirror the dark variant above, because a plain stylesheet
    cannot call a Tailwind variant. */
 #scopes,
-#presence-panel {
+#panel {
   --rg-accent: var(--color-primary-600);
   --rg-bracket: var(--color-primary-500);
   /* ABSENT is the one place neutral earns its keep. Terracotta is the colour of
@@ -389,7 +570,7 @@ html[data-theme="dark"] {
 }
 
 [data-theme="dark"] #scopes,
-[data-theme="dark"] #presence-panel {
+[data-theme="dark"] #panel {
   --rg-accent: var(--color-primary-500);
   --rg-bracket: var(--color-primary-400);
   --rg-absent: color-mix(in oklab, var(--color-neutral-300) 8%, transparent);
@@ -397,7 +578,7 @@ html[data-theme="dark"] {
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) #scopes,
-  html:not([data-theme]) #presence-panel {
+  html:not([data-theme]) #panel {
     --rg-accent: var(--color-primary-500);
     --rg-bracket: var(--color-primary-400);
     --rg-absent: color-mix(in oklab, var(--color-neutral-300) 8%, transparent);
@@ -439,10 +620,14 @@ html[data-theme="dark"] {
   --ax: 14px;
   --ay: 14px;
 }
-/* 512x56: 24px arms leave 464px open across, 14px arms leave 28px down. */
+/* 512x72: 24px arms leave 464px open across, 18px arms leave 36px down. The
+   vertical pair grew with the box — a two-line row made the band taller — and
+   it grew IN PROPORTION (both were a quarter of the height before), because an
+   arm held at its old length on a taller box stops reading as a corner and
+   starts reading as a tick mark near one. */
 .focus-box::before {
   --ax: 24px;
-  --ay: 14px;
+  --ay: 18px;
 }
 /* THE TWO COUNTS ARE IDENTICAL BOXES — same size, same colour — because they
    are the same kind of thing: a population of that place, and a door into it.
@@ -465,11 +650,12 @@ html[data-theme="dark"] {
   --ax: 18px;
   --ay: 18px;
 }
-/* The presence panel's box is the focus-box's twin — same 24px arms across, and
-   14px down for its slightly taller measure. */
+/* The letters panel's box is the focus-box's twin, and wears its arms — the two
+   boxes are now within half a row of each other in height, so giving them
+   different corners would be a difference with nothing behind it. */
 .stage::before {
   --ax: 24px;
-  --ay: 14px;
+  --ay: 18px;
 }
 /* THE LIVE RETICLE wears the frame's brackets — a square, so its arms are equal
    — and it is the ONLY thing in the room that does. It flies to the active
@@ -670,9 +856,18 @@ html[data-theme="dark"] {
 
 /* A name too long for the band does not get cut off square or ellipsed — it
    FADES OUT at the row's edge, so it reads as continuing rather than as broken.
-   The mask sits on the row, so it only ever bites text that actually reaches
-   the edge; a short name never touches it. */
-.scopes-item {
+   The mask only ever bites text that actually reaches the edge; a short name
+   never touches it.
+
+   IT SITS ON THE NAME LINE, NOT ON THE ROW, and that moved when the row gained
+   a right-hand side. A mask is applied to a whole subtree, so on the row it
+   also faded the two flow arrows — which live at the row's right edge, exactly
+   where the mask is strongest — and they came out as ghosts of themselves with
+   no way to opt back in. Scoped to the line, the name still fades where it
+   always did, and it now fades BEFORE the arrows rather than through them,
+   which is what the gradient was always trying to say: the text runs out here
+   because something else begins. */
+.scopes-line {
   overflow: hidden;
   mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent 100%);
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent 100%);
@@ -785,7 +980,7 @@ html[data-theme="dark"] {
    once would be a transition; one thing moving and then another appearing is a
    sequence, and a sequence is what "it became a header, and here is what is
    under it" actually looks like. */
-.presence-panel {
+.panel {
   animation: panel-in 380ms 260ms ease-out both;
 }
 @keyframes panel-in {
@@ -804,7 +999,7 @@ html[data-theme="dark"] {
   .scopes-scroll {
     transition: none;
   }
-  .presence-panel {
+  .panel {
     animation: none;
   }
 }
@@ -992,25 +1187,50 @@ html:not([data-theme]) .presence-row .stream-name {
   opacity: 1;
 }
 
-/* ── THE PRESENCE PANEL LIST ─────────────────────────────────────────────────
+/* ── THE PANEL LIST ───────────────────────────────────────────────────────────
    The relationship list's mechanism, one level in — a band a third down, rows
    scrolling through it — but the chosen box does the frame's job itself. There
    is no frame off to the side: the STAGE sits at the band, behind the rows, and
    the chosen row's own name reads over it. */
-.presence-item {
+.panel-item {
   transition:
     height 320ms ease-out,
     color 200ms ease-out;
 }
-.presence-item.is-focused {
+.panel-item.is-focused {
   color: var(--rg-accent);
 }
 
-/* THE KIND MARK BREATHES while its presence plays — voice or face alike. The
+/* ── THE MARKS ARE HELD QUIET ─────────────────────────────────────────────────
+   A filled rectangle is the heaviest shape this surface draws, and the list now
+   puts one at the head of every row. At full strength that column read as a
+   SECOND LIST running down the left, louder than the names it was annotating —
+   and the unread ones, in terracotta, could not then get any louder, which is
+   the one thing they exist to do.
+
+   So the resting state is soft, and THE BAND GIVES IT BACK: the row you are on
+   states its kind plainly while the eighteen you are not stay out of the way.
+   Opacity rather than a paler colour, because the mark has to hold over three
+   different things — the page, the band's wash, and a face playing in the
+   panel's box — and only opacity means the same on all three.
+
+   THE FLOW ARROWS ARE NOT LIFTED WITH IT. They are already at their own two
+   strengths, and the lit one is a STATE rather than a highlight: brightening it
+   on the focused row would read as the letter having just changed. */
+.letter-glyph {
+  opacity: 0.6;
+  transition: opacity 200ms ease-out;
+}
+.scopes-item.is-focused .letter-glyph,
+.panel-item.is-focused .letter-glyph {
+  opacity: 1;
+}
+
+/* THE KIND MARK BREATHES while its letter plays — voice or face alike. The
    hook puts is-playing on the row for exactly as long as the media runs, so the
    mark says "playing now" in the list itself, and holds still the moment it
    pauses or ends. */
-.presence-item.is-playing .presence-glyph {
+.panel-item.is-playing .letter-glyph {
   animation: glyph-pulse 1.3s ease-in-out infinite;
 }
 @keyframes glyph-pulse {
@@ -1023,7 +1243,7 @@ html:not([data-theme]) .presence-row .stream-name {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .presence-item.is-playing .presence-glyph {
+  .panel-item.is-playing .letter-glyph {
     animation: none;
   }
 }
@@ -1032,7 +1252,7 @@ html:not([data-theme]) .presence-row .stream-name {
    and the rows below it move down to make room, an accordion rather than a card
    lifted over its neighbours. The name rides at the top of the opened row so the
    picture fills the space beneath it rather than being covered by it. */
-.presence-item.is-expanded {
+.panel-item.is-expanded {
   height: 16rem;
   align-items: flex-start;
   padding-top: 1.55rem;
@@ -1100,14 +1320,14 @@ html:not([data-theme]) .presence-row .stream-name {
     rgb(0 0 0 / 0.22) 100%
   );
 }
-.presence-item[data-kind="face"].is-focused span {
+.panel-item[data-kind="face"].is-focused span {
   text-shadow:
     0 1px 3px rgb(0 0 0 / 0.9),
     0 0 12px rgb(0 0 0 / 0.7);
 }
 /* The mark is drawn, not set, so it takes a drop-shadow rather than a text one
    to hold against the picture. */
-.presence-item[data-kind="face"].is-focused .presence-glyph {
+.panel-item[data-kind="face"].is-focused .letter-glyph {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.9));
 }
 
@@ -1130,10 +1350,10 @@ html:not([data-theme]) .presence-row .stream-name {
 
 /* Hide the scrollbar — the band is the only cursor this list needs, and a
    scrollbar would draw a second one down the side. */
-.presence-scroll {
+.panel-scroll {
   scrollbar-width: none;
 }
-.presence-scroll::-webkit-scrollbar {
+.panel-scroll::-webkit-scrollbar {
   display: none;
 }
 
@@ -1226,8 +1446,43 @@ html:not([data-theme]) .live-screen {
   --app-gutter: 1.5rem;
   --list-w: 32rem;
   --list-h: 50vh;
-  --row-h: 4rem;
+  --row-h: 5rem;
   --panel-row-h: 5rem;
+  --band-h: 4.5rem;
+
+  /* ── THE LIST'S VOICE ────────────────────────────────────────────────────
+     ONE TYPE, DECLARED ONCE. Every word that belongs to the list — a row's
+     label, the band's, the lens at its head, the strapline over it — was
+     carrying its own copy of the same clamp inline, six or seven times over,
+     which meant retuning the list meant finding all of them and hoping. These
+     four tokens are that answer written down in one place, and the values are
+     the ones the list has always had.
+
+     THEY WERE BRIEFLY BOLD, TRACKED TO 0.18em AND A SIZE LARGER, read off a
+     reference screenshot — and the screenshot had been ZOOMED before it was
+     taken, so every proportion measured off it came out too big. Set at true
+     size the same list reads as a chat app shouting: a row of nineteen names
+     in 700 weight has no quiet state left, so nothing in it can become loud,
+     which is the whole job of the unread mark and the two arrows beside it.
+     The names are regular here and stay regular. Weight is spent on the ONE
+     number at the head of the column, and nowhere else.
+
+     THE SUBTEXT IS A SEPARATE VOICE, not a smaller copy of the first — flat
+     text-sm against a 16-20px name, so the two lines of a row cannot read as
+     one paragraph. It is the same size every other small label on the surface
+     uses, which is what keeps the age under a name and the word under a count
+     sounding like the same kind of remark. */
+  --row-type: clamp(var(--text-xl), 0.85rem + 0.38vw, var(--text-4xl));
+  --row-track: 0.14em;
+  --sub-type: var(--text-sm);
+  --sub-track: 0.18em;
+
+  /* THE COUNT — the one loud thing. A number that is a DOOR rather than a
+     fact: the two population counts under a place, and the tally at the head
+     of the list. It is the only type on the surface that carries weight, and
+     that is what makes it read as the headline of the column it sits over
+     instead of as another row. */
+  --count-type: clamp(var(--text-2xl), 0.9rem + 0.5vw, var(--text-6xl));
 
   /* WHERE THE BAND SITS in the list, measured from the scroller's top. A row
      and a half, which is the panel's own figure — one row peeks above the
@@ -1238,7 +1493,7 @@ html:not([data-theme]) .live-screen {
      whole region above the band is live scrolling list, so anything parked
      there gets rows sliding through it. Near the top there is only the one
      peeking row, so the tags clear the scroller entirely and still read as
-     sitting on the band — exactly the relationship RECORD has to the stage.
+     sitting on the band — exactly the relationship LETTERS has to the stage.
 
      The BAR is placed by this, and scopes.ts finds the band by MEASURING that
      bar rather than recomputing the fraction, so this is the only place the
@@ -1264,12 +1519,27 @@ html:not([data-theme]) .live-screen {
   --list-pad: 1.95rem;
 
   /* The mark stands clear of the top edge rather than pinned to it, and the
-     line follows CLOSE underneath — mark and strapline are one masthead, not
-     two stacked things, so the air belongs above the pair and not between them.
-     Note the head's own artwork carries ~10px of empty box above and below the
-     circle, so the gap on screen reads a little wider than these numbers. */
-  --head-top: 8rem;
-  --body-top: 10.6rem;
+     line follows underneath.
+
+     THE GAP BETWEEN THEM IS 2rem, AND IT USED TO BE 0.85rem. The argument for
+     the tight version was that mark and strapline are one masthead rather than
+     two stacked things, so the air belongs above the pair — sound in principle,
+     wrong for this artwork. The mark is now a pair of thin closed eyes: it has
+     no mass of its own to hold a line off, so at 0.85rem the strapline crowded
+     it and the two read as one clenched object instead of a mark with a line
+     under it. Given room, the mark reads as a mark.
+
+     THE MASTHEAD SITS HIGH NOW — half the air it used to have above it, 8rem
+     down to 4. The tall version was reserving room for a mark with presence,
+     and this one is two thin lines: 8rem of empty page above a 28px whisper
+     read as the page starting late rather than as the mark being given room.
+     High and tight, it reads as a masthead.
+
+     The two tokens are tied: --body-top is --head-top plus the mark's drawn
+     height (h-7, 1.75rem) plus the 2rem gap. 4 + 1.75 + 2 = 7.75rem. Change
+     either the mark's height or the head's top and this has to move with it. */
+  --head-top: 4rem;
+  --body-top: 7.75rem;
   --panel-top: 7.5rem;
 }
 
@@ -1319,8 +1589,27 @@ html:not([data-theme]) .live-screen {
        rail. That is the point of moving the trailing box: the selection box is
        the thing you are actually reading, and it was the one being shortened. */
     --list-w: calc(100vw - 2rem);
-    --head-top: 3.5rem;
-    --body-top: 6.1rem;
+    /* THE ROW CLOSES UP WITH THE TYPE. A row is air around a two-line block,
+       and the block shrinks here — the type clamp bottoms out at its smallest
+       — so a row held at the desktop's 5rem would be mostly empty, and a phone
+       is the one screen with no page to spare. Held at roughly the same ratio
+       of block to row the wide screen has, which is what keeps the rhythm the
+       same rather than merely the numbers smaller.
+
+       --panel-row-h is deliberately NOT moved with it. The panel's box is
+       welded to its row by a translate of half a row written as a fixed -2.5rem
+       (`-translate-y-10`), so changing the row here would slide the box off the
+       line the row is holding, on the one screen where the two are hardest to
+       see out of step. */
+    --row-h: 4.25rem;
+    --band-h: 3.75rem;
+    /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
+       phone has the least page to spend and the most reason not to spend it on
+       empty space above a mark. */
+    --head-top: 1.75rem;
+    /* The same arithmetic from this screen's own head-top, and the same 2rem of
+       air between mark and line: 1.75 + 1.75 + 2. */
+    --body-top: 5.5rem;
     --panel-top: 5.5rem;
     --frame-h: 9rem;
 
@@ -1336,7 +1625,7 @@ html:not([data-theme]) .live-screen {
      same strength it was declared at: --b lives on #scopes, and an id beats a
      class no matter which media query the class sits in. */
   #scopes,
-  #presence-panel {
+  #panel {
     --b: 2px;
   }
 
@@ -1419,25 +1708,25 @@ html:not([data-theme]) .live-screen {
     padding: 0;
   }
 
-  /* WHEN THE RECORD BAND HAS SOMETHING, THE BOX GETS OUT OF THE WAY. Choosing a
+  /* WHEN THE PANEL BAND HAS SOMETHING, THE BOX GETS OUT OF THE WAY. Choosing a
      presence means you are working in the record stream, so the room and the
      live box stop being the subject — the subpanel climbs into the space they
      were holding and the stream gets the screen. It comes back the moment the
      band is empty again. */
-  #scopes:has(.presence-scroll.has-selection) .frame {
+  #scopes:has(.panel-scroll.has-selection) .frame {
     opacity: 0;
     pointer-events: none;
   }
-  #scopes:has(.presence-scroll.has-selection) .record-view {
+  #scopes:has(.panel-scroll.has-selection) .panel-letters {
     top: 0.5rem;
   }
-  #scopes:has(.presence-scroll.has-selection) .live-grid {
+  #scopes:has(.panel-scroll.has-selection) .live-grid {
     opacity: 0;
   }
   .live-grid {
     transition: opacity 240ms ease-out;
   }
-  .record-view {
+  .panel-letters {
     /* ABSOLUTE, against the panel, and said explicitly. It rendered correctly
        as `fixed` only because the panel happens to establish a containing
        block; a rule that works by accident of an ancestor's transform breaks
@@ -1451,17 +1740,17 @@ html:not([data-theme]) .live-screen {
     transform: translateY(var(--sub-y, 0px));
     transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  [data-theme="dark"] .record-view {
+  [data-theme="dark"] .panel-letters {
     background-color: var(--color-dark-950);
   }
   @media (prefers-color-scheme: dark) {
-    html:not([data-theme]) .record-view {
+    html:not([data-theme]) .panel-letters {
       background-color: var(--color-dark-950);
     }
   }
   /* While a finger is on it the panel follows exactly, with no easing between
      the touch and the panel — a transition here reads as lag, not smoothness. */
-  .record-view.is-dragging {
+  .panel-letters.is-dragging {
     transition: none;
   }
   .sub-handle {
@@ -1485,14 +1774,14 @@ html:not([data-theme]) .live-screen {
     }
   }
   /* the record heading and its box start under the handle, not over it */
-  .record-view > p {
+  .panel-letters > p {
     position: static;
     padding-top: 0.25rem;
   }
-  .record-view .stage {
+  .panel-letters .stage {
     top: calc(var(--panel-row-h) * 1.5 + 2.5rem);
   }
-  .record-view .presence-scroll ul {
+  .panel-letters .panel-scroll ul {
     padding-top: calc(var(--panel-row-h) * 2.5 + 2.5rem);
   }
 }
