@@ -829,9 +829,20 @@ html[data-theme="dark"] {
      STACKED ABOVE THE BAND, below 66rem, it takes the FULL WIDTH the two
      hidden controls were using and grows UPWARD into the empty page, because
      the cluster is anchored by its bottom there. Downward was the version that
-     kept landing on the names. The height is what fits between the strapline
-     and the band, which is roughly double the box and six times its area —
-     a real expansion that costs the list nothing. */
+     kept landing on the names.
+
+     9.5rem IS THE CEILING, not a preference. Measured on the narrower of the
+     two — the phone — the room runs from sixteen pixels under the mark down to
+     the cluster's own bottom edge, and that is 156px. Anything taller has to
+     take it from the band or the list, which is the one thing this box is not
+     allowed to do. The tablet has 174px and takes the same figure so the two
+     screens behave identically.
+
+     THE STRAPLINE STANDS DOWN so the frame can have that room. It is a standing
+     sentence with nothing to do with what is on screen, and this surface
+     already has the idiom: the mark, the line and the boxes all yield when
+     something takes the page over. Getting the height without it would mean
+     drawing a face through the words. */
 .frame.is-expanded {
   width: 18rem;
   height: 18rem;
@@ -843,7 +854,11 @@ html[data-theme="dark"] {
 @media (max-width: 66rem) {
   .frame.is-expanded {
     width: 100%;
-    height: 7rem;
+    height: 9.5rem;
+  }
+  #scopes:has(.frame.is-expanded) .lede {
+    opacity: 0;
+    visibility: hidden;
   }
 }
 .frame.is-expanded .frame-restart svg {

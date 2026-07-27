@@ -311,6 +311,20 @@ defmodule PeoplemediaWeb.IndexLive do
            "another one of these" in the vocabulary the list already speaks,
            rather than importing an icon that means "add" everywhere else.
 
+           SOLID, AND THE ONLY SOLID THING HERE. Every other box on this surface
+           is a WASH — a state you are in, drawn faintly because you are looking
+           through it at something else. This is not a state, it is the one ACT,
+           and it is the single control that does not answer to the band or the
+           list. So the fill and the mark trade places: the terracotta goes to
+           the ground and the mark is cut out of it pale. Nothing else on the
+           page does that, which is exactly why it is legible from the corner of
+           the eye without being large.
+
+           AND THE MARK CAME DOWN with the swap, 60% of the box to 45%. Pale on
+           solid reads far heavier than terracotta on a wash — the same plus at
+           the same size went from a mark to a slab. Contrast bought the room to
+           make it smaller.
+
            IT GOES WITH THE FURNITURE when the panel opens: a floating action
            hanging over a conversation you have opened is an action pointed at
            nothing.
@@ -327,12 +341,13 @@ defmodule PeoplemediaWeb.IndexLive do
             aria-label="Write a letter"
             class={[
               "pointer-events-auto flex size-(--band-h) cursor-pointer items-center justify-center",
-              "bg-primary-600/15 text-primary-600 transition-colors outline-none",
-              "hover:bg-primary-600/25 focus-visible:ring-2 focus-visible:ring-primary-500/40",
-              "dark:bg-primary-500/20 dark:text-primary-500 dark:hover:bg-primary-500/30"
+              "bg-primary-600 text-primary-50 transition-colors outline-none hover:bg-primary-700",
+              "focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2",
+              "focus-visible:ring-offset-light-50 dark:focus-visible:ring-offset-dark-950",
+              "dark:bg-primary-500 dark:hover:bg-primary-600"
             ]}
           >
-            <svg viewBox="0 0 24 24" class="h-3/5 w-3/5" fill="currentColor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="h-[45%] w-[45%]" fill="currentColor" aria-hidden="true">
               <rect x="4" y="9" width="16" height="6" />
               <rect x="9" y="4" width="6" height="16" />
             </svg>
