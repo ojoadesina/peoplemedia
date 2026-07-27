@@ -30,6 +30,7 @@ import {Presence} from "./hooks/presence"
 import {Stream} from "./hooks/stream"
 import {Screen} from "./hooks/screen"
 import {Panel} from "./hooks/panel"
+import {FabPanel} from "./hooks/fab_panel"
 import {LiveRoom} from "./hooks/live_room"
 import {SubPanel} from "./hooks/sub_panel"
 import topbar from "../vendor/topbar"
@@ -38,7 +39,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Scopes, Head, Bar, Presence, Stream, Screen, Panel, LiveRoom, SubPanel},
+  hooks: {...colocatedHooks, Scopes, Head, Bar, Presence, Stream, Screen, Panel, FabPanel, LiveRoom, SubPanel},
 })
 
 // Show progress bar on live navigation and form submits

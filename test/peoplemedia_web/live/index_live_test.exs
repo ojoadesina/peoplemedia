@@ -314,6 +314,47 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute places =~ "h-(--row-h)"
   end
 
+  test "the act opens the launcher, and is the only control that closes it", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # ONE BUTTON, THREE ANSWERS — plus, cross, back — so there is no second
+    # control a thumb's width away arguing about the same panel.
+    assert html =~ ~s(id="act")
+    assert html =~ "act-mark"
+    assert html =~ "act-back"
+    assert html =~ ~s(aria-expanded="false")
+    refute html =~ "panel-close"
+  end
+
+  test "the fab panel is one overlay with a room per door", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # THE REGISTRY: a body per room, a cell per door, joined by name alone. If
+    # a door ever names a room that does not exist, this is what catches it.
+    doors =
+      Regex.scan(~r/data-panel-open="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
+
+    rooms =
+      Regex.scan(~r/data-panel-body="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
+
+    assert "launcher" in rooms
+    assert doors != []
+    assert Enum.all?(doors, &(&1 in rooms)), "a launcher cell opens a room that is not there"
+
+    # It is OPAQUE. The panel it came from floated on a 90% wash because the
+    # thing behind it was a map you read through; here it is a list of names.
+    assert html =~ "fab-ground absolute inset-0 bg-light-50 dark:bg-dark-950"
+    refute html =~ "bg-white/90"
+  end
+
+  test "the launcher says whether you are checked in", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+    # Nobody is signed in yet, so the passport cell offers the way IN rather
+    # than a manager for a passport that does not exist.
+    assert html =~ "NOT CHECKED IN"
+    assert html =~ "CHECK IN"
+  end
+
   test "the act sits on the app's own edge, opposite the mark", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
@@ -323,7 +364,10 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~
              ~s|class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30"|
 
-    assert html =~ "Write a letter"
+    # It opens the LAUNCHER now rather than writing directly. Writing is one
+    # door among several, and a button that did only that would have to be
+    # joined by a second the day a second door existed.
+    assert html =~ "Open the launcher"
 
     # Its own size, not the band's: it sits alone in the opposite corner with
     # nothing beside it to rhyme with, so it is sized for being pressed.

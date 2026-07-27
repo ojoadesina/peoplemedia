@@ -84,6 +84,7 @@ defmodule PeoplemediaWeb do
       import Phoenix.HTML
       # Core UI components
       import PeoplemediaWeb.CoreComponents
+      import PeoplemediaWeb.FabPanel
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

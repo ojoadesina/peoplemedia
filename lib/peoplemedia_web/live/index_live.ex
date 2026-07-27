@@ -74,10 +74,20 @@ defmodule PeoplemediaWeb.IndexLive do
      |> assign(scopes: scopes, unscopes: Directory.unscopes(), countries: Directory.countries())
      |> assign(list_mode: :people, scope: "SCOPED", location: "Finland")
      |> assign(selected: nil, mode: :list)
+     # THE FAB PANEL asks two things of the server: who is signed in, so the
+     # launcher knows whether to offer a passport or a way to get one, and how
+     # much is waiting, for the badge. Both are assigns rather than hook state
+     # because both are facts the process owns.
+     |> assign(unread: unread_for(socket.assigns[:current_person]))
      |> assign(live: Enum.filter(scopes, &(&1.state == "live")))
      |> put_list()
      |> put_current()}
   end
+
+  # Nobody signed in has nothing waiting — and asking the database on behalf of
+  # a visitor would be a query with no subject.
+  defp unread_for(nil), do: 0
+  defp unread_for(person), do: Peoplemedia.Notifications.unread_count(person.id)
 
   # ── STATE ───────────────────────────────────────────────────────────────────
   # The hook owns the scroll and therefore decides WHO is in the band; it reports
@@ -346,23 +356,52 @@ defmodule PeoplemediaWeb.IndexLive do
       <div class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30">
         <div class="rail">
           <button
+            id="act"
             type="button"
-            aria-label="Write a letter"
+            aria-label="Open the launcher"
+            aria-expanded="false"
             class={[
-              "pointer-events-auto flex size-(--act-h) cursor-pointer items-center justify-center",
+              "pointer-events-auto relative flex size-(--act-h) cursor-pointer items-center justify-center",
               "bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600",
               "focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2",
               "focus-visible:ring-offset-light-50 dark:focus-visible:ring-offset-dark-950",
               "dark:bg-primary-600 dark:hover:bg-primary-500"
             ]}
           >
-            <svg viewBox="0 0 24 24" class="h-1/2 w-1/2" fill="currentColor" aria-hidden="true">
+            <%!-- THE PLUS AND THE CROSS ARE ONE MARK. Closing does not swap
+                 in a different drawing; it turns this one 45 degrees, and
+                 watching it turn is what says the cross you close with is the
+                 plus you opened with. --%>
+            <svg
+              viewBox="0 0 24 24"
+              class="act-mark absolute h-1/2 w-1/2"
+              fill="currentColor"
+              aria-hidden="true"
+            >
               <rect x="4" y="10.25" width="16" height="3.5" />
               <rect x="10.25" y="4" width="3.5" height="16" />
+            </svg>
+            <%!-- Inside a room the act steps BACK to the launcher rather than
+                 closing the app's front door, so it says so. The same stem and
+                 chevron the flow arrows are drawn from, pointing left. --%>
+            <svg
+              viewBox="0 0 24 24"
+              class="act-back absolute h-1/2 w-1/2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="butt"
+              stroke-linejoin="miter"
+              aria-hidden="true"
+            >
+              <path d="M20 12H5" />
+              <path d="M11.5 5.5 5 12l6.5 6.5" />
             </svg>
           </button>
         </div>
       </div>
+
+      <.fab_panel current_person={@current_person} unread={@unread} />
 
       <div class="rail flex h-screen flex-col pt-(--body-top)">
         <%!-- THE LINE, on the content edge with the mark above it and the names

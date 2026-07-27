@@ -1511,6 +1511,152 @@ html:not([data-theme]) .live-screen {
   }
 }
 
+/* ── THE FAB PANEL ────────────────────────────────────────────────────────────
+   What the act opens: one overlay, many rooms, and a registry joining them.
+   Not to be confused with `.panel`, which opens under the header when a
+   relationship is picked up — that one is about a person, this one is about the
+   app.
+
+   THE MECHANISM IS AN ACCORDION, ported whole. A room is always in the page at
+   zero height and rolls open in place; it is not a card that arrives and not a
+   sheet that slides. What was left behind is the reference's translucent
+   ground: it floated on a 90% wash so the world stayed readable THROUGH the
+   panel, which is right when the thing behind is a living map. Here the thing
+   behind is a list of names, and a half-visible list under a passport form is
+   neither readable nor ignorable. This ground is the page's own colour at full
+   strength.
+
+   THE PANEL ITSELF IS NEVER HIDDEN, only emptied — `pointer-events: none` at
+   rest with the ground and rooms at zero opacity. Hiding it would take the hook
+   is-open class off an element that is no longer being observed, and the
+   accordion has nothing to roll up from. */
+.fab-panel {
+  visibility: hidden;
+  transition: visibility 0s 400ms;
+}
+.fab-panel.is-open {
+  visibility: visible;
+  transition: visibility 0s;
+}
+.fab-ground {
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+.fab-panel.is-open .fab-ground {
+  opacity: 1;
+}
+.fab-panel.is-open .fab-rooms {
+  pointer-events: auto;
+}
+
+/* THE ROOM ROLLS OPEN. max-height rather than height because the content's own
+   height is unknown and a transition needs two numbers; 100dvh is simply "more
+   than any room will be", and the flex parent does the real sizing. */
+.fab-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 250ms ease;
+}
+.fab-panel.is-open .fab-body {
+  max-height: 100dvh;
+  opacity: 1;
+}
+/* `hidden` is how the hook picks WHICH room; without this the attribute loses
+   to the display the flex parent gives it and every room shows at once. */
+.fab-body[hidden] {
+  display: none;
+}
+
+/* THE CELLS ARRIVE IN ORDER rather than together — a grid that appears all at
+   once reads as a screenshot, and one that counts itself in reads as a place
+   opening. Two frames apart is enough to feel and too little to wait for. */
+.fab-panel.is-open .fab-cell {
+  animation: fab-cell-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.fab-panel.is-open button:nth-child(2) .fab-cell {
+  animation-delay: 60ms;
+}
+.fab-panel.is-open button:nth-child(3) .fab-cell {
+  animation-delay: 120ms;
+}
+.fab-panel.is-open button:nth-child(4) .fab-cell {
+  animation-delay: 180ms;
+}
+@keyframes fab-cell-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* THE BADGE ONLY EVER APPEARS. It pops in when something is waiting and never
+   opens anything by itself — the count is news, not an interruption. */
+.fab-badge {
+  animation: fab-badge-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes fab-badge-in {
+  from {
+    opacity: 0;
+    transform: translate(33%, -33%) scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: translate(33%, -33%) scale(1);
+  }
+}
+
+/* ── THE ACT'S THREE ANSWERS ──────────────────────────────────────────────────
+   One button, three states, and the marks are all cut from bars this surface
+   already draws:
+
+     CLOSED        a plus — start something.
+     OVER LAUNCHER the SAME plus, turned 45 degrees. Not a different mark
+                   swapped in: the cross you close with is the plus you opened
+                   with, and watching it turn is what says so.
+     IN A ROOM     an arrow back, because a room steps back to the launcher
+                   rather than closing the app's whole front door.
+
+   The turn is the only motion; the arrow crossfades under it. */
+.act-mark {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+#act.is-open .act-mark {
+  transform: rotate(45deg);
+}
+.act-back {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+#act.is-back .act-mark {
+  opacity: 0;
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+#act.is-back .act-back {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab-ground,
+  .fab-body,
+  .act-mark,
+  .act-back {
+    transition-duration: 1ms;
+  }
+  .fab-panel.is-open .fab-cell,
+  .fab-badge {
+    animation: none;
+  }
+}
+
 /* ── THE APP SHELL ───────────────────────────────────────────────────────────
    ONE BOUND AND ONE RAIL, declared once, obeyed by everything.
 
@@ -1669,6 +1815,8 @@ html:not([data-theme]) .live-screen {
      air than the masthead gets, because the page ENDS here — there is nothing
      below it to be given room from. */
   --foot-bottom: 2.5rem;
+  /* What a room must keep clear at its bottom so nothing hides under the act. */
+  --fab-foot: calc(var(--foot-bottom) + var(--act-h) + 1.5rem);
   /* THE ACT IS NOT ONE OF THE BOXES, so it does not take their height. It wore
      --band-h for a while on the argument that everything square on this surface
      should rhyme — but a rhyme needs two things near enough to hear together,
