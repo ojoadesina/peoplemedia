@@ -115,28 +115,63 @@ defmodule PeoplemediaWeb.IndexLive do
     end
   end
 
-  # ONE TAG, because it was always one thought. "SCOPED FINLAND" is a scope and
-  # a place said together, and that pair is what you are actually looking at —
-  # split across two buttons it read as two unrelated switches. Pressing it opens
-  # the world, since changing either half of that sentence begins the same way.
-  def handle_event("to_location", _params, socket) do
+  # ── THE TWO BOXES ───────────────────────────────────────────────────────────
+  # THE HEAD OF THE LIST IS TWO SWITCHES, and each one flips a different axis of
+  # the same question — WHERE, and WHICH OF THEM:
+  #
+  #   THE PLACE BOX toggles what the list HOLDS: people, or the roll of places
+  #   to pick from. Pressing it in people mode opens the world; pressing it in
+  #   the world COMMITS whatever has settled in the band and comes back.
+  #
+  #   THE POPULATION BOX toggles WHO of that place: the ones you hold, or the
+  #   rest. It always lands on people, from either mode.
+  #
+  # WHY A TOGGLE AND NOT A PAIR. There were two count boxes before, off to the
+  # right, and they were two doors into the same room — press SCOPES or press
+  # UNSCOPES. But you are only ever in one of those populations at a time, and a
+  # control that shows you the state you are NOT in is a control you have to
+  # read before you can use. One box showing where you ARE, that swaps when
+  # pressed, is the same two doors with the answer already given.
+  def handle_event("place_box", _params, %{assigns: %{list_mode: :people}} = socket) do
     {:noreply, socket |> assign(list_mode: :location) |> reset_list()}
   end
 
-  # THE COUNTS ARE THE WAY BACK, and pressing one answers both halves of the
-  # sentence at once: it commits the country settled in the band AND says which
-  # of that country's two populations you meant. Which is why they are pressable
-  # rather than decorative — "41 SCOPES" is not a fact about Nigeria, it is the
-  # door to those 41 people.
-  def handle_event("enter_people", %{"scope" => scope}, socket)
-      when scope in ~w(SCOPED UNSCOPED) do
-    location = (socket.assigns.current && socket.assigns.current.name) || socket.assigns.location
-
+  # COMMITTING IS WHAT THE BOX DOES ON THE WAY BACK. The band updates this box
+  # as countries pass through it, but it changes nothing until pressed — you can
+  # scroll the whole world and leave with the place you came in with.
+  def handle_event("place_box", _params, socket) do
     {:noreply,
      socket
-     |> assign(list_mode: :people, scope: scope, location: location)
+     |> assign(list_mode: :people, location: socket.assigns.box_place)
      |> reset_list()}
   end
+
+  # AND IT COMMITS THE PLACE TOO when pressed from the world, which is the old
+  # counts' behaviour kept whole: pressing a population under a country was
+  # always an answer to both halves at once. Leaving the picker by this door
+  # without taking the country you were looking at would be a door that undoes
+  # what you just did.
+  def handle_event("scope_box", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       list_mode: :people,
+       location: socket.assigns.box_place,
+       scope: other_scope(socket.assigns.scope)
+     )
+     |> reset_list()}
+  end
+
+  # THE WAY OUT THAT CHANGES NOTHING. Both boxes commit something, and the roll
+  # of places has no empty state to escape to — the band always has a country in
+  # it or reads WORLD, and WORLD is itself a choice. So leaving without choosing
+  # needs a control of its own, or the only exit from the picker is a decision.
+  def handle_event("cancel_place", _params, socket) do
+    {:noreply, socket |> assign(list_mode: :people) |> reset_list()}
+  end
+
+  defp other_scope("SCOPED"), do: "UNSCOPED"
+  defp other_scope(_unscoped), do: "SCOPED"
 
   # Swapping what the list holds makes the old index meaningless — it now points
   # at a different person, or at a country.
@@ -149,41 +184,33 @@ defmodule PeoplemediaWeb.IndexLive do
   defp current_list(%{scope: "UNSCOPED"} = assigns), do: assigns.unscopes
   defp current_list(assigns), do: assigns.scopes
 
-  # Both are stored rather than read through a function in the markup, which
-  # would switch LiveView's change tracking off for the whole block. THE HEAD OF
-  # THE LIST rides with it for the same reason and in the same breath — the
-  # place it came out of, how many came, and what they are called — so the
-  # heading can never be a step behind the rows under it.
-  #
-  # WORLD is the super item of the place list for the same reason Finland is the
-  # super item of a people list: a roll of countries has to have come out of
-  # something too, and that something is the only thing left.
-  defp put_list(socket) do
-    list = current_list(socket.assigns)
+  # Stored rather than read through a function in the markup, which would switch
+  # LiveView's change tracking off for the whole block.
+  defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-    {head, noun} =
-      case socket.assigns.list_mode do
-        :location -> {"WORLD", "PLACES"}
-        :people -> {String.upcase(socket.assigns.location), population(socket.assigns.scope)}
+  # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
+  # places the place box is showing the band's own answer — it follows the
+  # country under the band without committing to it. In people mode there is
+  # nothing to follow and it shows the place you committed to last.
+  #
+  # WORLD IS WHAT AN EMPTY BAND MEANS. The roll opens unselected, so the first
+  # thing the box says on entering the picker is WORLD — which is both honest
+  # (no country is chosen) and useful (pressing it takes everywhere).
+  defp put_current(socket) do
+    socket =
+      assign(
+        socket,
+        :current,
+        socket.assigns.selected && Enum.at(socket.assigns.list, socket.assigns.selected)
+      )
+
+    place =
+      case socket.assigns do
+        %{list_mode: :location, current: current} -> (current && current.name) || "WORLD"
+        %{location: location} -> location
       end
 
-    assign(socket, list: list, list_count: length(list), list_head: head, list_noun: noun)
-  end
-
-  # The lens holds the scope as the ADJECTIVE you filtered by; the head of the
-  # list needs the NOUN for what came out — the things Finland holds, not a
-  # description of Finland. It is also the word the two count buttons already
-  # carry, which is what makes pressing "41 SCOPES" under Nigeria and landing on
-  # a list headed "NIGERIA / 41 SCOPES" one continuous sentence.
-  defp population("UNSCOPED"), do: "UNSCOPES"
-  defp population(_scoped), do: "SCOPES"
-
-  defp put_current(socket) do
-    assign(
-      socket,
-      :current,
-      socket.assigns.selected && Enum.at(socket.assigns.list, socket.assigns.selected)
-    )
+    assign(socket, box_place: place, box_counts: Directory.population_of(place))
   end
 
   # ── THE SURFACE ─────────────────────────────────────────────────────────────
@@ -242,15 +269,17 @@ defmodule PeoplemediaWeb.IndexLive do
              nearly 14:1, so the same strapline whispered in one theme and
              shouted in the other.
 
-             ONE STEP QUIETER AGAIN, BOTH WAYS — 300/700 down to 200/800. This
-             line is the only thing on the page that says nothing about the
-             list: it is a standing sentence, read once, and after that it is
-             furniture. At 300 on cream it was still legible enough to catch the
-             eye on every visit, which for a line you have already read is a
-             small tax charged over and over. The dark half moves with it, or
-             the two themes stop meaning the same thing — which is exactly how
-             this went wrong the last time. --%>
-        <p class="lede px-(--list-pad) text-(length:--row-type) tracking-[0.15em] text-neutral-200 dark:text-neutral-800">
+             HALF A STEP QUIETER, BOTH WAYS — 300/700 to 250/750. This line is
+             the only thing on the page that says nothing about the list: it is
+             a standing sentence, read once, and after that it is furniture. At
+             300 on cream it still caught the eye on every visit, which for a
+             line you have already read is a small tax charged over and over.
+             A FULL step (200/800) was too far the other way and lost it. The
+             two half-steps are declared in app.css beside the 150 that was
+             already there, and they move together or the two themes stop
+             meaning the same thing — which is exactly how this went wrong the
+             first time. --%>
+        <p class="lede px-(--list-pad) text-(length:--row-type) tracking-[0.15em] text-neutral-250 dark:text-neutral-750">
           SO YOU DON'T DO LIFE ALONE
         </p>
 
@@ -391,120 +420,209 @@ defmodule PeoplemediaWeb.IndexLive do
             </ul>
           </div>
 
-          <%!-- THE LENS, at the head of the list it governs.
+          <%!-- ── THE HEAD OF THE LIST ───────────────────────────────────────
+               THREE BOXES, and between them they answer every question this
+               screen can be asked: WHERE you are, WHICH of that place's two
+               populations you are looking at, and — when there is one — WHAT
+               the person under the band is sending.
 
-               IT USED TO HANG OFF THE BAND, one line, right-aligned, tucked
-               under the band's far corner — and the argument for that corner was
-               that everything below the band is live scrolling list, so a label
-               parked in the column would have rows sliding through it. The far
-               right was the one strip reliably empty, because row labels are
-               short and left-aligned.
+               THEY USED TO BE SCATTERED. The place and the population were a
+               two-line text lens at the top left; the two counts were a pair of
+               boxes pinned to the right rail, and only over the roll of places;
+               the frame was a third thing on that same right edge, and only
+               over people. Three controls, three positions, two of which
+               appeared and vanished depending on what you were doing — so the
+               top of the screen was never the same shape twice and nothing up
+               there could be aimed at from memory.
 
-               THE TOP OF THE COLUMN IS THE OTHER SAFE PLACE, and it is the
-               better one. The scroller is masked — transparent to 14% down — so
-               rows in that band are faded to nothing before they ever reach
-               here; the list already refuses to draw anything at its own top.
-               What was true of the right edge is true of this strip too, and
-               this strip is where a heading belongs.
+               ONE CLUSTER, ALWAYS IN THE SAME PLACE, is the whole of the fix.
+               The first two boxes never leave; the third arrives inside the
+               cluster rather than somewhere else on the page.
 
-               So it sits on --list-pad, which is the edge every WORD on this
-               surface starts from — the row labels below it, the band's label,
-               the strapline above. Nothing is aligned to it specially; it simply
-               joins the column that was already there, which is what makes it
-               read as the list's own head rather than a control parked nearby.
+               THE PAIR IS OFFSET, not flush, and the population box overlaps
+               the place box's corner. Two identical boxes set side by side read
+               as a segmented control — two halves of one switch, where pressing
+               either picks between them. These are not that: they are two
+               different questions that happen to sit together. The offset says
+               so before a word is read, and it is the reason the boxes have
+               different widths too.
 
-               THE PLACE IS THE SUPER ITEM, AND THE LIST IS WHAT COMES OUT OF
-               IT. This went through two wrong shapes before landing here, and
-               both were wrong the same way — they treated "scoped" and
-               "Finland" as two halves of ONE term.
+               NO BRACKETS ON EITHER OF THEM. Brackets on this surface mean
+               AIMING — they pick out the one thing among several you have
+               chosen — and there is nothing here to pick out: each box shows
+               the state it is in, and pressing it changes that state. Colour
+               alone carries it. The frame keeps its brackets, because a frame
+               genuinely is aimed: it is the answer to whichever row the band
+               has settled on, and the brackets are what tie the two together.
 
-                 SCOPED           …a term stacked on a place, read as two
-                 FINLAND            unrelated switches.
+               THE FILL BEGINS AT THE RAIL, like the band's does, because these
+               are boxes and not words. --%>
+          <div class="scope-boxes pointer-events-none absolute top-0 left-0 z-20 flex w-(--list-w) items-start">
+            <%!-- ONE: THE PLACE, and the switch between people and the world.
+                 Over people it names where you are; over the roll of places it
+                 follows the band, showing whatever country has scrolled into it
+                 without committing to any of them, and reading WORLD while the
+                 band stands empty.
 
-                 19               …a count captioned by that same compound.
-                 SCOPED FINLAND     Better, but "scoped Finland" is not a
-                                    thing; it is a filter said as if it were.
-
-               What is actually true is a HIERARCHY. Finland is a place, and
-               everyone in this app is somewhere; the list below is one of the
-               two populations that place holds. So the place is the heading —
-               the item every row descends from — and under it, quietly, how
-               many came out of it and which population they are:
-
-                 FINLAND
-                 19 SCOPES
-
-               Which makes the button obvious rather than merely pressable. It
-               shows a country, so pressing it changes the country. The two
-               counts press the other way: they are the door back, and they
-               pick which of the place's two populations you meant.
-
-               IT WEARS THE ROW'S OWN ANATOMY — the mark's column, then the
-               two-line block — so the place lands exactly over the names below
-               it and its caption over their ages. The head of a list should be
-               built out of the list.
-
-               TEXT, NOT A CHIP. A filled box reads as a control you press once
-               and are done with; this is a lens you live in, and the lit state
-               is the one you are inside. Colour alone says so — PRIMARY for
-               where you are, muted for where you are not — the language the
-               focused row and the band already speak. --%>
-          <div class="scope-tags pointer-events-none absolute top-0 left-0 z-20 flex w-(--list-w) px-(--list-pad)">
-            <%!-- THE COLOUR IS ON THE BUTTON, not on the words inside it, and
-                 that is what lets the mark below be drawn in `currentColor`
-                 without restating the lens's whole state a second time. It
-                 cannot be `group-hover:` for the same reason it works: the
-                 button IS the group, and Tailwind compiles group-hover to
-                 `.group:hover &`, which only ever matches a DESCENDANT. Its own
-                 hover is plain `hover:`. --%>
+                 SO PRESSING IT MEANS TWO THINGS, and they are the same thing
+                 said from either side: from people it opens the world, and from
+                 the world it takes whatever it is currently showing and comes
+                 back. A box that displays a place and commits that place when
+                 pressed needs no label explaining which. --%>
             <button
               type="button"
-              phx-click="to_location"
+              phx-click="place_box"
               aria-pressed={to_string(@list_mode == :location)}
               class={[
-                "group pointer-events-auto flex cursor-pointer items-start text-left",
-                "text-(length:--row-type) transition-colors outline-none focus-visible:underline",
-                (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
-                  "text-neutral-400 hover:text-neutral-500 dark:text-neutral-500 dark:hover:text-neutral-400"
+                "list-place pointer-events-auto mt-2 flex h-(--box-h) cursor-pointer items-center",
+                "px-4 outline-none transition-colors focus-visible:underline",
+                (@list_mode == :location &&
+                   "bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30") ||
+                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
               ]}
             >
-              <%!-- THE MARK'S COLUMN, AND THE LENS PUTS SOMETHING IN IT. Two
-                   square links: overlapping for SCOPED, broken open and drawn
-                   apart for UNSCOPED. The head of the list is built out of the
-                   same parts as the rows under it, which is the whole point of
-                   giving it a row's anatomy — and it means the one thing this
-                   button cannot say in words (it has only a number and a
-                   caption) gets said in the column where a row would say it.
+              <%!-- The place takes the ROW's type, not the count's, and that is
+                   what keeps this box the narrower of the two: a word set at a
+                   number's size would make the smaller box the wider one, and
+                   "PHILIPPINES" would run the pair past the column on a phone. --%>
+              <span class={[
+                "text-(length:--row-type) leading-none tracking-(--row-track) transition-colors",
+                (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
+                  "text-neutral-500 dark:text-neutral-400"
+              ]}>
+                {String.upcase(@box_place)}
+              </span>
+            </button>
 
-                   OVER PLACES IT IS EMPTY, exactly as a country's row is. That
-                   list is a roll of places; a scope mark over it would name a
-                   population that is not what is being counted.
+            <%!-- TWO: WHICH OF THEM, as a toggle rather than a pair.
 
-                   The font-size on the button is here for these two and nothing
-                   else: both marks are sized in em, so without the row's type
-                   they would measure themselves against the page default and
-                   stand in a narrower column than the rows below. --%>
-              <.scope_glyph :if={@list_mode == :people} scope={@scope} class="mr-3" />
-              <.letter_glyph :if={@list_mode == :location} kind={nil} class="mr-3" />
-              <div class="flex flex-col leading-tight">
-                <%!-- THE PLACE, or THE WORLD while you are choosing one. Weight
-                     here and nowhere else on the surface: this is the one thing
-                     everything below it descends from, and a heading that is
-                     the same weight as its own contents is not a heading. --%>
-                <span class="text-(length:--count-type) leading-none font-bold tracking-(--row-track)">
-                  {@list_head}
+                 There were two count boxes before — SCOPES and UNSCOPES, side
+                 by side, each a door into that population. But you are only ever
+                 inside one of them, so half of that control was always showing
+                 you where you are NOT, and you had to read both to find the one
+                 that was lit. One box showing where you ARE, which swaps when
+                 pressed, is the same two doors with the answer already given.
+
+                 IT COMMITS THE PLACE TOO, when pressed from the roll of places.
+                 That is the old counts' behaviour kept whole: pressing a
+                 population under a country always answered both halves at once,
+                 and a door that dropped the country you were looking at on the
+                 way through would undo the thing you had just done. --%>
+            <button
+              type="button"
+              phx-click="scope_box"
+              class={[
+                "list-scope pointer-events-auto z-10 -ml-3 flex h-(--box-h) cursor-pointer items-center",
+                "gap-2 px-4 text-(length:--row-type) outline-none transition-colors focus-visible:underline",
+                "bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30"
+              ]}
+            >
+              <%!-- THE RINGS LEAD, and they are the reason this box needs no
+                   second label. Intersected, the two hold; broken open at the
+                   top, in exactly the same position, they do not. A number and
+                   a word tell you which population you are in; the mark tells
+                   you what a population IS, which is the part a stranger to the
+                   app has no way to guess.
+
+                   items-center on the box and items-baseline on the pair, not
+                   both at once: the number and its word must sit on one
+                   baseline, and a mark with height and no text in it has no
+                   baseline to offer — it would align its bottom edge to theirs
+                   and drag the whole box out of line. --%>
+              <.scope_glyph scope={@scope} class="mr-1" />
+              <span class="flex items-baseline gap-2">
+                <span class="text-(length:--count-type) leading-none font-bold tracking-[0.06em] text-primary-600 dark:text-primary-500">
+                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
                 </span>
-                <%!-- WHAT CAME OUT OF IT: how many, and which of the place's
-                     two populations they are. It names the LIST, so over places
-                     it counts places — a tally of the world captioned with one
-                     country's populations is the one thing this pair can get
-                     wrong.
-
-                     SCOPES rather than SCOPED — see `population/1`. --%>
-                <span class="mt-1 text-(length:--sub-type) tracking-(--sub-track) opacity-60">
-                  {@list_count} {@list_noun}
+                <span class="text-(length:--sub-type) tracking-(--sub-track) text-primary-600/55 dark:text-primary-500/55">
+                  {(@scope == "SCOPED" && "SCOPES") || "UNSCOPES"}
                 </span>
+              </span>
+            </button>
+
+            <%!-- THREE: THE FRAME — what the settled person is sending, and the
+                 reason this surface exists. It is the only box here that is an
+                 ANSWER rather than a control, which is why it is the only one
+                 that comes and goes and the only one wearing brackets.
+
+                 phx-update="ignore" is load-bearing for the MEDIA, not the
+                 styling — without it a patch strips the src the hook set and
+                 stops a face mid-sentence. Its state is all in CLASSES for the
+                 matching reason: on an ignored element LiveView still merges
+                 data-* from the server's copy and deletes any the client added.
+                 The frame is wholly client-owned, which is honest, since a
+                 playing media element cannot be driven from the server. --%>
+            <div
+              :if={@list_mode == :people}
+              id="frame"
+              phx-update="ignore"
+              role="button"
+              tabindex="0"
+              aria-label="Expand frame"
+              class="frame is-empty pointer-events-auto relative mt-2 ml-3 flex size-(--box-h) shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
+            >
+              <%!-- The screen is inset from the frame so the brackets bracket the
+                   picture rather than cropping it, and square on every corner —
+                   a screen has corners, and rounding them makes it a widget. --%>
+              <div class="frame-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
+                <video class="frame-video h-full w-full object-cover" playsinline preload="metadata">
+                </video>
+                <%!-- Sits ON the screen, covering it: after a clip ends the
+                     screen is the only thing there, and a control tucked into
+                     the corner of a 45px square is a target nobody can hit. --%>
+                <button
+                  type="button"
+                  class="frame-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
+                  aria-label="Play again"
+                >
+                  <%!-- A three-quarter arc with an arrowhead, which reads as
+                       "again"; heroicons' closed two-arrow loop says "sync". --%>
+                  <svg
+                    viewBox="0 0 1024 1024"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="0"
+                    aria-hidden="true"
+                    class="size-4"
+                  >
+                    <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
+                  </svg>
+                </button>
               </div>
+              <%!-- No controls, so the UA never renders any — the screen is the
+                   only thing a voice is allowed to look like. --%>
+              <audio class="frame-audio" preload="none"></audio>
+            </div>
+
+            <%!-- THE WAY OUT THAT CHANGES NOTHING. Both boxes commit something
+                 when pressed, and the roll of places has no neutral exit of its
+                 own: the band either holds a country or reads WORLD, and WORLD
+                 is a choice like any other. So leaving the picker without
+                 deciding needs a control of its own, or every exit is a
+                 decision — including the one you make by accident.
+
+                 FAR FROM THE PAIR, on the column's own right edge, because its
+                 whole purpose is to be pressed on purpose. Small, unfilled and
+                 quiet: it is the least interesting thing here and should never
+                 be the first thing found. --%>
+            <button
+              :if={@list_mode == :location}
+              type="button"
+              phx-click="cancel_place"
+              aria-label="Leave the world without changing place"
+              class="pointer-events-auto ml-auto cursor-pointer p-2 text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                class="size-[1.15em]"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="butt"
+                aria-hidden="true"
+              >
+                <path d="m5 5 14 14M19 5 5 19" />
+              </svg>
             </button>
           </div>
 
@@ -606,145 +724,6 @@ defmodule PeoplemediaWeb.IndexLive do
                 </span>
               </span>
             </div>
-          </div>
-
-          <%!-- THE FRAME — the box that shows what the settled person is
-                 sending, and the reason this surface exists. ml-auto pins it to
-                 the RAIL'S RIGHT EDGE, which is the app's right bound: anything
-                 else that ever sits on the right of this line lands on the same
-                 edge, and nothing can pass it.
-
-                 phx-update="ignore" is load-bearing for the MEDIA, not the
-                 styling — without it a patch strips the src the hook set and
-                 stops a face mid-sentence. Its state is all in CLASSES for the
-                 matching reason: on an ignored element LiveView still merges
-                 data-* from the server's copy and deletes any the client added.
-                 The frame is wholly client-owned, which is honest, since a
-                 playing media element cannot be driven from the server. --%>
-          <div
-            :if={@list_mode == :people}
-            id="frame"
-            phx-update="ignore"
-            role="button"
-            tabindex="0"
-            aria-label="Expand frame"
-            class="frame is-empty pointer-events-auto relative ml-auto flex size-[3.8rem] shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
-          >
-            <%!-- The screen is inset from the frame so the brackets bracket the
-                   picture rather than cropping it, and square on every corner —
-                   a screen has corners, and rounding them makes it a widget. --%>
-            <div class="frame-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
-              <video class="frame-video h-full w-full object-cover" playsinline preload="metadata">
-              </video>
-              <%!-- Sits ON the screen, covering it: after a clip ends the
-                     screen is the only thing there, and a control tucked into
-                     the corner of a 45px square is a target nobody can hit. --%>
-              <button
-                type="button"
-                class="frame-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
-                aria-label="Play again"
-              >
-                <%!-- A three-quarter arc with an arrowhead, which reads as
-                       "again"; heroicons' closed two-arrow loop says "sync". --%>
-                <svg
-                  viewBox="0 0 1024 1024"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  stroke-width="0"
-                  aria-hidden="true"
-                  class="size-4"
-                >
-                  <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
-                </svg>
-              </button>
-            </div>
-            <%!-- No controls, so the UA never renders any — the screen is the
-                   only thing a voice is allowed to look like. --%>
-            <audio class="frame-audio" preload="none"></audio>
-          </div>
-
-          <%!-- THE HEADCOUNT, on the same right edge the frame holds. A place
-                 in the band has no face and no voice — it has how many are
-                 present there right now. Server-rendered rather than hook-owned,
-                 because it is a number the process knows and not media the
-                 client has to play. --%>
-          <div
-            :if={@list_mode == :location}
-            class={[
-              "counts relative ml-auto flex h-[3.8rem] shrink-0 items-center transition-opacity duration-300",
-              (@current && "opacity-100") || "opacity-0"
-            ]}
-          >
-            <%!-- TWO IDENTICAL BOXES, and that is the point. They are the same
-                   kind of thing — a population of this place, and a door into it
-                   — so making one bigger or colder would rank them, and they are
-                   not ranked. The scoped box keeps the frame's footprint and the
-                   frame's right edge, because in this mode it is what the band is
-                   pointing at: a place answers with numbers where a person
-                   answers with a face.
-
-                   What tells them apart is the BRACKETS, which sit on whichever
-                   population you are currently in. That is the same job brackets
-                   do everywhere here — they do not decorate a box, they aim at
-                   the chosen one — so nothing new has to be learned to read
-                   which of the two you are looking through. --%>
-            <button
-              type="button"
-              phx-click="enter_people"
-              phx-value-scope="SCOPED"
-              disabled={is_nil(@current)}
-              class={[
-                "count-pick count-box pointer-events-auto relative flex h-full cursor-pointer items-baseline gap-2 px-4 transition-colors",
-                (@scope == "SCOPED" &&
-                   "is-active bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30") ||
-                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/20 dark:hover:bg-neutral-300/30"
-              ]}
-            >
-              <span class={[
-                "text-(length:--count-type) leading-none font-bold tracking-[0.06em]",
-                (@scope == "SCOPED" && "text-primary-600 dark:text-primary-500") ||
-                  "text-neutral-500 dark:text-neutral-400"
-              ]}>
-                {@current && @current.scopes}
-              </span>
-              <span class={[
-                "text-(length:--sub-type) tracking-(--sub-track)",
-                (@scope == "SCOPED" && "text-primary-600/55 dark:text-primary-500/55") ||
-                  "text-neutral-400 dark:text-neutral-500"
-              ]}>
-                SCOPES
-              </span>
-            </button>
-
-            <%!-- Everyone else there, hung under it on the same right edge so
-                   the two stack as one object. --%>
-            <button
-              type="button"
-              phx-click="enter_people"
-              phx-value-scope="UNSCOPED"
-              disabled={is_nil(@current)}
-              class={[
-                "count-pick count-unscoped pointer-events-auto absolute top-full right-0 mt-4 flex h-[3.8rem] cursor-pointer items-baseline gap-2 px-4 transition-colors",
-                (@scope == "UNSCOPED" &&
-                   "is-active bg-primary-600/15 hover:bg-primary-600/25 dark:bg-primary-500/20 dark:hover:bg-primary-500/30") ||
-                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/20 dark:hover:bg-neutral-300/30"
-              ]}
-            >
-              <span class={[
-                "text-(length:--count-type) leading-none font-bold tracking-[0.06em]",
-                (@scope == "UNSCOPED" && "text-primary-600 dark:text-primary-500") ||
-                  "text-neutral-500 dark:text-neutral-400"
-              ]}>
-                {@current && @current.unscopes}
-              </span>
-              <span class={[
-                "text-(length:--sub-type) tracking-(--sub-track)",
-                (@scope == "UNSCOPED" && "text-primary-600/55 dark:text-primary-500/55") ||
-                  "text-neutral-400 dark:text-neutral-500"
-              ]}>
-                UNSCOPES
-              </span>
-            </button>
           </div>
         </div>
       </div>

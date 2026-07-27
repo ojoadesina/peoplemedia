@@ -442,6 +442,27 @@ defmodule Peoplemedia.Directory do
   @doc "The world, and how many are present in each place right now."
   def countries, do: @countries
 
+  # EVERY PLACE AT ONCE, which is what you are looking at before you have chosen
+  # one — and, on this surface, what "no country settled in the band" means. It
+  # is summed at compile time from the same list the roll is drawn from, so the
+  # world can never disagree with the places in it.
+  @world %{
+    name: "WORLD",
+    scopes: Enum.sum(Enum.map(@countries, & &1.scopes)),
+    unscopes: Enum.sum(Enum.map(@countries, & &1.unscopes))
+  }
+
+  @doc """
+  How many of each population a place holds.
+
+  An unknown name answers with the WORLD rather than nil, because the caller is
+  a pair of boxes on a live surface: there is no state in which they have
+  nothing to show, and "everywhere" is the honest reading of "nowhere in
+  particular".
+  """
+  def population_of("WORLD"), do: @world
+  def population_of(name), do: Enum.find(@countries, @world, &(&1.name == name))
+
   # ── WHAT A ROW SAYS ABOUT A THREAD ──────────────────────────────────────────
   # The list row is not a letter, it is the STATE OF THE CORRESPONDENCE, said in
   # three marks. Everything it shows is derived from the thread rather than

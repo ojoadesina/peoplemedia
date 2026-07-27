@@ -86,11 +86,18 @@
   --color-neutral-100: #e7e7e7;
   --color-neutral-150: #dcdcdc;
   --color-neutral-200: #d1d1d1;
+  /* HALF-STEPS, like the 150 above. The ramp jumps hard either side of the
+     middle — 200 to 300 is #d1 to #b0 — and the strapline needed to sit between
+     them: quieter than 300, still present at 200. These two are a matched pair
+     across the themes, so moving one without the other reintroduces the bug
+     `.lede` documents. */
+  --color-neutral-250: #c1c1c1;
   --color-neutral-300: #b0b0b0;
   --color-neutral-400: #888888;
   --color-neutral-500: #6d6d6d;
   --color-neutral-600: #5d5d5d;
   --color-neutral-700: #4f4f4f;
+  --color-neutral-750: #4a4a4a;
   --color-neutral-800: #454545;
   --color-neutral-900: #333333;
   --color-neutral-950: #262626;
@@ -592,7 +599,6 @@ html[data-theme="dark"] {
 .frame::before,
 .band::before,
 .stage::before,
-.count-pick.is-active::before,
 .live-reticle::before {
   content: "";
   position: absolute;
@@ -628,17 +634,6 @@ html[data-theme="dark"] {
 .focus-box::before {
   --ax: 24px;
   --ay: 18px;
-}
-/* THE TWO COUNTS ARE IDENTICAL BOXES — same size, same colour — because they
-   are the same kind of thing: a population of that place, and a door into it.
-   What separates them is not weight but AIM. The brackets go on whichever one
-   you are currently inside, which is the same job they do everywhere else on
-   this surface: they do not decorate a box, they point at the chosen one. Short
-   arms both ways, since these are small boxes and a corner does not get more
-   corner by being longer. */
-.count-pick.is-active::before {
-  --ax: 14px;
-  --ay: 14px;
 }
 /* THE BAND is a bigger box — 512x108 — and the temptation was to grow the arms
    with it. Wrong instinct: an arm is a CORNER MARK, and a corner does not get
@@ -813,7 +808,17 @@ html[data-theme="dark"] {
    data-mode would survive exactly until the next patch. Classes are untouched by
    that merge, so the frame's whole state is expressed in them, and the sizes
    that keyed off `data-expanded:` had to come with it. */
+/* EXPANDING LIFTS IT OUT OF THE ROW. The frame is a box in the cluster's flex
+   line now rather than a thing pinned to the rail, so growing it in flow would
+   push the cluster to 18rem tall and shove the boxes and the band down the page
+   with it. Absolute, against the cluster it belongs to, it grows over the list
+   instead — which is what "expand" was always meant to look like. Anchored at
+   the top-left corner it already occupies, so it opens outward from where it
+   was rather than jumping to a corner first. */
 .frame.is-expanded {
+  position: absolute;
+  top: 0;
+  left: 0;
   z-index: 10;
   width: 18rem;
   height: 18rem;
@@ -945,9 +950,15 @@ html[data-theme="dark"] {
    The transition on visibility is deliberately stepped rather than eased: it
    holds until the fade has finished on the way out, and drops instantly on the
    way back, so neither direction is ever clickable-but-invisible. */
+/* THE BUTTONS, NOT THE CLUSTER, and that distinction is load-bearing now that
+   the frame lives inside it. `opacity` on an ancestor creates a group that a
+   descendant CANNOT climb back out of — no `opacity: 1` on the frame would have
+   rescued it — so fading the cluster would have taken the frame with it, on the
+   phone especially, where an open panel turns that same frame into the header's
+   full-width video. The three controls fade; the answer stays. */
 #scopes.is-open .mark-slot,
 #scopes.is-open .lede,
-#scopes.is-open .scope-tags,
+#scopes.is-open .scope-boxes > button,
 .list-away .scopes-scroll {
   opacity: 0;
   visibility: hidden;
@@ -957,7 +968,7 @@ html[data-theme="dark"] {
 }
 .mark-slot,
 .lede,
-.scope-tags {
+.scope-boxes > button {
   transition:
     opacity 220ms ease-out,
     visibility 0s;
@@ -1183,7 +1194,15 @@ html:not([data-theme]) .presence-row .stream-name {
 .scopes-scroll:not(.has-selection):not(.is-scrolling) ~ .bar .focus-empty {
   opacity: 1;
 }
-.scopes-scroll.has-selection ~ .frame {
+/* `~ .scope-boxes .frame`, NOT `~ .frame`, and that changed when the frame
+   stopped being a box pinned to the rail and became the third box in the
+   cluster. The sibling combinator matches the SIBLING itself, so the moment the
+   frame moved inside `.scope-boxes` the old selector stopped matching and the
+   frame would simply never have appeared — silently, since an invisible frame
+   looks exactly like a frame with nothing to show. The cluster is still a
+   following sibling of the scroller, so the mechanism is intact; it is one
+   level deeper. */
+.scopes-scroll.has-selection ~ .scope-boxes .frame {
   opacity: 1;
 }
 
@@ -1548,23 +1567,30 @@ html:not([data-theme]) .live-screen {
   --panel-top: 7.5rem;
 }
 
-/* ── THE TRAILING BOX ──────────────────────────────────────────────────────────
-   The frame (over people) and the two counts (over places) answer the band, and
-   they used to ride in its flex row. That worked on a desktop and choked a
-   phone: the row had to give them width, so the SELECTION BOX — the thing you
-   are actually reading — got shorter exactly where there was least of it to
-   spare, and both ended up squeezed.
+/* ── THE HEAD OF THE LIST ──────────────────────────────────────────────────────
+   THREE BOXES IN ONE ROW at the top of the column, and none of them positioned
+   individually any more. This used to be three separate answers to "where does
+   this go": a text lens at the top left, two count boxes pinned to the right
+   rail and centred on the band, and a frame on that same right edge — each with
+   its own absolute rules, and its own second set of them for the phone.
 
-   So they are out of the row and placed directly against the stage box, which
-   lets each screen put them where that screen has room. On a wide screen that
-   is the old position exactly: pinned to the right rail, centred on the band.
-   The phone gets its own answer below. */
-.frame,
-.counts {
-  position: absolute;
-  right: 0;
-  top: var(--band-top);
-  transform: translateY(-50%);
+   Now the CLUSTER is positioned once and the boxes sit in it in flow, so the
+   phone needs nothing but a smaller --box-h. Everything that follows is about
+   the pair's own geometry rather than about the page's.
+
+   THEY MUST CLEAR THE BAND, and that is the one measurement worth stating
+   because nothing enforces it: the cluster starts at the column's top and the
+   band's upper edge is at --band-top minus half of --band-h. On the desktop
+   that is 84px against a cluster of --box-h plus its 0.5rem offset; on a phone,
+   72px against a shorter one. Grow --box-h past that and the boxes will sit on
+   top of the band with no warning. */
+.scope-boxes {
+  --box-h: 3.4rem;
+}
+@media (max-width: 40rem) {
+  .scope-boxes {
+    --box-h: 3rem;
+  }
 }
 
 /* ── THE PHONE ─────────────────────────────────────────────────────────────────
@@ -1634,36 +1660,12 @@ html:not([data-theme]) .live-screen {
     --b: 2px;
   }
 
-  /* THE BOX MOVES ABOVE THE LIST, but keeps its own size and its own edge. Full
-     width belongs to the PANEL, where the box is the thing you are watching; on
-     the list it is an answer to the band, and blowing it up to the whole rail
-     made it the loudest thing on a page whose subject is the list. So it stays
-     the size it is on a desktop and holds the RIGHT edge, which is the edge it
-     holds there too — the position changes, the identity does not. */
-  .frame,
-  .counts {
-    top: auto;
-    /* IN OFF THE EDGE. Everything trailing ends on the rail, and this is the one
-       deliberate exception: hard against it, the box read as pinned to the
-       screen rather than belonging to the band it answers. A margin of its own
-       gives it somewhere to stand. */
-    right: 1.75rem;
-    bottom: calc(100% + 1rem);
-    left: auto;
-    transform: none;
-  }
-  /* The two counts stand side by side rather than stacked — side by side they
-     are one object the width of a box, stacked they are a column that pushes
-     the band down twice as far for nothing. */
-  .counts {
-    display: flex;
-    height: auto;
-    gap: 0.75rem;
-  }
-  .count-unscoped {
-    position: static;
-    margin-top: 0;
-  }
+  /* THE PHONE NEEDS NOTHING HERE ANY MORE. The frame used to be pinned to the
+     right rail and centred on the band, which a phone had no width for, so it
+     was re-placed above the list with its own right margin — and the two counts
+     were re-placed and re-laid-out beside it. All three now sit in the cluster
+     at the top of the column, in flow, so the only thing this screen changes is
+     --box-h. Three sets of duplicated layout rules gone with them. */
 
   /* THE ROOM IS HELD WHETHER THE BOX IS THERE OR NOT. Opening the gap only on
      selection was correct about space and wrong about attention: the whole list

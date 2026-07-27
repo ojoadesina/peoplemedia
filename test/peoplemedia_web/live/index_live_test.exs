@@ -40,10 +40,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
   test "a stranger keeps the mark's column but has no letters", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
-    live |> element(~s(button[phx-click="to_location"])) |> render_click()
-    # A count is only a door once a place is standing in the band.
-    render_hook(live, "select", %{"index" => 2})
-    unscoped = live |> element(~s(button[phx-value-scope="UNSCOPED"])) |> render_click()
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
 
     # A letter is written to a SCOPE, so someone you have not scoped has none —
     # no age, no arrows.
@@ -144,47 +141,90 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute has_element?(live, "#bar.is-picked")
   end
 
-  test "the head of the list is the place its rows came out of", %{conn: conn} do
-    {:ok, live, html} = live(conn, ~p"/")
+  test "the two boxes are the head of the list, and each flips one axis", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
 
-    # A HIERARCHY, NOT A COMPOUND TERM. "Scoped Finland" is not a thing — it is
-    # a filter said as though it were one. Finland is a place, and the list is
-    # one of the two populations that place holds, so the place is the heading
-    # and what came out of it is the caption. Two nodes, so this reads the TEXT.
-    assert tag_says(live) =~ "FINLAND 19 SCOPES"
-    assert live |> element(".scope-tags") |> render() |> String.split("<button") |> length() == 2
+    # WHERE, and WHICH OF THEM. The place box names the place; the population box
+    # names the population you are inside and carries its own count.
+    assert boxes_say(live) =~ "FINLAND"
+    assert boxes_say(live) =~ "6 SCOPES"
 
-    # The count is the list's own length, not a fact stored beside it.
-    assert html |> String.split(~s(class="scopes-item)) |> length() == 20
+    # THE POPULATION BOX SWAPS, and never leaves the people. It shows where you
+    # ARE rather than offering both — one box, not a segmented pair.
+    live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    assert boxes_say(live) =~ "122 UNSCOPES"
+    # One box, so the population it swapped OUT of is not on screen at all.
+    # (It cannot refute "SCOPES" — "UNSCOPES" contains it.)
+    refute boxes_say(live) =~ "6 SCOPES"
+    assert has_element?(live, "#frame")
 
-    opened = live |> element(~s(button[phx-click="to_location"])) |> render_click()
-    assert has_element?(live, ~s(button[phx-click="to_location"][aria-pressed="true"]))
-    assert opened =~ "Nigeria"
-
-    # A roll of countries had to come out of something too, and there is only
-    # one thing left for it to have come out of.
-    assert tag_says(live) =~ "WORLD 18 PLACES"
-    refute tag_says(live) =~ "FINLAND"
+    # THE PLACE BOX SWAPS WHAT THE LIST HOLDS. The roll opens unselected, so the
+    # box reads WORLD — no country chosen — and the world's own totals with it.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    refute has_element?(live, "#frame")
+    assert boxes_say(live) =~ "WORLD"
+    assert boxes_say(live) =~ "33256 UNSCOPES"
   end
 
-  test "the lens says which population it holds, in the mark's column", %{conn: conn} do
-    {:ok, live, html} = live(conn, ~p"/")
+  test "the band moves the place box but commits nothing", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
 
-    # SCOPED is two rings INTERSECTED — each one's edge falls inside the other,
-    # so neither can be lifted away on its own.
-    assert html =~ ~s(<rect x="3.5" y="7" width="10" height="10">)
-    assert html =~ ~s(<rect x="10.5" y="7" width="10" height="10">)
+    # A country scrolling through the band updates the box AND its counts, so
+    # you can read a place's two populations without leaving the roll.
+    render_hook(live, "select", %{"index" => 1})
+    assert boxes_say(live) =~ "NIGERIA"
+    assert boxes_say(live) =~ "41 SCOPES"
 
-    live |> element(~s(button[phx-click="to_location"])) |> render_click()
+    # Still in the world. The band alone commits nothing, and neither does the
+    # band's own press.
+    live |> element(".focus-box") |> render_click()
+    refute has_element?(live, "#frame")
+
+    # AND THE WAY OUT THAT CHANGES NOTHING leaves with what you came in with.
+    live |> element(~s(button[phx-click="cancel_place"])) |> render_click()
+    assert has_element?(live, "#frame")
+    assert boxes_say(live) =~ "FINLAND"
+    assert boxes_say(live) =~ "6 SCOPES"
+  end
+
+  test "either box is a door back, and both take the place with them", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+
+    # THE PLACE BOX commits what settled and keeps the population you had.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    render_hook(live, "select", %{"index" => 1})
+    scoped = live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert boxes_say(live) =~ "NIGERIA"
+    assert boxes_say(live) =~ "41 SCOPES"
+    assert scoped =~ "MUM"
+    refute has_element?(live, "#panel")
+
+    # THE POPULATION BOX commits it too, and swaps population on the way — one
+    # press answering both halves, which is what the two count boxes used to do.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
     render_hook(live, "select", %{"index" => 2})
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    assert boxes_say(live) =~ "BRAZIL"
+    assert boxes_say(live) =~ "2652 UNSCOPES"
+    # A stranger only the unscoped world holds, so the list really swapped.
+    assert unscoped =~ "AMINA"
+  end
 
-    # UNSCOPED is the same two rings in the same place — still intersected, so
-    # it cannot read as "these two have nothing to do with each other" — but
-    # each with a gap cut out of its top, so neither one closes.
-    unscoped = live |> element(~s(button[phx-value-scope="UNSCOPED"])) |> render_click()
-    assert unscoped =~ "M7 7H3.5v10h10V7h-3.5"
-    assert unscoped =~ "M14 7h-3.5v10h10V7h-3.5"
-    refute unscoped =~ ~s(<rect x="3.5" y="7")
+  test "the cancel is the only exit while the roll of places is open", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+    refute has_element?(live, ~s(button[phx-click="cancel_place"]))
+
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert has_element?(live, ~s(button[phx-click="cancel_place"]))
+    assert has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+
+    # WORLD is a choice like any other, so pressing the box on an empty band
+    # commits it rather than being inert.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert boxes_say(live) =~ "WORLD"
+    assert boxes_say(live) =~ "232 SCOPES"
+    refute has_element?(live, ~s(button[phx-click="cancel_place"]))
   end
 
   test "an unread mark keeps its full voice; the rest are held quiet", %{conn: conn} do
@@ -213,49 +253,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
   end
 
-  test "a place answers with two counts, and each is a door into its people", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-    live |> element(~s(button[phx-click="to_location"])) |> render_click()
-
-    # Nigeria settles in the band: both populations appear, as two numbers
-    # rather than one total waiting to be split.
-    counts = render_hook(live, "select", %{"index" => 1})
-    assert counts =~ "41"
-    assert counts =~ "SCOPES"
-    assert counts =~ "4169"
-    assert counts =~ "UNSCOPES"
-
-    # The band alone commits nothing here — it cannot say WHICH population, so
-    # the head of the list is still the world rather than the country under it.
-    live |> element(".focus-box") |> render_click()
-    refute tag_says(live) =~ "NIGERIA"
-
-    # Pressing a count answers both halves at once: the place and the people.
-    scoped = live |> element(~s(button[phx-value-scope="SCOPED"])) |> render_click()
-    assert tag_says(live) =~ "NIGERIA 19 SCOPES"
-    assert scoped =~ "MUM"
-    refute has_element?(live, "#panel")
-  end
-
-  test "the unscoped count opens the strangers of that place", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-    live |> element(~s(button[phx-click="to_location"])) |> render_click()
-    render_hook(live, "select", %{"index" => 2})
-
-    unscoped = live |> element(~s(button[phx-value-scope="UNSCOPED"])) |> render_click()
-    assert tag_says(live) =~ "BRAZIL 15 UNSCOPES"
-    # A stranger only the unscoped world holds, so the list really swapped.
-    assert unscoped =~ "AMINA"
-  end
-
   # WHAT THE TAG SAYS, with the markup taken out of the way. It is a two-line
   # button — the scope over the place as faded subtext — so the two halves are
   # in separate elements and no substring of the raw HTML holds both. Stripping
   # the tags and collapsing the whitespace asks the question the tests actually
   # mean: does this control, read aloud, name a scope and a place together.
-  defp tag_says(live) do
+  defp boxes_say(live) do
     live
-    |> element(".scope-tags")
+    |> element(".scope-boxes")
     |> render()
     |> String.replace(~r/<[^>]*>/, " ")
     |> String.replace(~r/\s+/, " ")
