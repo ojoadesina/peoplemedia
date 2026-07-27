@@ -8,6 +8,7 @@
 import Config
 
 config :peoplemedia,
+  ecto_repos: [Peoplemedia.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configure the endpoint

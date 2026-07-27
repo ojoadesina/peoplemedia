@@ -1,11 +1,34 @@
-# peoplemedia — the presence app. No database: the surface is fixture data for
-# now, and the app does not depend on Ecto at all, so there is nothing to attach.
-# (There is a peoplemedia-db Postgres from an earlier, unrelated project left
-# running on its own; this app does not use it.)
+# peoplemedia — the presence app.
+#
+# IT HAS A DATABASE NOW. The passport needs somewhere durable to keep a hashed
+# word bank, and the domain is relational to its bones: a scope is a row joining
+# two people and a letter is a row hanging off a scope.
+#
+# THE `peoplemedia-db` POSTGRES IS OURS, and the note that used to sit here
+# saying it belonged to "an earlier, unrelated project" was wrong. It was
+# provisioned on 23 July during the presencemedia → peoplemedia rename, for this
+# app, and then never attached because there was nothing yet to attach it to. It
+# holds exactly one application database — `peoplemedia` — and the old project
+# lives in a separate `kuisk-db`, so nothing is shared with anything.
+#
+# ATTACH IT BEFORE THE NEXT DEPLOY:
+#
+#     fly postgres attach peoplemedia-db --app peoplemedia
+#
+# That sets DATABASE_URL, which config/runtime.exs REQUIRES in prod and the
+# release_command below needs to migrate. Deploying without it fails at the
+# release step — which is the right failure, but it is a failure.
 app = "peoplemedia"
 primary_region = "fra"
 
 [build]
+
+# MIGRATIONS RUN BEFORE THE NEW MACHINES TAKE TRAFFIC. Fly runs this once, in a
+# temporary machine on the new release, and aborts the deploy if it fails — so a
+# bad migration never reaches a serving machine. `bin/migrate` is a release
+# overlay calling Peoplemedia.Release.migrate, because a release has no Mix.
+[deploy]
+  release_command = "/app/bin/migrate"
 
 [env]
   PHX_HOST = "peoplemedia.fly.dev"

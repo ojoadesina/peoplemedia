@@ -8,6 +8,10 @@ defmodule PeoplemediaWeb.Router do
     plug :put_root_layout, html: {PeoplemediaWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    # Every browser request learns who is signed in, including "nobody". The
+    # list is public and auth-aware — you can read the surface before you have a
+    # passport — so this assigns rather than guards.
+    plug PeoplemediaWeb.Plugs.PassportAuth, :fetch_current_person
   end
 
   pipeline :api do
@@ -17,7 +21,14 @@ defmodule PeoplemediaWeb.Router do
   scope "/", PeoplemediaWeb do
     pipe_through :browser
 
-    live "/", IndexLive
+    # THE SURFACE IS PUBLIC. `:assign_current_person` puts whoever is signed in
+    # on the socket without requiring anyone to be — the same answer the HTTP
+    # pipeline gives, asked again because a LiveView does not run that pipeline.
+    live_session :surface,
+      on_mount: {PeoplemediaWeb.Plugs.PassportAuth, :assign_current_person} do
+      live "/", IndexLive
+    end
+
     # A reference exhibit of the old recorder UI, kept only while it is being
     # mined for ideas. Not a feature; delete the route with the module.
     live "/recorder", RecorderLive
@@ -25,6 +36,11 @@ defmodule PeoplemediaWeb.Router do
     # files under /logo but resolves no directory index, so the sheet needs a
     # route of its own. Delete it with the module once a logo is chosen.
     live "/logo", LogoLive
+
+    # THE TOKEN BRIDGE, and the way out. A LiveView cannot set a cookie, so it
+    # signs a token and sends you through here; check-out just clears it.
+    get "/passport/session", PassportSessionController, :create
+    delete "/passport/check-out", PassportSessionController, :delete
   end
 
   # Other scopes may use custom stacks.

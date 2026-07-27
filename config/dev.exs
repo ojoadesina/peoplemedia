@@ -1,5 +1,18 @@
 import Config
 
+# THE DATABASE ARRIVES. This app was fixtures-only until the passport needed
+# somewhere to keep a hashed word bank, and Postgres is the choice because the
+# domain is relational to its bones: a scope is a row joining two people, and a
+# letter is a row hanging off a scope.
+config :peoplemedia, Peoplemedia.Repo,
+  username: System.get_env("PGUSER") || "postgres",
+  password: System.get_env("PGPASSWORD") || "postgres",
+  hostname: "localhost",
+  database: "peoplemedia_dev",
+  stacktrace: true,
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

@@ -15,3 +15,11 @@ BUILD-LOG.md
 relationship-passport-only/
 study-geo-labels-only-and-header/
 figure-design-only-extract/
+
+# A REFERENCE CHECKOUT, not part of this app. `3/` is the older project
+# (Kuisk) dropped in whole so its passport, its scope panel and its
+# notifications can be read and adapted. It carries its own .git, its own deps
+# and a 5MB crash dump — over a gigabyte that must never reach a commit or an
+# image. Delete the directory once it has been mined; until then, this line is
+# what keeps it out.
+/3/

@@ -9,6 +9,7 @@ defmodule Peoplemedia.Application do
   def start(_type, _args) do
     children = [
       PeoplemediaWeb.Telemetry,
+      Peoplemedia.Repo,
       {DNSCluster, query: Application.get_env(:peoplemedia, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Peoplemedia.PubSub},
       # Start a worker by calling: Peoplemedia.Worker.start_link(arg)
