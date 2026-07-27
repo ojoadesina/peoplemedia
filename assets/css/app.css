@@ -819,12 +819,19 @@ html[data-theme="dark"] {
    none` rather than a fade, because the frame's own transition is doing the
    moving and two things easing at once on the same line would fight.
 
-   On a wide screen the cluster is centred on the band, so it opens
-   symmetrically into rail that is already empty. Below 66rem the cluster is
-   stacked above the band and there is nowhere to open upward — the masthead is
-   there — so it opens downward over the list, and is capped to something a
-   phone can hold. That is a deliberate overlay rather than a collision: you
-   pressed it to look at a face, and pressing it again puts the list back. */
+   IT NEVER CROSSES THE LIST, on either layout, and the two do it differently
+   because the cluster is in a different place:
+
+     BESIDE THE BAND, on a wide screen, it opens symmetrically into rail the
+     list does not reach. 18rem square in a column that has hundreds of pixels
+     of empty rail to its right — nothing to collide with in either direction.
+
+     STACKED ABOVE THE BAND, below 66rem, it takes the FULL WIDTH the two
+     hidden controls were using and grows UPWARD into the empty page, because
+     the cluster is anchored by its bottom there. Downward was the version that
+     kept landing on the names. The height is what fits between the strapline
+     and the band, which is roughly double the box and six times its area —
+     a real expansion that costs the list nothing. */
 .frame.is-expanded {
   width: 18rem;
   height: 18rem;
@@ -835,8 +842,8 @@ html[data-theme="dark"] {
 }
 @media (max-width: 66rem) {
   .frame.is-expanded {
-    width: 13rem;
-    height: 13rem;
+    width: 100%;
+    height: 7rem;
   }
 }
 .frame.is-expanded .frame-restart svg {
@@ -1515,6 +1522,12 @@ html:not([data-theme]) .live-screen {
   --list-w: 32rem;
   --list-h: 50vh;
   --row-h: 5rem;
+  /* A PLACE IS ONE LINE. --row-h carries a name with its age under it; the roll
+     of countries has neither, and wearing the people row's height it read as a
+     list with gaps in it — the words further apart than the band they pass
+     through is tall. Held near the band's own height instead, so a place
+     scrolling into the box is the same size as the box. */
+  --place-h: 3.5rem;
   --panel-row-h: 5rem;
   /* THE BAND'S HEIGHT, AND THE THREE TRAILING BOXES WEAR IT TOO. They answer
      the band and sit level with it, so a box of any other height would read as
@@ -1612,6 +1625,10 @@ html:not([data-theme]) .live-screen {
      height (h-7, 1.75rem) plus the 2rem gap. 4 + 1.75 + 2 = 7.75rem. Change
      either the mark's height or the head's top and this has to move with it. */
   --head-top: 4rem;
+  /* The act sits off the bottom edge the way the mark sits off the top. Less
+     air than the masthead gets, because the page ENDS here — there is nothing
+     below it to be given room from. */
+  --foot-bottom: 2.5rem;
   --body-top: 7.75rem;
   --panel-top: 7.5rem;
 }
@@ -1692,10 +1709,16 @@ html:not([data-theme]) .live-screen {
      it. Made the full width, the place box (min-w-0, truncating) is the one
      that yields and the count keeps its digits, which is the right way round: a
      clipped place is still readable, a clipped number is a different number. */
+  /* ANCHORED BY ITS BOTTOM, not its top, and that is what lets the frame expand
+     without touching the list. Both give the same resting position — a box of
+     --band-h with its bottom 3rem above the band — but a top-anchored cluster
+     grows DOWNWARD, straight over the names, and a bottom-anchored one grows
+     UPWARD into the empty page above it. The gap to the band is then a constant
+     rather than a leftover. */
   .scope-boxes {
-    top: calc(var(--band-top) - var(--band-h) / 2 - var(--band-h) - 3rem);
+    top: auto;
+    bottom: calc(100% - var(--band-top) + var(--band-h) / 2 + 3rem);
     right: 0;
-    bottom: auto;
     left: 0;
     justify-content: flex-start;
     transform: none;
@@ -1742,11 +1765,13 @@ html:not([data-theme]) .live-screen {
        line the row is holding, on the one screen where the two are hardest to
        see out of step. */
     --row-h: 4.25rem;
+    --place-h: 3rem;
     --band-h: 3.75rem;
     /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
        phone has the least page to spend and the most reason not to spend it on
        empty space above a mark. */
     --head-top: 1.75rem;
+    --foot-bottom: 1.5rem;
     /* The same arithmetic from this screen's own head-top, and the same 2rem of
        air between mark and line: 1.75 + 1.75 + 2. */
     --body-top: 5.5rem;
@@ -1917,7 +1942,10 @@ html:not([data-theme]) .live-screen {
   padding-inline: var(--list-pad);
 }
 
-/* The header fades with the rest of the page when the panel takes over. */
+/* The header and the act fade with the rest of the page when the panel takes
+   over. A floating action hanging over a conversation you have opened is an
+   action pointed at nothing. */
+#scopes.is-open .app-foot,
 #scopes.is-open .app-head {
   opacity: 0;
   visibility: hidden;
@@ -1925,6 +1953,7 @@ html:not([data-theme]) .live-screen {
     opacity 220ms ease-out,
     visibility 0s 220ms;
 }
+.app-foot,
 .app-head {
   transition:
     opacity 220ms ease-out,

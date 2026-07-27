@@ -283,6 +283,63 @@ defmodule PeoplemediaWeb.IndexLive do
         </div>
       </header>
 
+      <%!-- ── THE ACT ──────────────────────────────────────────────────────────
+           WRITING IS THE ONE THING YOU DO HERE. Everything else on this surface
+           is looking: scrolling names, settling one in the band, opening what
+           has passed between you. There is exactly one act, and until now there
+           was nowhere to perform it.
+
+           IT IS THE MASTHEAD'S OPPOSITE NUMBER, and built the same way: fixed,
+           inset-x-0, one .rail inside, the control opting back into pointer
+           events. So it lands on the app's own left edge without measuring
+           anything — the same edge the mark takes at the top and the band's
+           wash takes in the middle — and it cannot drift when the rail does.
+
+           ON THE RAIL, NOT ON --list-pad, because it is a FILL and not a word.
+           That is the whole of the two-edge rule in this file: the mark and the
+           strapline are words and step one in; the band's wash, the trailing
+           boxes and this begin at the bound. Its left edge and the band's are
+           the same line.
+
+           A SQUARE OF --band-h, so it rhymes with the band and with the three
+           trailing boxes rather than introducing a fourth size. No brackets:
+           brackets on this surface mean AIMING, and this is not aimed at
+           anything — it is where you start something.
+
+           THE MARK IS THE VOICE BAR CROSSED WITH ITSELF. A plus drawn out of
+           the same 16x6 rectangle every kind mark is cut from, which says
+           "another one of these" in the vocabulary the list already speaks,
+           rather than importing an icon that means "add" everywhere else.
+
+           IT GOES WITH THE FURNITURE when the panel opens: a floating action
+           hanging over a conversation you have opened is an action pointed at
+           nothing.
+
+           NO HANDLER YET, and that is deliberate rather than unfinished. There
+           is no composer to send you to and no spine behind it — this app is
+           the surface being designed before the thing it stands on, the same
+           way `Directory` is fixtures and `/recorder` records nothing. Wire the
+           phx-click the day there is somewhere for it to go. --%>
+      <div class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30">
+        <div class="rail">
+          <button
+            type="button"
+            aria-label="Write a letter"
+            class={[
+              "pointer-events-auto flex size-(--band-h) cursor-pointer items-center justify-center",
+              "bg-primary-600/15 text-primary-600 transition-colors outline-none",
+              "hover:bg-primary-600/25 focus-visible:ring-2 focus-visible:ring-primary-500/40",
+              "dark:bg-primary-500/20 dark:text-primary-500 dark:hover:bg-primary-500/30"
+            ]}
+          >
+            <svg viewBox="0 0 24 24" class="h-3/5 w-3/5" fill="currentColor" aria-hidden="true">
+              <rect x="4" y="9" width="16" height="6" />
+              <rect x="9" y="4" width="6" height="16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <div class="rail flex h-screen flex-col pt-(--body-top)">
         <%!-- THE LINE, on the content edge with the mark above it and the names
              below. Every WORD on this surface now starts here; the bare rail is
@@ -376,7 +433,19 @@ defmodule PeoplemediaWeb.IndexLive do
                 data-state={item[:state] || "present"}
                 data-frame={item[:frame] || "empty"}
                 data-media={item[:media]}
-                class="scopes-item flex h-(--row-h) cursor-pointer items-center px-(--list-pad) whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
+                class={
+                  [
+                    "scopes-item flex cursor-pointer items-center px-(--list-pad) whitespace-nowrap",
+                    "text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100",
+                    # A PLACE IS ONE LINE, so it gets a shorter row. --row-h is
+                    # sized for a name with its age hung under it; a roll of
+                    # countries has no age and no mark, and at the people row's
+                    # height the words ended up further apart than the band they
+                    # scroll through is tall — which reads as a list with gaps in
+                    # it rather than as a list.
+                    (@list_mode == :location && "h-(--place-h)") || "h-(--row-h)"
+                  ]
+                }
               >
                 <%!-- items-start on the inner block, not on the row: the mark
                        belongs on the NAME's line and the age hangs below it, but
@@ -397,7 +466,7 @@ defmodule PeoplemediaWeb.IndexLive do
                   />
                   <div class="min-w-0 flex-1 leading-tight">
                     <p class="scopes-line flex items-baseline">
-                      {item[:label] || item[:name]}
+                      {String.upcase(item[:label] || item[:name])}
                       <%!-- Their own name, quiet beside the label, arriving only
                              while the row is IN the band. It keeps its own muted
                              colour on purpose: the focused row turns terracotta,
@@ -738,7 +807,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 class="focus-name flex min-w-0 flex-1 items-baseline overflow-hidden whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
               >
                 <.letter_glyph kind={nil} class="mr-3" />
-                {@current[:label] || @current[:name]}
+                {String.upcase(@current[:label] || @current[:name])}
                 <span
                   :if={@current[:label]}
                   class="ml-3 text-neutral-400/70 dark:text-neutral-500/70"

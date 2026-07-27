@@ -289,6 +289,44 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute boxes =~ "-ml-3"
   end
 
+  test "a place is one line, shouted, and its rows close up to suit", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+    assert html =~ "h-(--row-h)"
+
+    places = live |> element(~s(button[phx-click="place_box"])) |> render_click()
+
+    # UPPERCASE like every other word on this surface. The fixtures store
+    # "Finland" because that is the country's name; the list is a list.
+    assert places =~ "NIGERIA"
+    refute places =~ ">\n                  Nigeria"
+
+    # And a shorter row, because a place has no age hung under it. At the
+    # people row's height the words sat further apart than the band is tall.
+    assert places =~ "h-(--place-h)"
+    refute places =~ "h-(--row-h)"
+  end
+
+  test "the act sits on the app's own edge, opposite the mark", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # Built like the masthead — fixed, full width, one .rail inside — so it
+    # lands on the app's left edge without measuring anything.
+    # ~s|...|, not ~s(...): the paren in `bottom-(` closes the sigil early.
+    assert html =~
+             ~s|class="app-foot pointer-events-none fixed inset-x-0 bottom-(--foot-bottom) z-30"|
+
+    assert html =~ "Write a letter"
+
+    # A square of --band-h, so it rhymes with the band and the trailing boxes
+    # rather than introducing a fourth size.
+    assert html =~ "size-(--band-h)"
+
+    # THE MARK IS THE VOICE BAR CROSSED WITH ITSELF — the same 16x6 rectangle
+    # every kind mark is cut from, turned into a plus.
+    assert html =~
+             ~s(<rect x="4" y="9" width="16" height="6"></rect><rect x="9" y="4" width="6" height="16">)
+  end
+
   # WHAT THE BOXES SAY, with the markup taken out of the way. Each box is a
   # button of its own and the number and its word are separate nodes, so no
   # substring of the raw HTML holds a whole phrase. Stripping the tags and
