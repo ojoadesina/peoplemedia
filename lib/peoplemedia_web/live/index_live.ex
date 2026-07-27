@@ -499,7 +499,7 @@ defmodule PeoplemediaWeb.IndexLive do
               phx-click="place_box"
               aria-pressed={to_string(@list_mode == :location)}
               class={[
-                "list-place pointer-events-auto flex h-(--box-h) cursor-pointer items-center",
+                "list-place pointer-events-auto flex h-(--band-h) min-w-0 cursor-pointer items-center",
                 "px-5 outline-none transition-colors focus-visible:underline",
                 box_wash(@list_mode == :location)
               ]}
@@ -509,7 +509,7 @@ defmodule PeoplemediaWeb.IndexLive do
                    number's size would make the smaller box the wider one, and
                    "PHILIPPINES" would run the three past the rail. --%>
               <span class={[
-                "text-(length:--row-type) leading-none tracking-(--row-track) transition-colors",
+                "truncate text-(length:--row-type) leading-none tracking-(--row-track) transition-colors",
                 box_ink(@list_mode == :location)
               ]}>
                 {String.upcase(@box_place)}
@@ -543,7 +543,7 @@ defmodule PeoplemediaWeb.IndexLive do
               phx-click="scope_box"
               aria-pressed={to_string(@list_mode == :people)}
               class={[
-                "list-scope pointer-events-auto flex h-(--box-h) cursor-pointer items-baseline",
+                "list-scope pointer-events-auto flex h-(--band-h) shrink-0 cursor-pointer items-baseline",
                 "gap-2.5 px-5 outline-none transition-colors focus-visible:underline",
                 box_wash(@list_mode == :people)
               ]}
@@ -582,7 +582,7 @@ defmodule PeoplemediaWeb.IndexLive do
               role="button"
               tabindex="0"
               aria-label="Expand frame"
-              class="frame is-empty pointer-events-auto relative flex size-(--box-h) shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
+              class="frame is-empty pointer-events-auto relative flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center p-2 opacity-0 transition-[opacity,width,height,padding] duration-300"
             >
               <%!-- The screen is inset from the frame so the brackets bracket the
                    picture rather than cropping it, and square on every corner —

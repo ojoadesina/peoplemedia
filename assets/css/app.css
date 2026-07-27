@@ -808,21 +808,36 @@ html[data-theme="dark"] {
    data-mode would survive exactly until the next patch. Classes are untouched by
    that merge, so the frame's whole state is expressed in them, and the sizes
    that keyed off `data-expanded:` had to come with it. */
-/* EXPANDING LIFTS IT OUT OF THE ROW. The frame is a box in the cluster's flex
-   line now rather than a thing pinned to the rail, so growing it in flow would
-   push the cluster to 18rem tall and shove the boxes and the band down the page
-   with it. Absolute, against the cluster it belongs to, it grows over the list
-   instead — which is what "expand" was always meant to look like. Anchored at
-   the top-left corner it already occupies, so it opens outward from where it
-   was rather than jumping to a corner first. */
+/* EXPANDING STAYS IN THE ROW, AND THE ROW MAKES ROOM. Lifting the frame out to
+   `position: absolute` was the wrong fix twice over: anchored to the cluster's
+   top-left it jumped to the far end of a right-aligned row before it grew, and
+   then it grew over whatever happened to be under it. A box that leaves its
+   place to get bigger reads as a different box arriving.
+
+   So it grows where it stands, and the two controls beside it get out of the
+   way — which is the only thing that was actually in short supply. `display:
+   none` rather than a fade, because the frame's own transition is doing the
+   moving and two things easing at once on the same line would fight.
+
+   On a wide screen the cluster is centred on the band, so it opens
+   symmetrically into rail that is already empty. Below 66rem the cluster is
+   stacked above the band and there is nowhere to open upward — the masthead is
+   there — so it opens downward over the list, and is capped to something a
+   phone can hold. That is a deliberate overlay rather than a collision: you
+   pressed it to look at a face, and pressing it again puts the list back. */
 .frame.is-expanded {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 10;
   width: 18rem;
   height: 18rem;
   padding: 1rem;
+}
+.scope-boxes:has(.frame.is-expanded) > button {
+  display: none;
+}
+@media (max-width: 66rem) {
+  .frame.is-expanded {
+    width: 13rem;
+    height: 13rem;
+  }
 }
 .frame.is-expanded .frame-restart svg {
   width: 2.5rem;
@@ -849,11 +864,40 @@ html[data-theme="dark"] {
    trackpad, touch and keyboard, and the band is what reports position. A bar
    would only draw a hard vertical edge straight through the fade the mask
    exists to create. Three declarations because three engines disagree. */
+/* THE LIST BEGINS AT THE BAND. Above it the mask is not faded but GONE — a row
+   that has been scrolled past is not shown at all.
+
+   IT USED TO FADE FROM 14% DOWN, which was a fraction of the scroller and
+   therefore a different distance on every screen. On a desktop that put the
+   band a little below where the rows became solid and the peeking row read as
+   intended; on a phone the same 14% was barely forty pixels, so a half-lit row
+   sat right on top of the band, and the strip above it — the only place a
+   trailing box can go when the rail runs out — was never actually free.
+
+   Measured off --band-top instead, the answer is the same on every screen: the
+   list is what is at the band and below it, and everything above is the app's,
+   to put a cluster of boxes in. The 1.25rem feather is so a row ARRIVES rather
+   than appearing all at once at the moment it clears the edge. */
 .scopes-scroll {
+  --list-top: calc(var(--band-top) - var(--band-h) / 2);
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
-  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 84%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--list-top) - 1.25rem),
+    #000 var(--list-top),
+    #000 84%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--list-top) - 1.25rem),
+    #000 var(--list-top),
+    #000 84%,
+    transparent 100%
+  );
 }
 .scopes-scroll::-webkit-scrollbar {
   display: none; /* WebKit / Blink */
@@ -1472,12 +1516,12 @@ html:not([data-theme]) .live-screen {
   --list-h: 50vh;
   --row-h: 5rem;
   --panel-row-h: 5rem;
+  /* THE BAND'S HEIGHT, AND THE THREE TRAILING BOXES WEAR IT TOO. They answer
+     the band and sit level with it, so a box of any other height would read as
+     a near-miss rather than as a deliberate difference — the eye measures a
+     right-hand box against the box it is beside before it measures anything
+     else. One number, one rhythm. */
   --band-h: 4.5rem;
-  /* ONE HEIGHT FOR THE THREE TRAILING BOXES. It lives up here rather than on
-     .scope-boxes because the stage box reads it too — the narrow layout lifts
-     the cluster out above the list and has to reserve exactly that much room —
-     and a custom property only ever inherits DOWN. */
-  --box-h: 3.4rem;
 
   /* ── THE LIST'S VOICE ────────────────────────────────────────────────────
      ONE TYPE, DECLARED ONCE. Every word that belongs to the list — a row's
@@ -1610,19 +1654,40 @@ html:not([data-theme]) .live-screen {
    counts overlapped the list from 40rem to about 52rem with nothing to catch
    them.
 
-   The stage box takes the cluster's height as top margin, because `bottom:
-   calc(100% + 1rem)` puts the boxes OUTSIDE it — without the margin they climb
-   into the strapline. */
+   THEY COME DOWN TO THE BAND rather than climbing out above the list. Parked
+   over the top of the page they read as a masthead — a second set of furniture
+   under the real one — and stopped answering the band at all, which is their
+   whole job. Sat one rem above it they are still the band's answer, just
+   stacked instead of beside.
+
+   THE BAND MOVES DOWN TO LET THEM IN, by exactly the 0.75rem the arithmetic is
+   short: the cluster needs half the band plus a box plus the gap above the
+   band's centre, which with a box that IS a band comes to 1.5 bands and a rem.
+   scopes.ts measures the bar rather than recomputing this, so the list follows
+   without being told.
+
+   THE ROOM ONLY EXISTS BECAUSE NOTHING IS DRAWN UP THERE ANY MORE — see the
+   scroller's mask, which now stops dead at the band's top edge. These two
+   changes are one change. Put the faded rows back and the boxes will be sitting
+   on top of them. */
 @media (max-width: 66rem) {
-  .scope-boxes {
-    top: auto;
-    right: 1.75rem;
-    bottom: calc(100% + 1rem);
-    left: auto;
-    transform: none;
+  .app-root {
+    --band-top: calc(var(--row-h) * 1.5 + 0.75rem);
   }
-  .stage-box {
-    margin-top: calc(var(--box-h) + 2rem);
+  /* left:0 AND right:0, so the cluster is the rail's width rather than its
+     content's. Stacked above the band there is no spare rail to run into, and
+     "PHILIPPINES" beside "33256 UNSCOPES" is wider than a phone — shrink-to-fit
+     would have pushed the left end off the screen with nothing to stop it. Made
+     the full width, the place box (min-w-0, truncating) is the one that yields
+     and the count keeps its digits, which is the right way round: a clipped
+     place is still readable, a clipped number is a different number. */
+  .scope-boxes {
+    top: calc(var(--band-top) - var(--band-h) / 2 - var(--band-h) - 1rem);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    justify-content: flex-end;
+    transform: none;
   }
 }
 
@@ -1667,7 +1732,6 @@ html:not([data-theme]) .live-screen {
        see out of step. */
     --row-h: 4.25rem;
     --band-h: 3.75rem;
-    --box-h: 3rem;
     /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
        phone has the least page to spend and the most reason not to spend it on
        empty space above a mark. */
@@ -1694,10 +1758,10 @@ html:not([data-theme]) .live-screen {
     --b: 2px;
   }
 
-  /* THE PHONE NEEDS NO LAYOUT HERE ANY MORE, only a smaller --box-h above. The
-     frame, and separately the two counts, each used to be re-placed and
-     re-laid-out for this screen; they are one cluster now, and the rule that
-     lifts it above the list already fired 26rem ago. */
+  /* THE PHONE NEEDS NO LAYOUT FOR THE TRAILING BOXES. The frame, and separately
+     the two counts, each used to be re-placed and re-laid-out for this screen;
+     they are one cluster now, they take their height from the band, and the
+     rule that stacks them above it already fired 26rem ago. */
 
   /* THE ROOM IS HELD WHETHER THE BOX IS THERE OR NOT. Opening the gap only on
      selection was correct about space and wrong about attention: the whole list
