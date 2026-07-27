@@ -29,16 +29,16 @@ defmodule PeoplemediaWeb.IndexLive do
 
     A ROW NOW LEADS WITH A MARK, so its NAME starts one mark-width past
     `--list-pad` while the mark itself starts on it. That is not a third edge —
-    it is one edge with two columns standing on it, and everything that has to
-    line up with a row carries BOTH: the band's empty dots sit in the mark's
-    column, and the band's label, the picked header and the lens at the head of
-    the list each carry an empty `letter_glyph` so their words land in the
-    name's. Every people row reserves the mark's column whether or not it has a
-    letter to put in it, for the same reason.
+    it is one edge with two columns standing on it, and the band's empty dots
+    sit in the mark's column because they are what a mark would arrive in.
 
-    The spacer is a real element rather than a padding, and deliberately: a
-    `pl-` utility would lose to `.list-box`, which sets `padding-inline`
-    unlayered in app.css while Tailwind's utilities live in `@layer utilities`.
+    THE COLUMN IS ONLY RESERVED WHERE A MARK COULD GO. Every people row keeps
+    it whether or not it has a letter, because the SCOPED and UNSCOPED lists
+    share one scroller and a name that shifted sideways when you switched
+    between them would make the two look like different columns. The picked
+    header does NOT keep it: nothing can ever appear there, and an invisible
+    thing that still takes room is the worst of both — it cannot be read and it
+    cannot be ignored. Its words start on `--list-pad` like the dots do.
 
   So the split is not page-versus-list, it is structure-versus-words — which is
   why one number governs every text on the page and moving it moves them
@@ -805,32 +805,24 @@ defmodule PeoplemediaWeb.IndexLive do
                    is below it, and terracotta is this surface's word for "look
                    here".
 
-                   IT CARRIES THE MARK'S COLUMN AS A REAL, EMPTY SLOT, and that
-                   is what keeps the handover invisible now that a row leads
-                   with a glyph. The whole trick of the pick is that the band's
-                   label is already sitting exactly where the row's label is at
-                   the moment of the swap; without the column the name would
-                   jump left by the width of a mark just as you are watching it.
+                   IT STARTS ON --list-pad, WITH NO MARK COLUMN. It carried an
+                   empty `letter_glyph` for a while, to keep the label from
+                   jumping left by a mark's width at the instant of the swap —
+                   and that is a real thing, but it is a quarter of a second of
+                   flight paid for by a permanent indent. What you are left
+                   looking at is a header whose text sits forty pixels in from
+                   the edge of its own box with nothing in the gap. The rows
+                   need that column because they have marks to put in it; a
+                   header has none, so it does not get the column.
 
-                   AN ELEMENT RATHER THAN A PADDING, for two reasons. It is the
-                   same `letter_glyph` the row uses, so the two widths are one
-                   number and cannot drift. And a `pl-` utility would have lost
-                   the cascade outright: `.list-box` sets `padding-inline`
-                   unlayered in app.css, Tailwind's utilities live in
-                   `@layer utilities`, and unlayered beats layered no matter how
-                   specific the layered rule is. The indent would simply not
-                   have appeared.
-
-                   EMPTY RATHER THAN THE CURRENT KIND. A mark here would be the
-                   first row of the panel below said twice, and the header has
-                   already given up its brackets and its terracotta for exactly
-                   that reason: once it is a title, it stops competing with what
-                   it is a title for. --%>
+                   AN INVISIBLE THING THAT STILL TAKES ROOM IS THE WORST OF BOTH:
+                   it cannot be read and it cannot be ignored. If a slot has
+                   nothing to hold here, it should not be here — which is why
+                   this is a removal rather than a `visibility: hidden`. --%>
               <span
                 :if={@mode == :open && @current}
                 class="focus-name flex min-w-0 flex-1 items-baseline overflow-hidden whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
               >
-                <.letter_glyph kind={nil} class="mr-3" />
                 {String.upcase(@current[:label] || @current[:name])}
                 <span
                   :if={@current[:label]}
