@@ -127,6 +127,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # The panel's own empty band is the same ellipsis the list's is.
     assert opened =~ "..."
     assert opened =~ "rotate(-45 12 12)"
+
+    # THE FRAME IS HIDDEN BUT NOT REMOVED, and that is load-bearing rather than
+    # incidental. app.css takes it out of sight when the panel opens — it
+    # answers the band, and the band has become a header — but the ELEMENT has
+    # to stay, because hiding a media element does not silence it and only
+    # scopes.ts can tear the media down. Render it conditionally and a voice
+    # goes on playing over an open panel from a box nobody can see or press.
+    assert opened =~ ~s(id="frame")
   end
 
   test "losing the selection closes the panel with it", %{conn: conn} do

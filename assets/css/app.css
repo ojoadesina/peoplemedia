@@ -971,9 +971,25 @@ html[data-theme="dark"] {
    The same weight as the fill it replaces — 15% and 20% — but drawn from the
    surface ramp, so the header reads as a shelf the content sits under rather
    than as a second thing competing with it. */
-.bar.is-picked .focus-box::before,
-#scopes.is-open .frame::before {
+.bar.is-picked .focus-box::before {
   display: none;
+}
+
+/* THE FRAME STANDS DOWN WITH THE LIST. It answers the BAND — which row has
+   settled — and once the band has been picked up and turned into a header there
+   is no band left for it to answer. It used to stay, brackets removed, showing
+   the media of a person whose name was now a title above a panel about them:
+   the same fact stated twice, in two places, one of them a box that no longer
+   had a job. The picked header is where that content belongs.
+
+   scopes.ts stops the media when this class arrives. Hiding a playing <video>
+   does not silence it — a hidden element, or a detached one, goes on playing —
+   so a purely visual rule here would have left a voice coming out of nowhere
+   over an open panel. */
+#scopes.is-open .frame {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .bar.is-picked .focus-box {
   background-color: var(--color-light-100);
@@ -1640,6 +1656,15 @@ html:not([data-theme]) .live-screen {
      height (h-7, 1.75rem) plus the 2rem gap. 4 + 1.75 + 2 = 7.75rem. Change
      either the mark's height or the head's top and this has to move with it. */
   --head-top: 4rem;
+  /* WHERE THE PANEL STARTS, and it is the PICKED HEADER that decides — bar.ts
+     flies the band to 2rem from the top of the viewport, so the header occupies
+     2rem to 2rem + --band-h and the panel begins 1.75rem under that. It was a
+     hand-set 7.5rem, tuned when the band was 3.5rem tall; the band has grown
+     twice since and the number did not follow, so on a phone the panel had
+     climbed 4px UNDER the header it is supposed to hang from. Derived, it
+     cannot drift again — but the 2rem is stated in two places, here and as
+     HEADER_TOP in bar.ts, and they have to agree. */
+  --panel-top: calc(2rem + var(--band-h) + 1.75rem);
   /* The act sits off the bottom edge the way the mark sits off the top. Less
      air than the masthead gets, because the page ENDS here — there is nothing
      below it to be given room from. */
@@ -1653,7 +1678,6 @@ html:not([data-theme]) .live-screen {
      band's height it was reading as a fourth box that had wandered off. */
   --act-h: 3.25rem;
   --body-top: 7.75rem;
-  --panel-top: 7.5rem;
 }
 
 /* ── THE TRAILING BOXES ────────────────────────────────────────────────────────
@@ -1799,13 +1823,17 @@ html:not([data-theme]) .live-screen {
     /* The same arithmetic from this screen's own head-top, and the same 2rem of
        air between mark and line: 1.75 + 1.75 + 2. */
     --body-top: 5.5rem;
-    --panel-top: 5.5rem;
-    --frame-h: 9rem;
+    /* WHERE THE LETTERS SHEET RESTS, measured from the PANEL's own top and not
+       the viewport's — it is positioned inside the panel, and adding
+       --panel-top here counted it twice and dropped the sheet 88px too low.
 
-    /* Measured from the PANEL's own top, not the viewport's — the subpanel is
-       positioned inside the panel, so adding --panel-top here counted it
-       twice and dropped the sheet 88px too low. */
-    --sub-top: calc(var(--frame-h) + 1.75rem);
+       IT USED TO BE THE FRAME'S HEIGHT PLUS AIR, which put it at 172px and
+       covered the live room completely: the frame had the top of the panel and
+       the sheet had everything under it. With the frame gone the sheet comes up
+       to where the room's own label and the head of its first row still show
+       above it, and the letters — which are the subject — take the rest. Drag
+       the handle down for the room, as before. */
+    --sub-top: 5rem;
   }
 
   /* A 3px arm is a corner mark on a desktop and a blunt stroke on a phone, where
@@ -1849,37 +1877,18 @@ html:not([data-theme]) .live-screen {
     display: block;
     padding-top: 0;
   }
+  /* THE ROOM STARTS AT THE TOP NOW. Its padding used to be the frame's height
+     plus air, because the frame was pinned across the top of the panel as a
+     full-width header video; with the frame gone there is nothing to clear. */
   .live-grid {
     display: block;
     width: 100%;
-    padding-top: calc(var(--frame-h) + 2rem);
+    padding-top: 0.5rem;
   }
-  /* IN THE PANEL the box IS the subject, so here it does go full width — and
-     flush with the header above it. Its own p-2 was insetting the picture 8px a
-     side, which is exactly why it read narrower than the header it sits under;
-     the padding exists to keep the brackets off the picture, and in this state
-     there are no brackets. */
-  #scopes.is-open .frame {
-    position: fixed;
-    top: calc(var(--panel-top) + 0.5rem);
-    right: var(--app-gutter);
-    bottom: auto;
-    left: var(--app-gutter);
-    z-index: 25;
-    width: auto;
-    height: var(--frame-h);
-    padding: 0;
-  }
-
-  /* WHEN THE PANEL BAND HAS SOMETHING, THE BOX GETS OUT OF THE WAY. Choosing a
-     presence means you are working in the record stream, so the room and the
-     live box stop being the subject — the subpanel climbs into the space they
-     were holding and the stream gets the screen. It comes back the moment the
-     band is empty again. */
-  #scopes:has(.panel-scroll.has-selection) .frame {
-    opacity: 0;
-    pointer-events: none;
-  }
+  /* WHEN THE PANEL BAND HAS SOMETHING, THE ROOM GETS OUT OF THE WAY. Choosing a
+     letter means you are working in the stream, so the room stops being the
+     subject — the sheet climbs into the space it was holding and the letters
+     get the screen. It comes back the moment the band is empty again. */
   #scopes:has(.panel-scroll.has-selection) .panel-letters {
     top: 0.5rem;
   }
@@ -1941,8 +1950,20 @@ html:not([data-theme]) .live-screen {
     position: static;
     padding-top: 0.25rem;
   }
+  /* THE LETTERS BAND KEEPS THE GUTTER, like the list's band does. It was
+     running edge to edge of the screen while every row inside it was inset,
+     and the cause is a quiet one: .panel-letters carries the gutter as
+     PADDING, and an absolutely positioned child resolves `left: 0` and
+     `width: 100%` against the PADDING BOX — so the box sat outside the very
+     padding that was supposed to be holding it in. The rows are in flow and
+     obeyed it, which is why only the band looked wrong.
+
+     Said in the box's own terms instead: in from each edge by the gutter, the
+     same measure the main page's band takes from the rail. */
   .panel-letters .stage {
     top: calc(var(--panel-row-h) * 1.5 + 2.5rem);
+    left: var(--app-gutter);
+    width: calc(100% - var(--app-gutter) * 2);
   }
   .panel-letters .panel-scroll ul {
     padding-top: calc(var(--panel-row-h) * 2.5 + 2.5rem);

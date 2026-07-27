@@ -15,7 +15,11 @@
 // within one row's reach; beyond that the band stands genuinely empty, which is
 // what lets the list rest unselected at the top instead of magnetising the
 // first row in.
-type HookCtx = { el: HTMLElement; pushEvent: (event: string, payload: object) => void };
+type HookCtx = {
+  el: HTMLElement;
+  pushEvent: (event: string, payload: object) => void;
+  cleanup?: () => void;
+};
 
 export const Scopes = {
   mounted(this: HookCtx) {
@@ -347,8 +351,48 @@ export const Scopes = {
     };
     document.addEventListener("pointerdown", unhush);
 
+    // THE FRAME STOPS WHEN THE PANEL OPENS, and this is why it takes an observer
+    // rather than a line of CSS. The frame answers the BAND, and once the band
+    // has been picked up and turned into a header there is no band left for it
+    // to answer — so app.css hides it. But HIDING A MEDIA ELEMENT DOES NOT
+    // SILENCE IT: `visibility: hidden`, `display: none` and removal from the
+    // tree all leave a <video> playing, and the result would be a voice coming
+    // out of nowhere over an open panel, with no visible thing to press to stop
+    // it. So the class that hides it also has to tear the media down.
+    //
+    // The class arrives on #scopes from the server, and this hook cannot see
+    // server patches — it lives on the scroller, which is phx-update="ignore".
+    // Watching the attribute is the one way to hear about it.
+    let wasOpen = root.classList.contains("is-open");
+    const watchPanel = new MutationObserver(() => {
+      const open = root.classList.contains("is-open");
+      if (open === wasOpen) return;
+      wasOpen = open;
+      // Closing puts back what the selection still says is chosen, so coming
+      // out of the panel does not leave an empty box beside a settled row.
+      if (open) hideFrame();
+      else {
+        const focused = items.find((i) => i.classList.contains("is-focused"));
+        if (focused) showFrame(focused);
+      }
+    });
+    watchPanel.observe(root, { attributes: true, attributeFilter: ["class"] });
+
     window.addEventListener("resize", settle);
     // A frame's grace so the flex layout has resolved a real height to measure.
     requestAnimationFrame(() => requestAnimationFrame(settle));
+
+    this.cleanup = () => {
+      watchPanel.disconnect();
+      document.removeEventListener("pointerdown", unhush);
+      window.removeEventListener("resize", settle);
+    };
+  },
+
+  // Swapping the list re-mounts this hook, so the old one's observer and its two
+  // document-level listeners have to go with it or they accumulate one set per
+  // switch, each holding a dead scroller.
+  destroyed(this: HookCtx) {
+    this.cleanup?.();
   },
 };
