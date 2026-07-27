@@ -11,13 +11,18 @@
 # holds exactly one application database — `peoplemedia` — and the old project
 # lives in a separate `kuisk-db`, so nothing is shared with anything.
 #
-# ATTACH IT BEFORE THE NEXT DEPLOY:
+# IT IS ALREADY ATTACHED, and was long before the app had any use for it —
+# `fly postgres attach` on a second run answers "consumer app already contains a
+# secret named DATABASE_URL", which is the attach reporting that it has nothing
+# left to do rather than an error to work around. The database, the
+# `peoplemedia` role and the DATABASE_URL secret are all in place; only the app
+# was missing, and that arrived with Ecto.
 #
+# DATABASE_URL is what config/runtime.exs requires in prod and what the
+# release_command below migrates against. If it is ever lost, the fix is:
+#
+#     fly postgres detach peoplemedia-db --app peoplemedia
 #     fly postgres attach peoplemedia-db --app peoplemedia
-#
-# That sets DATABASE_URL, which config/runtime.exs REQUIRES in prod and the
-# release_command below needs to migrate. Deploying without it fails at the
-# release step — which is the right failure, but it is a failure.
 app = "peoplemedia"
 primary_region = "fra"
 
