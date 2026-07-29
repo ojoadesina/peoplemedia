@@ -18,6 +18,17 @@ config :peoplemedia, Peoplemedia.Repo,
 config :bcrypt_elixir, log_rounds: 4
 config :peoplemedia, bcrypt_secret_rounds: 4, bcrypt_code_rounds: 4
 
+# THE MASTER-HANDLE EXEMPTION IS ON IN TESTS, under a handle no fixture uses, so
+# that both halves are proved on every run: that this one passport's words are
+# not spent, and that everybody else's still are. A hole in the login path that
+# only exists in dev and prod is a hole nothing tests.
+config :peoplemedia, master_handle: "master"
+
+# NO OUTBOUND CALLS FROM A TEST RUN. The country step reverse-geocodes, and the
+# real geocoder is a public service run by volunteers — a suite that called it on
+# every run would be slow, would fail on a train, and would be a poor guest.
+config :peoplemedia, geocoder: Peoplemedia.Geo.Stub
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :peoplemedia, PeoplemediaWeb.Endpoint,

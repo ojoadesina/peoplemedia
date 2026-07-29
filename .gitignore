@@ -42,3 +42,11 @@ npm-debug.log
 # image. Delete the directory once it has been mined; until then, this line is
 # what keeps it out.
 /3/
+
+# Digested and gzipped copies of the static files, written by `mix phx.digest`
+# whenever assets are built locally. The Docker build runs `mix assets.deploy`
+# and regenerates all of them, so a committed copy is a stale copy — and the
+# sources they are digested FROM are already tracked beside them.
+/priv/static/**/*-????????????????????????????????.*
+/priv/static/*.gz
+/priv/static/**/*.gz

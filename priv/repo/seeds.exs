@@ -16,14 +16,23 @@ alias Peoplemedia.Repo
 
 countries = Enum.map(Peoplemedia.Directory.countries(), & &1.name)
 
+# THE PLACE IS PART OF THE SEED, not just the name. Where somebody lives decides
+# which list they appear in now, so a run that changed the distribution and left
+# everyone standing where the last run put them would seed one thing and show
+# another. Existing rows are moved rather than duplicated — the name is still
+# the identity.
 find_or_create = fn name, country ->
   case Repo.one(from p in Person, where: p.name == ^name) do
     nil ->
       {:ok, p} = People.create_person(%{name: name, country: country})
       p
 
-    %Person{} = p ->
+    %Person{country: ^country} = p ->
       p
+
+    %Person{} = p ->
+      {:ok, moved} = People.update_person(p, %{country: country})
+      moved
   end
 end
 
@@ -79,10 +88,19 @@ threads = [
   [{:you, true, "text"}]
 ]
 
+# WHERE THEY LIVE, and most of them live where ojo does. The place box is the
+# list's parent now — pick Finland and you see Finland — so a cast spread evenly
+# over eighteen countries would give every place a list of one and the home page
+# a list of one, which is a worse demonstration than it is a distribution. Home
+# holds the bulk; the rest are abroad so the roll of places is not decoration.
+home = "Finland"
+abroad = Enum.reject(countries, &(&1 == home))
+somewhere = fn i, from_home -> (i < from_home && home) || Enum.at(abroad, rem(i, length(abroad))) end
+
 held
 |> Enum.with_index()
 |> Enum.each(fn {{label, name}, i} ->
-  person = find_or_create.(name, Enum.at(countries, rem(i, length(countries))))
+  person = find_or_create.(name, somewhere.(i, 12))
 
   unless Relationships.related?(me.id, person.id) do
     # THE FULL THREE ROUNDS, so these end up `scoped` rather than left pending:
@@ -136,8 +154,73 @@ strangers = [
 strangers
 |> Enum.with_index()
 |> Enum.each(fn {name, i} ->
-  find_or_create.(name, Enum.at(countries, rem(i + 7, length(countries))))
+  find_or_create.(name, somewhere.(i, 9))
 end)
+
+# ── THE MASTER PASSPORT ──────────────────────────────────────────────────────
+#
+#     name: angel    word: angel    code: 0000
+#
+# One word, one code, both the same as the handle, so checking in during
+# development costs no memory at all.
+#
+# ITS WORDS ARE NOT SPENT, and that is a config line rather than anything here:
+# `master_handle` in config/dev.exs and config/prod.exs names this handle, and
+# Identity skips the burn for it. So the bank is three words like anybody else's.
+#
+# WHAT THIS REPLACES was twelve copies of the same word, added one batch at a
+# time because the no-repeats rule only looks within a single submission. It
+# passed every check and broke what the rule means, and it cost a deploy: twelve
+# bcrypt hashes inside the release command stalled the seed long enough for the
+# database's proxy to time out its own health check and drop every session.
+#
+# THE SEED MAKES REALITY MATCH, rather than only filling in what is missing.
+# "Idempotent" here used to mean "does nothing if a passport exists", which
+# cannot REPAIR one — and the deployed angel ended up with a code that did not
+# open it, so the documented password was wrong and no amount of re-seeding
+# could put it right. For the one account whose credentials are written down in
+# a comment, the seed has to assert them.
+angel = find_or_create.("angel", home)
+
+if is_nil(Identity.get_passport(angel.id)) do
+  {:ok, _} = Identity.create_passport(angel, "angel", ~w(angel wings halo), "0000")
+end
+
+{:ok, _} = Identity.reset_code(Identity.get_passport(angel.id), "0000")
+
+# AND SOMEBODY TO LOOK AT. An account whose list is empty tests the empty state
+# and nothing else, so angel holds a handful of the people at home and has one
+# handshake open in each direction — which is the only way to reach the two
+# answering paths in the scoping room without setting them up by hand.
+angel_held = [{"MUM", "SARAH"}, {"BROTHER", "JOSEPH"}, {"COACH", "IBRAHIM"}, {"NEIGHBOUR", "ELENA"}]
+
+for {label, name} <- angel_held do
+  person = find_or_create.(name, home)
+
+  unless Relationships.related?(angel.id, person.id) do
+    {:ok, _} = Relationships.request_scope(angel.id, person.id, label)
+    {:ok, _} = Relationships.scope_back(person.id, angel.id, "ANGEL")
+    {:ok, _} = Relationships.accept(angel.id, person.id)
+  end
+
+  if Letters.thread(angel.id, person.id) == [] do
+    {:ok, _} = Letters.write(person.id, angel.id, %{kind: "text", body: "Are you around later?"})
+  end
+end
+
+%{incoming: incoming, outgoing: outgoing} = Relationships.pending_scopes_for(angel.id)
+
+if incoming == [] do
+  asker = find_or_create.("LEV", home)
+  unless Relationships.related?(angel.id, asker.id),
+    do: {:ok, _} = Relationships.request_scope(asker.id, angel.id, "FRIEND")
+end
+
+if outgoing == [] do
+  asked = find_or_create.("PRIYA", home)
+  unless Relationships.related?(angel.id, asked.id),
+    do: {:ok, _} = Relationships.request_scope(angel.id, asked.id, "CLASSMATE")
+end
 
 people = Repo.aggregate(Person, :count)
 scopes = Repo.aggregate(Peoplemedia.Relationships.Scope, :count)
@@ -148,3 +231,25 @@ IO.puts(
     to_string(people) <>
     " people, " <> to_string(scopes) <> " scopes, " <> to_string(letters) <> " letters"
 )
+
+# ── WHO IS AROUND ─────────────────────────────────────────────────────────────
+# Presence is read off a real around now, so a seed in which nobody is here
+# would draw the surface's newest two boxes empty on every row — and `absent`,
+# which is half of what a row can say, would be the only half anybody saw.
+alias Peoplemedia.Around
+
+around = [
+  {"SARAH", %{mood: "happy", activity: "watching", about: "the witchers"}},
+  {"KEMI", %{mood: "sad", activity: "walking"}},
+  {"IBRAHIM", %{mood: "restless", activity: "training", about: "hill sprints"}},
+  {"ELENA", %{mood: "content", activity: "cooking", about: "borscht"}},
+  {"MICHAEL", %{}},
+  {"ROSE", %{}}
+]
+
+for {name, said} <- around,
+    person = Repo.one(from p in Person, where: p.name == ^name) do
+  if said == %{}, do: Around.touch(person.id), else: Around.speak(person.id, said)
+end
+
+IO.puts("around: #{length(around)} of them")

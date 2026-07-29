@@ -19,6 +19,7 @@ type HookCtx = {
   el: HTMLElement;
   pushEvent: (event: string, payload: object) => void;
   cleanup?: () => void;
+  resettle?: () => void;
 };
 
 export const Scopes = {
@@ -29,39 +30,49 @@ export const Scopes = {
     // not a preference. #scopes is the LiveView root: every patch rewrites its
     // class attribute back to whatever the server rendered, so a hook-set
     // `has-selection` survived only until the next update — which is why the
-    // frame vanished and the placeholder came back the moment an item was
-    // picked. The scroller carries phx-update="ignore", so it is the one
-    // element in the tree LiveView will not touch. The CSS reaches the bar from
-    // here with a sibling combinator.
-    const items = Array.from(scroll.querySelectorAll<HTMLElement>(".scopes-item"));
+    // letter box vanished and the placeholder came back the moment an item was
+    // picked. The scroller keeps its class through a patch because the markup
+    // asks LiveView to leave that one attribute alone; see the note on
+    // JS.ignore_attributes there. The CSS reaches the bar from here with a
+    // sibling combinator.
+    // ROWS ARE LOOKED UP FRESH, never captured. The list is patched now — no
+    // phx-update="ignore" — so a scope, a letter or a switch of population
+    // replaces these nodes underneath us, and a list captured at mount would be
+    // a list of elements no longer in the page.
+    const rows = () => Array.from(scroll.querySelectorAll<HTMLElement>(".scopes-item"));
     const root = document.getElementById("scopes");
-    if (!root || !items.length) return;
+    if (!root || !rows().length) return;
 
     // THE FRAME is ONE element that every row borrows in turn, rather than one
-    // frame per row: nineteen <video> tags would each hold a buffer for a
+    // letter box per row: nineteen <video> tags would each hold a buffer for a
     // picture nobody is looking at. The cost of sharing is that the media must
     // be torn down on the way out as deliberately as it is set up on the way in.
-    const frame = document.getElementById("frame");
-    const video = frame?.querySelector<HTMLVideoElement>(".frame-video") ?? null;
-    const audio = frame?.querySelector<HTMLAudioElement>(".frame-audio") ?? null;
-    const restart = frame?.querySelector<HTMLButtonElement>(".frame-restart") ?? null;
+    const box = document.getElementById("letterbox");
+    const video = box?.querySelector<HTMLVideoElement>(".letterbox-video") ?? null;
+    const audio = box?.querySelector<HTMLAudioElement>(".letterbox-audio") ?? null;
+    const words = box?.querySelector<HTMLElement>(".letterbox-words") ?? null;
+    const restart = box?.querySelector<HTMLButtonElement>(".letterbox-restart") ?? null;
 
     // THE FRAME'S STATE IS CLASSES, NOT DATA ATTRIBUTES, and that is forced by
     // LiveView rather than chosen: on a patched element it strips a client-set
     // src, and on an ignored one it still merges data-* from the server's copy
     // and deletes any the client added. Classes it leaves alone in both cases,
-    // so the frame keeps its own mind across a re-render. `mode` is tracked in a
+    // so the letter box keeps its own mind across a re-render. `mode` is tracked in a
     // plain variable because reading it back out of a class list would be
     // guessing at what we ourselves wrote.
-    const MODES = ["is-empty", "is-voice", "is-face"];
+    // A TEXT LETTER IS A MODE LIKE THE OTHER TWO. It was missing, so a letter
+    // that was only words fell through every branch and landed in the box as a
+    // blank wash — indistinguishable from having no letter at all, which is the
+    // one thing the box must never say by mistake.
+    const MODES = ["is-empty", "is-voice", "is-face", "is-text"];
     const STATES = ["is-present", "is-live", "is-absent"];
     let mode = "empty";
     let src = "";
 
-    const setFrame = (nextMode: string, nextState: string) => {
-      if (!frame) return;
-      frame.classList.remove(...MODES, ...STATES);
-      frame.classList.add(`is-${nextMode}`, `is-${nextState}`);
+    const setLetter = (nextMode: string, nextState: string) => {
+      if (!box) return;
+      box.classList.remove(...MODES, ...STATES);
+      box.classList.add(`is-${nextMode}`, `is-${nextState}`);
       mode = nextMode;
     };
 
@@ -85,24 +96,37 @@ export const Scopes = {
       }
     };
 
-    const showFrame = (el: HTMLElement) => {
-      if (!frame) return;
-      const nextMode = el.dataset.frame || "empty";
+    const showLetter = (el: HTMLElement) => {
+      if (!box) return;
+      // `dataset.letterKind`, and the spelling is the whole story. Renaming the
+      // frame to the letter box rewrote `dataset.frame` into `dataset.letterbox`
+      // along with every class — but the row's attribute is `data-letter-kind`,
+      // so this read `undefined` for every row in the list and the box has shown
+      // nothing at all since. Nothing caught it because the tests assert on what
+      // the SERVER renders, which was correct the whole time. A rename is not a
+      // safe operation on a string that crosses a boundary.
+      const nextMode = el.dataset.letterKind || "empty";
       const nextSrc = el.dataset.media || "";
       const nextState = el.dataset.state || "present";
+      const nextBody = el.dataset.body || "";
 
       // Re-selecting the row that is already playing must not restart it.
       if (mode === nextMode && src === nextSrc) {
-        setFrame(nextMode, nextState);
+        setLetter(nextMode, nextState);
         return;
       }
 
       stopMedia();
-      setFrame(nextMode, nextState);
+      setLetter(nextMode, nextState);
+      // THE WORDS THEMSELVES, for a letter that is only words. A real letter
+      // box takes letters, and the two kinds that play were the only ones this
+      // one would hold. Set before the media branch returns, because a text
+      // letter has nothing to play and leaves by that door.
+      if (words) words.textContent = nextBody;
       src = nextSrc;
       // A new person has arrived, so the previous one's finished-clip control
       // must go with them.
-      frame.classList.remove("is-ended");
+      box.classList.remove("is-ended");
 
       const media = current();
       if (!media || !nextSrc) return;
@@ -138,55 +162,93 @@ export const Scopes = {
         // Belt and braces for a browser with no userActivation API: a face that
         // is still refused falls back to muted, a voice offers the replay.
         if (nextMode !== "face") {
-          frame.classList.add("is-ended");
+          box.classList.add("is-ended");
           return;
         }
         media.muted = true;
-        media.play().catch(() => frame.classList.add("is-ended"));
+        media.play().catch(() => box.classList.add("is-ended"));
       });
     };
 
-    const hideFrame = () => {
-      if (!frame) return;
+    const hideLetter = () => {
+      if (!box) return;
       stopMedia();
-      setFrame("empty", "present");
+      setLetter("empty", "present");
       src = "";
-      frame.classList.remove("is-ended");
+      box.classList.remove("is-ended");
     };
 
     // A clip that runs out has not gone away — the person is still selected and
-    // the frame still theirs, so it keeps the last picture and offers the clip
+    // the letter box still theirs, so it keeps the last picture and offers the clip
     // again rather than blanking.
     for (const m of [video, audio]) {
-      m?.addEventListener("ended", () => frame?.classList.add("is-ended"));
+      m?.addEventListener("ended", () => box?.classList.add("is-ended"));
     }
 
     restart?.addEventListener("click", (e) => {
-      // The frame beneath toggles size on click. Replay is a different intent
+      // The letter box beneath toggles size on click. Replay is a different intent
       // that happens to live inside it, so it must not also resize.
       e.stopPropagation();
       const media = current();
       if (!media) return;
       media.currentTime = 0;
       media.play().catch(() => {});
-      frame?.classList.remove("is-ended");
+      box?.classList.remove("is-ended");
     });
 
-    // EXPAND is a toggle on the frame itself, so the size lives in one
-    // attribute and CSS decides what that is worth in pixels.
-    const toggleExpand = () => {
-      if (!frame) return;
-      const open = frame.classList.toggle("is-expanded");
-      frame.setAttribute("aria-label", open ? "Collapse frame" : "Expand frame");
+    // ── OPENING A BOX ───────────────────────────────────────────────────────
+    // ONE TOGGLE FOR ALL THREE, and it used to be the letter box's alone. That
+    // was right while it was the only box holding more than it could show; the
+    // doing box truncates somebody's own typing and the mood box knows a family
+    // it has no room to name, so all three have a second reading now.
+    //
+    // A CLASS, AND ONLY A CLASS. The size lives in one attribute and CSS decides
+    // what that is worth in pixels — which is also what lets the OTHER boxes get
+    // out of the way in the stylesheet rather than here.
+    //
+    // ONE AT A TIME. Opening a second while the first is open would leave two
+    // 18rem boxes fighting over a rail that fits one, so taking a box closes
+    // whichever was already taken.
+    const boxes = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(".scope-boxes > .around-box, #letterbox"));
+
+    const label = (el: HTMLElement, open: boolean) => {
+      const what = el.id === "letterbox" ? "the letter" : el.dataset.opens || "it";
+      el.setAttribute("aria-label", `${open ? "Collapse" : "Expand"} ${what}`);
     };
 
-    frame?.addEventListener("click", toggleExpand);
-    // role="button" earns a keyboard, and a keyboard expects both of these.
-    frame?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleExpand();
+    const toggleExpand = (el: HTMLElement) => {
+      const open = !el.classList.contains("is-expanded");
+      for (const other of boxes()) {
+        other.classList.remove("is-expanded");
+        label(other, false);
       }
+      if (open) {
+        el.classList.add("is-expanded");
+        label(el, true);
+      }
+    };
+
+    // DELEGATED FROM THE CLUSTER, because the two new boxes are patched by the
+    // server on every settle — a listener bound per box at mount would be bound
+    // to elements that are no longer in the page a scroll later. The letter box
+    // survives patches and could have kept its own; one path for all three is
+    // fewer things to keep in step.
+    const cluster = document.querySelector<HTMLElement>(".scope-boxes");
+    const onBoxPress = (e: Event) => {
+      const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
+      // Replay is a different intent that happens to live inside the box.
+      if (!el || (e.target as HTMLElement).closest?.(".letterbox-restart")) return;
+      toggleExpand(el);
+    };
+    cluster?.addEventListener("click", onBoxPress);
+    // role="button" earns a keyboard, and a keyboard expects both of these.
+    cluster?.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
+      if (!el) return;
+      e.preventDefault();
+      toggleExpand(el);
     });
 
     let settleTimer: number | undefined;
@@ -195,7 +257,7 @@ export const Scopes = {
     // instead of retrying forever.
     let snaps = 0;
 
-    const rowHeight = () => items[0].getBoundingClientRect().height;
+    const rowHeight = () => rows()[0]?.getBoundingClientRect().height || 1;
 
     // WHERE THE BAND SITS IS THE STYLESHEET'S ANSWER, and this reads it rather
     // than restating it. The selection box is already ON that line — the CSS put
@@ -218,7 +280,7 @@ export const Scopes = {
     const nearest = (): { el: HTMLElement; delta: number } | null => {
       const centre = bandCentre();
       let best: { el: HTMLElement; delta: number } | null = null;
-      for (const el of items) {
+      for (const el of rows()) {
         const r = el.getBoundingClientRect();
         const delta = r.top + r.height / 2 - centre;
         if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { el, delta };
@@ -226,7 +288,7 @@ export const Scopes = {
       return best;
     };
 
-    const clear = () => items.forEach((i) => i.classList.remove("is-focused"));
+    const clear = () => rows().forEach((i) => i.classList.remove("is-focused"));
 
     // LEAD AND TRAIL ARE MEASURED, not written into the markup, and that is what
     // frees the list's HEIGHT. They used to be viewport fractions that only
@@ -274,7 +336,7 @@ export const Scopes = {
       // Out of reach — the band is genuinely empty and says so.
       if (!near || Math.abs(near.delta) > rowHeight()) {
         scroll.classList.remove("has-selection");
-        hideFrame();
+        hideLetter();
         report(null);
         snaps = 0;
         return;
@@ -307,25 +369,42 @@ export const Scopes = {
       take(near.el);
     };
 
+    // Each row is its own horizontal snap scroller, so closing one is putting it
+    // back to its first page. Smooth, because it is a reversal of a gesture the
+    // hand just made and should read as the row sliding back rather than
+    // blinking shut.
+    const closeSwipes = () => {
+      for (const row of scroll.querySelectorAll<HTMLElement>(".row-swipe")) {
+        if (row.scrollLeft > 0) row.scrollTo({ left: 0, behavior: "smooth" });
+      }
+    };
+
     const take = (el: HTMLElement) => {
       clear();
       el.classList.add("is-focused");
       scroll.classList.add("has-selection");
-      showFrame(el);
-      report(items.indexOf(el));
+      showLetter(el);
+      report(rows().indexOf(el));
     };
 
     scroll.addEventListener(
       "scroll",
       () => {
+        // A SWIPED ROW CLOSES WHEN THE LIST MOVES. The uncovered action belongs
+        // to one row at rest; once the list is travelling it is an offer made
+        // about a row that is no longer where you left it, and it would still
+        // be sitting open behind whatever settles next. Scrolling away from
+        // something IS declining it.
+        closeSwipes();
+
         // Moving: no selection, no line, and no placeholder either — a row is
         // passing through the band and they would collide.
         scroll.classList.add("is-scrolling");
         scroll.classList.remove("has-selection");
         clear();
-        // The frame leaves with the selection. Sound continuing over a moving
+        // The letter box leaves with the selection. Sound continuing over a moving
         // list would be a voice with nobody attached to it.
-        hideFrame();
+        hideLetter();
         window.clearTimeout(settleTimer);
         settleTimer = window.setTimeout(settle, 140);
       },
@@ -334,12 +413,16 @@ export const Scopes = {
 
     // Tapping a row is the same act as scrolling it in — it travels to the band
     // and the band decides, rather than being selected behind the band's back.
-    items.forEach((el) =>
-      el.addEventListener("click", () => {
-        const r = el.getBoundingClientRect();
-        scroll.scrollBy({ top: r.top + r.height / 2 - bandCentre(), behavior: "smooth" });
-      }),
-    );
+    // DELEGATED, because the rows are replaced by patches and a listener bound
+    // per row at mount would be bound to elements that no longer exist.
+    const onRowClick = (e: Event) => {
+      const el = (e.target as HTMLElement).closest?.(".scopes-item") as HTMLElement | null;
+      // A press on the uncovered action is that action's, not the row's.
+      if (!el || (e.target as HTMLElement).closest?.(".row-scope")) return;
+      const r = el.getBoundingClientRect();
+      scroll.scrollBy({ top: r.top + r.height / 2 - bandCentre(), behavior: "smooth" });
+    };
+    scroll.addEventListener("click", onRowClick);
 
     // THE FIRST REAL GESTURE BUYS THE SOUND BACK. A clip that fell back to
     // muted has no way of knowing when the browser changed its mind, so the
@@ -352,7 +435,7 @@ export const Scopes = {
     document.addEventListener("pointerdown", unhush);
 
     // THE FRAME STOPS WHEN THE PANEL OPENS, and this is why it takes an observer
-    // rather than a line of CSS. The frame answers the BAND, and once the band
+    // rather than a line of CSS. The letter box answers the BAND, and once the band
     // has been picked up and turned into a header there is no band left for it
     // to answer — so app.css hides it. But HIDING A MEDIA ELEMENT DOES NOT
     // SILENCE IT: `visibility: hidden`, `display: none` and removal from the
@@ -360,8 +443,8 @@ export const Scopes = {
     // out of nowhere over an open panel, with no visible thing to press to stop
     // it. So the class that hides it also has to tear the media down.
     //
-    // The class arrives on #scopes from the server, and this hook cannot see
-    // server patches — it lives on the scroller, which is phx-update="ignore".
+    // The class arrives on #scopes from the server, and a hook is told about
+    // patches to its OWN element, not to the root three levels above it.
     // Watching the attribute is the one way to hear about it.
     let wasOpen = root.classList.contains("is-open");
     const watchPanel = new MutationObserver(() => {
@@ -370,10 +453,10 @@ export const Scopes = {
       wasOpen = open;
       // Closing puts back what the selection still says is chosen, so coming
       // out of the panel does not leave an empty box beside a settled row.
-      if (open) hideFrame();
+      if (open) hideLetter();
       else {
-        const focused = items.find((i) => i.classList.contains("is-focused"));
-        if (focused) showFrame(focused);
+        const focused = rows().find((i) => i.classList.contains("is-focused"));
+        if (focused) showLetter(focused);
       }
     });
     watchPanel.observe(root, { attributes: true, attributeFilter: ["class"] });
@@ -382,16 +465,58 @@ export const Scopes = {
     // A frame's grace so the flex layout has resolved a real height to measure.
     requestAnimationFrame(() => requestAnimationFrame(settle));
 
+    // ── WHAT A PATCH IS ALLOWED TO DO ───────────────────────────────────────
+    // RESTORE IS NOT SETTLE, and running the second where the first belongs is
+    // what made the list jump under a moving finger.
+    //
+    // `settle` DECIDES: it can smooth-scroll the nearest row into the band and
+    // it can tell the server the selection changed. Both are right when a
+    // gesture has ended and wrong when a patch arrives — a patch is the
+    // server answering something the hook already said, so settling again on
+    // the strength of it starts the same conversation over: scrollBy fires a
+    // scroll event, the scroll event settles, the settle reports, the report
+    // patches. `restore` only puts back what the patch took away.
+    const restore = () => {
+      pad();
+      const focused = rows()[reported ?? -1];
+      if (!focused) return;
+      focused.classList.add("is-focused");
+      scroll.classList.add("has-selection");
+      // AND THE LETTER WITH IT. The rows are replaced by the patch, so the box
+      // is now holding a letter read off an element that is no longer in the
+      // page — and if that row's letter changed (somebody wrote while you were
+      // looking at them) the box would be showing the old one.
+      showLetter(focused);
+    };
+
+    let pending = 0;
+    this.resettle = () => {
+      // NOT DURING A GESTURE. The finger is the authority while it is down;
+      // re-measuring underneath it is how the list ended up somewhere the
+      // person scrolling did not put it.
+      if (scroll.classList.contains("is-scrolling")) return;
+      cancelAnimationFrame(pending);
+      pending = requestAnimationFrame(restore);
+    };
+
     this.cleanup = () => {
+      cluster?.removeEventListener("click", onBoxPress);
+      cancelAnimationFrame(pending);
       watchPanel.disconnect();
+      scroll.removeEventListener("click", onRowClick);
       document.removeEventListener("pointerdown", unhush);
       window.removeEventListener("resize", settle);
     };
   },
 
-  // Swapping the list re-mounts this hook, so the old one's observer and its two
+  updated(this: HookCtx) {
+    this.resettle?.();
+  },
+
+  // Swapping the list re-mounts this hook, so the old one's observer and its
   // document-level listeners have to go with it or they accumulate one set per
   // switch, each holding a dead scroller.
+
   destroyed(this: HookCtx) {
     this.cleanup?.();
   },

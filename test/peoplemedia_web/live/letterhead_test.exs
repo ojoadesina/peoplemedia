@@ -1,0 +1,241 @@
+defmodule PeoplemediaWeb.LetterheadTest do
+  @moduledoc """
+  THE ACT WRITES, AND WHERE YOU PRESSED IT FROM SAYS WHO TO.
+
+  Nobody is ever asked "who is this for?" — the surface already knows, and these
+  tests are that claim written down. The failure they exist to catch is silent
+  in both directions: a letterhead that quietly went to one person, and a letter
+  meant for somebody that went to the world.
+  """
+  use PeoplemediaWeb.ConnCase
+
+  import Phoenix.LiveViewTest
+  import Peoplemedia.Fixtures
+
+  alias Peoplemedia.{Letters, Notifications, Relationships}
+
+  setup %{conn: conn} do
+    me = cast()
+    %{conn: check_in(conn, me), me: me}
+  end
+
+  describe "the act" do
+    test "from the list it writes a letterhead, to the world and to nobody", %{
+      conn: conn,
+      me: me
+    } do
+      {:ok, live, _} = live(conn, ~p"/")
+
+      # TWO HALVES OF ONE PRESS, and this is the server's half. The other — the
+      # room opening — is `data-open-room` on the same button.
+      live |> element("#act") |> render_click()
+      assert render(live) =~ "TO THE WORLD"
+
+      render_submit(live, :write_letter, %{"body" => "hello everyone"})
+
+      assert [head] = Letters.broadcasts_by(me.id)
+      assert head.body == "hello everyone"
+
+      # THE RECEIPT. A send is the one act with no room left to report into —
+      # the room closes on the way out — so it says who it went to on the toast.
+      assert_push_event(live, "toast", %{words: "SENT TO THE WORLD"})
+
+      # NOBODY IS TOLD, because a letterhead is not addressed to anybody. A
+      # badge for it would be an obligation the app invented, and one nothing
+      # on their screen could discharge.
+      for {_scope, them} <- Relationships.held_by(me.id) do
+        assert Notifications.unread_count(them.id) == 0
+      end
+    end
+
+    # THE BAND IS NOT THE PANEL. A name passing under the band is not a claim
+    # that you are on that person's page, and an act whose meaning changed as
+    # the list scrolled would be one you had to check before pressing.
+    test "a name settled in the band does not target it", %{conn: conn, me: me} do
+      {:ok, live, _} = live(conn, ~p"/")
+      render_hook(live, "select", %{"index" => 0})
+
+      live |> element("#act") |> render_click()
+      assert render(live) =~ "TO THE WORLD"
+
+      render_submit(live, :write_letter, %{"body" => "still to nobody"})
+      assert [%{body: "still to nobody"}] = Letters.broadcasts_by(me.id)
+    end
+
+    test "from inside somebody's page it writes to them, and leaves the page open", %{
+      conn: conn,
+      me: me
+    } do
+      [{_scope, them} | _] = Relationships.held_by(me.id)
+
+      {:ok, live, _} = live(conn, ~p"/")
+      render_hook(live, "select", %{"index" => 0})
+      live |> element(".focus-box") |> render_click()
+      assert has_element?(live, "#panel")
+
+      live |> element("#act") |> render_click()
+      assert render(live) =~ "A LETTER TO #{them.name}"
+
+      render_submit(live, :write_letter, %{"body" => "just for you"})
+
+      # It went to them, as a letter and not as a letterhead.
+      assert [newest | _] = Letters.thread(me.id, them.id)
+      assert newest.body == "just for you"
+      assert Letters.broadcasts_by(me.id) == []
+      assert Notifications.unread_count(them.id) >= 1
+      assert_push_event(live, "toast", %{words: words})
+      assert words == "SENT TO #{String.upcase(them.name)}"
+
+      # AND THE PAGE YOU WROTE FROM IS STILL OPEN. Sending used to run through
+      # the same reset the list uses after you scope somebody, which drops the
+      # mode — so writing to the person whose page you were on closed it.
+      assert has_element?(live, "#panel")
+    end
+
+    test "from your own page it writes a letterhead, not a letter to yourself", %{
+      conn: conn,
+      me: me
+    } do
+      {:ok, live, _} = live(conn, ~p"/")
+      live |> element("#self") |> render_click()
+      assert has_element?(live, "#panel")
+
+      live |> element("#act") |> render_click()
+      assert render(live) =~ "TO THE WORLD"
+
+      render_submit(live, :write_letter, %{"body" => "out loud"})
+
+      assert [%{body: "out loud"}] = Letters.broadcasts_by(me.id)
+      assert has_element?(live, "#panel")
+    end
+
+    test "a letterhead with no words is refused, and says so in the room", %{
+      conn: conn,
+      me: me
+    } do
+      {:ok, live, _} = live(conn, ~p"/")
+      live |> element("#act") |> render_click()
+
+      assert render_submit(live, :write_letter, %{"body" => "   "}) =~ "SAY SOMETHING"
+      assert Letters.broadcasts_by(me.id) == []
+    end
+  end
+
+  describe "your own page" do
+    test "the self button opens it over your own name and closes it again", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      refute has_element?(live, "#panel")
+
+      live |> element("#self") |> render_click()
+      assert has_element?(live, "#panel")
+      # The header carries your own name — a label is what you call somebody
+      # else, and you do not call yourself anything.
+      assert live |> element(".focus-name") |> render() =~ "OJO"
+
+      live |> element("#self") |> render_click()
+      refute has_element?(live, "#panel")
+    end
+
+    test "it holds your letterheads, newest first, and nothing you wrote to one person", %{
+      conn: conn,
+      me: me
+    } do
+      [{_scope, them} | _] = Relationships.held_by(me.id)
+      {:ok, _} = Letters.broadcast(me.id, "world", %{kind: "text", body: "the older one"})
+      {:ok, _} = Letters.broadcast(me.id, "world", %{kind: "text", body: "the newer one"})
+      {:ok, _} = Letters.write(me.id, them.id, %{kind: "text", body: "just for you"})
+
+      {:ok, live, _} = live(conn, ~p"/")
+      page = live |> element("#self") |> render_click()
+
+      # Two rows, both yours, newest at the top — and the letter to one person
+      # is not among them. It lives on their page, where the answers to it are.
+      assert page |> String.split(~s(class="panel-item)) |> length() == 3
+      refute page =~ "just for you"
+    end
+
+    # A page is the letters you have written, and a visitor cannot have written
+    # any — so there is no button rather than a button that says no.
+    test "a visitor has none", %{conn: _conn} do
+      {:ok, live, _} = live(build_conn(), ~p"/")
+      refute has_element?(live, "#self")
+    end
+  end
+
+  describe "the foot" do
+    test "the act writes and the more button opens the launcher", %{conn: conn, me: me} do
+      # ONE MARK, ONE PROMISE. The plus said MAKE SOMETHING and opened a drawer;
+      # it makes something now, and the drawer has a door of its own.
+      {:ok, live, _} = live(conn, ~p"/")
+
+      assert has_element?(live, ~s(#act[data-open-room="write"][phx-click="write_head"]))
+      assert has_element?(live, "#more")
+      assert has_element?(live, ~s(#self[phx-click="open_self"]))
+
+      # THE COUNT RIDES THE DOOR, and the door moved. Left on the act it would
+      # be a badge on a button that cannot discharge it.
+      {:ok, _} = Notifications.notify(me.id, "scope_request", nil)
+      send(live.pid, :stir)
+
+      assert has_element?(live, "#more .launcher-badge")
+      refute has_element?(live, "#act .launcher-badge")
+    end
+
+    # THE RECEIPT HAS TO SURVIVE THE PATCH IT ARRIVES WITH. The toast element's
+    # `class` and `hidden` are exempt because the hook writes them — but the
+    # LINE inside is an ordinary child the server renders blank, so any patch in
+    # the six-second window wiped the sentence and left an empty terracotta box
+    # on screen. Opening a panel was enough to do it.
+    test "the toast's words are the client's, and a patch cannot take them" do
+      markup = File.read!("lib/peoplemedia_web/live/index_live.ex")
+      line = Regex.run(~r/<p\s+id="toast-line"[\s\S]{0,200}/, markup) |> List.first()
+
+      assert line =~ ~s(phx-update="ignore"),
+             "a patch will blank the receipt and leave the box"
+    end
+
+    # The strings that cross from Elixir into TypeScript, checked on both sides
+    # — the house has been bitten by exactly that before, and a rename is not a
+    # safe operation on one.
+    test "the launcher hook reaches for the button that now opens it" do
+      hook = File.read!("assets/js/hooks/launcher.ts")
+      assert hook =~ ~s|getElementById("more")|, "the launcher's door is the more button"
+      assert hook =~ ~s|querySelector<HTMLElement>(".app-foot")|
+    end
+
+    # WITHOUT THIS THE TARGETED LETTER HAS NO DOOR. The foot used to fade out
+    # with the header when a panel opened, on the reasoning that an act over an
+    # open conversation points at nothing — which this feature inverts exactly.
+    test "the foot does not fade out behind a panel" do
+      css = File.read!("assets/css/app.css")
+
+      refute css =~ "#scopes.is-open .app-foot",
+             "the act must stay while a panel is open, or it cannot write to the person in it"
+
+      assert css =~ "#scopes.is-open .app-head"
+    end
+
+    # THE BUG THIS CAUGHT, WHICH LOOKED LIKE A HAUNTING. `is-away` moved from
+    # the act to the row around it, and `pointer-events: none` on a parent is
+    # not a thing a child cannot undo — all three buttons set
+    # `pointer-events-auto` to opt in, so they kept taking presses at zero
+    # opacity. The foot is z-50 and the launcher's own foot is z-20 at the same
+    # `bottom`, so pressing the launcher's X pressed the ACT sitting invisibly
+    # on top of it, and the write room opened for no reason anybody could see.
+    test "the buttons stop taking presses when the foot steps aside" do
+      css = File.read!("assets/css/app.css")
+
+      assert css =~ ".app-foot.is-away button",
+             "the buttons must lose pointer-events, not the row — they opt back in"
+    end
+
+    # An empty check invites an act and then refuses it, which is the fault the
+    # row's own SCOPE word was fixed for. The browser knows the field is empty;
+    # asking the server would be a round trip per keystroke.
+    test "the check is not offered until there is a letter" do
+      css = File.read!("assets/css/app.css")
+      assert css =~ ~s|:has(.compose-field:placeholder-shown)|
+      assert File.read!("lib/peoplemedia_web/components/launcher.ex") =~ "compose-field"
+    end
+  end
+end

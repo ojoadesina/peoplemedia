@@ -8,6 +8,13 @@ defmodule Peoplemedia.Notifications do
   only on a live broadcast, because a PubSub message that arrives at nobody is
   simply gone.
 
+  AND IT ALSO BROADCASTS, which is not a contradiction: the row is the truth and
+  the broadcast is a nudge to go and re-read it. Without the nudge a handshake
+  answered on one screen sat invisible on the other until somebody reloaded —
+  the two people in a two-person act looking at different versions of it. The
+  broadcast carries no payload for exactly that reason; a receiver that trusted
+  its contents would be trusting a message that may never arrive.
+
   `notify/4` UPSERTS onto an existing unread row of the same (person, kind,
   actor): scoping the same person twice bumps one notification rather than
   stacking two, which is the difference between a badge that counts events and a
@@ -18,12 +25,31 @@ defmodule Peoplemedia.Notifications do
   alias Peoplemedia.Notifications.Notification
   alias Peoplemedia.Repo
 
+  @doc "Everything happening to one person. Their own surface listens here."
+  def topic(person_id), do: "person:#{person_id}"
+
+  def subscribe(person_id),
+    do: Phoenix.PubSub.subscribe(Peoplemedia.PubSub, topic(person_id))
+
+  @doc """
+  Tell a person's open screens that something about them changed. A nudge, not
+  news — see the moduledoc. Safe to call for somebody with nothing open.
+  """
+  def stir(person_id),
+    do: Phoenix.PubSub.broadcast(Peoplemedia.PubSub, topic(person_id), :stir)
+
   @doc """
   Tell `person_id` that `actor_id` did `kind`. UPSERTS onto an existing UNREAD
   row of the same (person, kind, actor) — a repeated scope request bumps the
   one notification instead of stacking duplicates.
   """
   def notify(person_id, kind, actor_id \\ nil, data \\ %{}) do
+    result = do_notify(person_id, kind, actor_id, data)
+    stir(person_id)
+    result
+  end
+
+  defp do_notify(person_id, kind, actor_id, data) do
     # Branch on nil in Elixir, not SQL — a pinned `is_nil(^actor_id)` produced an
     # untyped `$n IS NULL` parameter that Postgres rejects (42P18) at runtime.
     base =

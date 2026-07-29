@@ -113,7 +113,7 @@ defmodule Peoplemedia.Identity do
 
       :ok ->
         if Bcrypt.verify_pass(code, passport.code_hash) do
-          burn_secret(secret_id)
+          unless master?(passport), do: burn_secret(secret_id)
           reset_code_attempts(passport)
           update_strength(passport, recompute_strength(passport.id))
           {:ok, Repo.get(Person, passport.person_id)}
@@ -141,6 +141,24 @@ defmodule Peoplemedia.Identity do
             Repo.rollback(reason)
         end
       end)
+    end
+  end
+
+  @doc """
+  Set the 4-digit code, clearing whatever failed attempts were against the old
+  one. There is no "old code" argument because this is not a password change —
+  the code is the second factor and proving you hold it is what check-in does.
+  Reaching this at all means you got in.
+  """
+  def reset_code(%Passport{} = passport, code) do
+    with :ok <- validate_code(code) do
+      passport
+      |> Passport.changeset(%{
+        code_hash: Bcrypt.hash_pwd_salt(code, log_rounds: @bcrypt_code_rounds),
+        code_attempts: 0,
+        locked_until: nil
+      })
+      |> Repo.update()
     end
   end
 
@@ -209,6 +227,9 @@ defmodule Peoplemedia.Identity do
       Enum.any?(words, &(!Regex.match?(@secret_format, &1))) ->
         {:error, :invalid_secret_format}
 
+      # WITHIN THIS SUBMISSION ONLY, and it cannot mean more — see the note on
+      # `master?/1`. A caller who wants the same word twice can simply send it
+      # in two batches, and nothing here will notice.
       length(Enum.uniq(words)) != length(words) ->
         {:error, :duplicate_secrets}
 
@@ -263,6 +284,43 @@ defmodule Peoplemedia.Identity do
         order_by: [asc: :order]
       )
     )
+  end
+
+  # ── THE MASTER PASSPORT ─────────────────────────────────────────────────────
+  # ONE HANDLE WHOSE WORDS ARE NOT SPENT, so there is an account you can check
+  # into twenty times in an afternoon while working on the thing.
+  #
+  # THIS IS A HOLE IN THE SCHEME AND IT IS MEANT TO SHOW. A one-time word that
+  # is not one-time is the whole mechanism switched off for that account, so it
+  # is named in config rather than written into this function: `nil` by default,
+  # which means every passport burns, and the only way to open the hole is to
+  # say out loud in a config file which handle it is open for.
+  #
+  # WHAT THIS REPLACES was worse, and worth recording. The demo account was
+  # seeded with twelve copies of the same word so that burning one still left
+  # eleven. `validate_secrets/2` forbids repeats, but only WITHIN ONE
+  # SUBMISSION — twelve one-word top-ups never see each other — so it passed
+  # every check the module makes while plainly breaking what the rule means.
+  # A rule you satisfy by splitting the input is not a rule you followed.
+  #
+  # It also cannot be tightened, and that is worth knowing rather than
+  # attempting: secrets are bcrypt hashes with per-row salts, so two hashes of
+  # the same word are different strings. Catching a repeat against the existing
+  # bank would mean verifying every candidate against every stored hash on every
+  # top-up. "No repeats within one submission" is all this check can ever mean.
+  @master_handle Application.compile_env(:peoplemedia, :master_handle)
+
+  defp master?(%Passport{id: id}) do
+    # No handle configured is the normal case, and it costs no query.
+    if is_nil(@master_handle) do
+      false
+    else
+      Repo.exists?(
+        from(h in PassportHandle,
+          where: h.passport_id == ^id and h.handle_code == ^normalize_handle(@master_handle)
+        )
+      )
+    end
   end
 
   defp burn_secret(secret_id) do

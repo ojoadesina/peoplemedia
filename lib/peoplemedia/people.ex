@@ -25,4 +25,21 @@ defmodule Peoplemedia.People do
   end
 
   def change_person(%Person{} = person, attrs \\ %{}), do: Person.changeset(person, attrs)
+
+  @doc "Change what is true about somebody — today, the country they are in."
+  def update_person(%Person{} = person, attrs) do
+    person |> Person.changeset(attrs) |> Repo.update()
+  end
+
+  @doc """
+  Appear to other people, or do not.
+
+  ITS OWN FUNCTION AND ITS OWN CHANGESET, rather than a field on `update_person/2`,
+  because everything else on this row is a FACT about somebody and this is the one
+  PREFERENCE. A form that could edit your country and your visibility through the
+  same door is a form where one of them gets changed by accident.
+  """
+  def set_around_hidden(%Person{} = person, hidden) do
+    person |> Person.around_changeset(%{around_hidden: hidden}) |> Repo.update()
+  end
 end

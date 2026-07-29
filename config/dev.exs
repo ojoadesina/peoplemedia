@@ -88,3 +88,14 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# ── THE MASTER PASSPORT ───────────────────────────────────────────────────────
+# One handle whose one-time words are NOT spent when they are used, so there is
+# an account you can check into over and over while working on the thing.
+#
+# IT LIVES HERE RATHER THAN IN THE CODE because it is the passport scheme turned
+# off for one account, and a hole like that has to be visible and switchable. Set
+# to nil — or simply absent, which is the default — and every word burns.
+#
+#     name: angel    word: angel    code: 0000
+config :peoplemedia, master_handle: "angel"

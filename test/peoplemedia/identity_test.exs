@@ -91,6 +91,42 @@ defmodule Peoplemedia.IdentityTest do
       assert {:error, :invalid_credentials} = Identity.check_key("sarah", "harbour")
     end
 
+    test "the master handle's words are not spent" do
+      # THE ONE EXEMPTION. It exists so a demo account can be checked into over
+      # and over; the test exists so it stays ONE account. The handle is named in
+      # config/test.exs and belongs to no fixture, so the test above — where
+      # sarah's word IS burned — is what proves the exemption is not general.
+      #
+      # It replaces a worse arrangement: the demo passport used to hold twelve
+      # copies of one word, which slipped past the no-repeats rule only because
+      # that rule looks within a single submission.
+      person = person("master")
+      {:ok, passport} = Identity.create_passport(person, "master", ~w(alpha beta gamma), @code)
+
+      {:ok, _, secret_id} = Identity.check_key("master", "alpha")
+      {:ok, _} = Identity.check_code(passport, @code, secret_id)
+
+      assert {:ok, _, _} = Identity.check_key("master", "alpha")
+    end
+
+    test "the code can be set again, and the failed attempts go with it" do
+      # NOT A PASSWORD CHANGE — there is no old code to prove, because reaching
+      # this at all means you got in. It exists because a passport whose code is
+      # wrong is a passport nothing can repair: the seed for the demo account
+      # only ever CREATED one, so a bad code survived every re-run and the
+      # credentials written down in a comment stopped being true.
+      {_p, passport} = passported()
+      {:ok, _, sid} = Identity.check_key("sarah", "harbour")
+      {:error, :wrong_code} = Identity.check_code(passport, "9999", sid)
+
+      {:ok, changed} = Identity.reset_code(Identity.get_passport(passport.person_id), "5150")
+      assert changed.code_attempts == 0
+
+      {:ok, _, sid2} = Identity.check_key("sarah", "lantern")
+      assert {:ok, _} = Identity.check_code(changed, "5150", sid2)
+      assert {:error, :invalid_code_format} = Identity.reset_code(changed, "abc")
+    end
+
     test "an unknown handle answers exactly like a wrong word" do
       {_p, _} = passported()
       assert {:error, :invalid_credentials} = Identity.check_key("nobody", "harbour")

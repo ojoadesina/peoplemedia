@@ -102,10 +102,41 @@
   --color-neutral-900: #333333;
   --color-neutral-950: #262626;
 
+  /* ── THE MOODS ──────────────────────────────────────────────────────────────
+     ONE HUE PER FAMILY, NOT PER MOOD. There are forty-eight feelings in the
+     vocabulary and seven colours here, and that ratio is the whole design: a
+     colour you would have to learn forty-eight times is not a language, and
+     inside a family the words differ by INTENSITY — annoyed, irritated,
+     furious — so the colour says the weather and the word says the temperature.
+     Vent's lesson, and the reason a set this size stays scannable at all.
+
+     THEY LIVE NOWHERE BUT THE MOOD BOX. This is the only palette in the app
+     that is not semantic — terracotta means attention, sage means receipt,
+     neutral means chrome, and these mean only themselves.
+
+     AND THEY ARE MUTED WHERE VENT'S SHOUT. Theirs are full-saturation fills
+     that carry a whole screen; every ramp here is desaturated, so these sit at
+     roughly primary-500's saturation and are used at 18% over the page. A mood
+     at full strength would be louder than the unread mark, and the unread mark
+     is the one thing on this surface actually asking for you.
+
+     `anger` IS NOT primary-500. It is a deeper brick, near it and not it, so
+     the attention colour keeps its monopoly on meaning "look here". */
+  --color-mood-joy: #d9a441;
+  --color-mood-calm: #6f9c8b;
+  --color-mood-love: #d08a8f;
+  --color-mood-anger: #b5503f;
+  --color-mood-sorrow: #6d82a3;
+  --color-mood-flat: #8a8177;
+  --color-mood-fear: #8d7c9c;
+
   --color-sky-300: #7dd3fc;
   --color-sky-400: #38bdf8;
   --color-sky-500: #0ea5e9;
   --color-sky-600: #0284c7;
+  /* A dark enough sky to set words on a pale wash — the ramp stopped at 600,
+     which is a fill colour and too bright to read as text on cream. */
+  --color-sky-700: #036da6;
 
   /* Custom Font Sizes */
   --text-xs: 0.6rem;
@@ -596,7 +627,7 @@ html[data-theme="dark"] {
    that read fine across a wide band all but sealed a short one shut. Vertical
    arms are sized against the height they sit in. */
 .focus-box::before,
-.frame::before,
+.letterbox::before,
 .band::before,
 .stage::before,
 .live-reticle::before {
@@ -622,7 +653,7 @@ html[data-theme="dark"] {
     linear-gradient(var(--rg-bracket) 0 0) 100% 100% / var(--b) var(--ay) no-repeat;
 }
 /* 61px square: 14px arms leave 33px open on every side. */
-.frame::before {
+.letterbox::before {
   --ax: 14px;
   --ay: 14px;
 }
@@ -688,7 +719,7 @@ html[data-theme="dark"] {
    contents cannot leak past its edge. So the surface breathes instead, and the
    same element takes a face, or a call, with nothing about its shape changing.
 
-   The pulse rides the SCREEN rather than .frame, because .frame owns the
+   The pulse rides the SCREEN rather than .letterbox, because .letterbox owns the
    opacity the selection fades in and out — one element animating both would
    have the heartbeat fighting the reveal. */
 /* THE MODE is a data attribute the hook writes, so all three states are one
@@ -698,7 +729,7 @@ html[data-theme="dark"] {
    whole message. FACE holds still — a picture that pulsed would be a fault, not
    a feature. EMPTY does neither and simply sits there, which is what "no signal"
    should look like. */
-.frame.is-voice .frame-screen {
+.letterbox.is-voice .letterbox-screen {
   animation: frame-voice 1.5s ease-in-out infinite;
 }
 @keyframes frame-voice {
@@ -726,9 +757,51 @@ html[data-theme="dark"] {
    being alive rather than two things blinking. This is the only state that
    touches the brackets at all — they otherwise mean "aimed", which is a fact
    about the band and has nothing to do with the line. */
-.frame.is-live.is-empty .frame-screen {
+.letterbox.is-live.is-empty .letterbox-screen {
   animation: frame-voice 1.5s ease-in-out infinite;
 }
+/* ── THE WORDS ────────────────────────────────────────────────────────────────
+   A text letter is the only kind this app can actually write yet, and until now
+   it was the only kind the box could not show — it fell through to a blank wash
+   that read as "nothing here", which is the one thing this box must never say by
+   mistake.
+
+   CLIPPED, NOT SHORTENED. At 56px (44px on a phone) there is room for a few
+   words and no more, and where the sentence stops is arbitrary — so it is cut by
+   the box rather than by an ellipsis, which would claim the cut was a decision.
+   Pressing the box opens it; that is what asks for the rest.
+
+   NOT UPPERCASE, and no tracking. Everything else on this surface is set in
+   capitals because it is the app talking. This is a person talking. */
+.letterbox-words {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 0.3rem 0.35rem;
+  overflow: hidden;
+  font-size: 0.5rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-primary-700);
+  overflow-wrap: anywhere;
+}
+[data-theme="dark"] .letterbox-words {
+  color: var(--color-primary-200);
+}
+.letterbox.is-text .letterbox-words {
+  display: block;
+}
+
+/* OPENED, it is a letter rather than a glimpse: room to breathe, a readable
+   size, and it scrolls if the person had more to say than fits. */
+.letterbox.is-expanded .letterbox-words {
+  padding: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
 /* THE RETICLE. The arms travel OUTWARD and close back onto the frame, over and
    over, the way a sight opens and then locks. It is inset that moves, not
    transform: scaling the pseudo-element would thicken the 3px arms along with
@@ -738,7 +811,7 @@ html[data-theme="dark"] {
 
    It closes SHARPLY and opens gently — ease-in on the way home, with the locked
    position held to 100% — so the moment of acquiring is the part you notice. */
-.frame.is-live::before {
+.letterbox.is-live::before {
   animation: frame-live 1.9s cubic-bezier(0.33, 0, 0.2, 1) infinite;
 }
 @keyframes frame-live {
@@ -761,7 +834,7 @@ html[data-theme="dark"] {
    after the clip has finished would be the interface lying about the line. It
    settles at full opacity rather than mid-breath, so the surface the replay
    control sits on is not itself a moving target. */
-.frame.is-ended .frame-screen {
+.letterbox.is-ended .letterbox-screen {
   animation: none;
   opacity: 1;
 }
@@ -769,26 +842,26 @@ html[data-theme="dark"] {
 /* ABSENT drains the screen of temperature. It beats the utility on the element
    because an id plus an attribute outranks a class, and because this rule is
    unlayered while Tailwind's utilities are not. */
-.frame.is-absent .frame-screen {
+.letterbox.is-absent .letterbox-screen {
   background-color: var(--rg-absent);
 }
 
 /* The video only exists once there is a face to put in it. Hidden rather than
    removed, so the element keeps its buffer between selections. */
-.frame-video {
+.letterbox-video {
   display: none;
 }
-.frame.is-face .frame-video {
+.letterbox.is-face .letterbox-video {
   display: block;
 }
 
 /* THE REPLAY CONTROL appears only once there is something to replay. It is a
    real button rather than a click target painted on the screen, so it reaches
    the keyboard and announces itself to a screen reader. */
-.frame-restart {
+.letterbox-restart {
   display: none;
 }
-.frame.is-ended .frame-restart {
+.letterbox.is-ended .letterbox-restart {
   display: flex;
 }
 
@@ -796,7 +869,7 @@ html[data-theme="dark"] {
    with the box the way a border would — at 18rem the 14px arms read as specks.
    They grow to match, which is the whole reason this rule exists rather than
    living inline with the sizes. */
-.frame.is-expanded::before {
+.letterbox.is-expanded::before {
   --ax: 42px;
   --ay: 42px;
 }
@@ -843,25 +916,54 @@ html[data-theme="dark"] {
      already has the idiom: the mark, the line and the boxes all yield when
      something takes the page over. Getting the height without it would mean
      drawing a face through the words. */
-.frame.is-expanded {
+.letterbox.is-expanded {
   width: 18rem;
   height: 18rem;
   padding: 1rem;
 }
-.scope-boxes:has(.frame.is-expanded) > button {
+/* ANY EXPANDED BOX TAKES THE RAIL, and the others get out of its way.
+
+   IT WAS THE LETTER BOX'S PRIVILEGE ALONE, which was right while it was the only
+   box with more to show than it could. All three have more now — a doing that
+   was truncated, a mood among forty-seven others — so the rule is about
+   EXPANSION rather than about which box did it, and a fourth box would inherit
+   it without anybody remembering to come back here. */
+.scope-boxes:has(.is-expanded) > :not(.is-expanded) {
+  display: none;
+}
+/* Sized like the letter box, because they are the same object at the same
+   moment: one thing on the rail, opened. */
+.around-box.is-expanded {
+  width: 18rem;
+  height: 18rem;
+}
+.around-box.is-expanded .around-full {
+  display: flex;
+}
+.around-box.is-expanded .around-brief {
+  display: none;
+}
+.around-full {
   display: none;
 }
 @media (max-width: 66rem) {
-  .frame.is-expanded {
+  .around-box.is-expanded {
     width: 100%;
     height: 9.5rem;
   }
-  #scopes:has(.frame.is-expanded) .lede {
+}
+@media (max-width: 66rem) {
+  .letterbox.is-expanded {
+    width: 100%;
+    height: 9.5rem;
+  }
+  #scopes:has(.scope-boxes .is-expanded) .lede,
+  #scopes:has(.scope-boxes .is-expanded) .list-tags {
     opacity: 0;
     visibility: hidden;
   }
 }
-.frame.is-expanded .frame-restart svg {
+.letterbox.is-expanded .letterbox-restart svg {
   width: 2.5rem;
   height: 2.5rem;
 }
@@ -869,9 +971,9 @@ html[data-theme="dark"] {
 @media (prefers-reduced-motion: reduce) {
   /* Held at the bright end, not the faint one: with the motion gone these are
      just surfaces, and they should read as present rather than switched off. */
-  .frame.is-voice .frame-screen,
-  .frame.is-live.is-empty .frame-screen,
-  .frame.is-live::before {
+  .letterbox.is-voice .letterbox-screen,
+  .letterbox.is-live.is-empty .letterbox-screen,
+  .letterbox.is-live::before {
     animation: none;
     opacity: 1;
     /* Back on the frame, not stranded wherever the sweep was cancelled. */
@@ -902,9 +1004,6 @@ html[data-theme="dark"] {
    than appearing all at once at the moment it clears the edge. */
 .scopes-scroll {
   --list-top: calc(var(--band-top) - var(--band-h) / 2);
-  /* The mirror of the rows' `pan-x`: this scroller takes the vertical axis and
-     leaves the horizontal to whichever row the finger started on. */
-  touch-action: pan-y;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
   mask-image: linear-gradient(
@@ -989,7 +1088,8 @@ html[data-theme="dark"] {
    does not silence it — a hidden element, or a detached one, goes on playing —
    so a purely visual rule here would have left a voice coming out of nowhere
    over an open panel. */
-#scopes.is-open .frame {
+#scopes.is-open .letterbox,
+#scopes.is-open .around-box {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1043,6 +1143,7 @@ html[data-theme="dark"] {
    full-width video. The three controls fade; the answer stays. */
 #scopes.is-open .mark-slot,
 #scopes.is-open .lede,
+#scopes.is-open .list-tags,
 #scopes.is-open .scope-boxes > button,
 .list-away .scopes-scroll {
   opacity: 0;
@@ -1053,6 +1154,7 @@ html[data-theme="dark"] {
 }
 .mark-slot,
 .lede,
+.list-tags,
 .scope-boxes > button {
   transition:
     opacity 220ms ease-out,
@@ -1279,7 +1381,7 @@ html:not([data-theme]) .presence-row .stream-name {
 .scopes-scroll:not(.has-selection):not(.is-scrolling) ~ .bar .focus-empty {
   opacity: 1;
 }
-/* `~ .scope-boxes .frame`, NOT `~ .frame`, and that changed when the frame
+/* `~ .scope-boxes .letterbox`, NOT `~ .letterbox`, and that changed when the frame
    stopped being a box pinned to the rail and became the third box in the
    cluster. The sibling combinator matches the SIBLING itself, so the moment the
    frame moved inside `.scope-boxes` the old selector stopped matching and the
@@ -1287,8 +1389,161 @@ html:not([data-theme]) .presence-row .stream-name {
    looks exactly like a frame with nothing to show. The cluster is still a
    following sibling of the scroller, so the mechanism is intact; it is one
    level deeper. */
-.scopes-scroll.has-selection ~ .scope-boxes .frame {
+/* THE LETTER BOX STANDS THERE EMPTY TOO, and its old law is retired with a
+   note rather than deleted.
+
+   IT WAS "A LETTER BOX WITH NO LETTER SHOULD NOT BE ON THE WALL", and that was
+   right while it was the only thing on the rail: one box coming and going reads
+   as an answer arriving. It is one of THREE now, and the same rule applied to
+   all three left the entire right half of the screen blank until something
+   settled — a surface that reads as half-drawn rather than as waiting. Three
+   empty boxes are a rail; one empty box was a gap. */
+.scope-boxes .letterbox {
   opacity: 1;
+}
+/* HERE, WITH THE CAMERA OFF. The commonest around there is, and the third box
+   says so by breathing rather than by holding a word — it is the one box whose
+   subject is not something you chose. It will hold a face or a voice when there
+   is one; until then the honest content is the fact of somebody being there. */
+.presence-pulse {
+  animation: presence-breathe 2.4s ease-in-out infinite;
+}
+@keyframes presence-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presence-pulse {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ── THE AROUND BOXES ─────────────────────────────────────────────────────────
+   THEY ARRIVE WITH THE SELECTION, exactly as the letter box does and by exactly
+   the same mechanism — a sibling combinator off the scroller's own class. What
+   they hold is a fact about the person under the band, so there is nothing for
+   them to say while the list is moving.
+
+   AN EMPTY ONE STAYS, though. The letter box's law is the opposite — a letter
+   box with no letter should not be on the wall — and the difference is that
+   there is exactly one letter box and it is anchored to the app's right edge. If
+   these collapsed, it would slide left every time a silent person passed through
+   the band. So they keep their slot, hold nothing, and draw nothing. */
+.around-box {
+  transition:
+    opacity 300ms ease-out,
+    width 300ms ease-out,
+    height 300ms ease-out;
+}
+/* THEY STAND THERE EMPTY RATHER THAN NOT STANDING THERE. The letter box's own
+   law is the opposite — a letter box with no letter should not be on the wall —
+   and the difference is that these three are the RAIL. Gone, the whole right
+   half of the screen was blank until something settled, so the surface read as
+   half-drawn rather than as waiting; and every settle then popped three boxes
+   into existence beside a band that had only moved a row.
+
+   An empty one holds its wash and says nothing, which is the same thing an
+   empty band does at the top of the list. */
+.scope-boxes .around-box {
+  opacity: 1;
+}
+
+/* THE MOOD'S OWN COLOUR, and the only one in the app that means only itself.
+   The word keeps the ordinary ink; the WASH carries the hue, at a strength that
+   can never outshout an unread mark.
+
+   KEYED ON THE FAMILY, NOT THE MOOD. Forty-eight selectors would be forty-eight
+   chances for one of them to go stale the day a word is added — and the family
+   is where the colour actually lives. */
+.mood-box[data-family="joy"],
+.panel-around[data-family="joy"],
+.mood-word[data-family="joy"] {
+  --mood: var(--color-mood-joy);
+}
+.mood-box[data-family="calm"],
+.panel-around[data-family="calm"],
+.mood-word[data-family="calm"] {
+  --mood: var(--color-mood-calm);
+}
+.mood-box[data-family="love"],
+.panel-around[data-family="love"],
+.mood-word[data-family="love"] {
+  --mood: var(--color-mood-love);
+}
+.mood-box[data-family="anger"],
+.panel-around[data-family="anger"],
+.mood-word[data-family="anger"] {
+  --mood: var(--color-mood-anger);
+}
+.mood-box[data-family="sorrow"],
+.panel-around[data-family="sorrow"],
+.mood-word[data-family="sorrow"] {
+  --mood: var(--color-mood-sorrow);
+}
+.mood-box[data-family="flat"],
+.panel-around[data-family="flat"],
+.mood-word[data-family="flat"] {
+  --mood: var(--color-mood-flat);
+}
+.mood-box[data-family="fear"],
+.panel-around[data-family="fear"],
+.mood-word[data-family="fear"] {
+  --mood: var(--color-mood-fear);
+}
+/* MIXED, NOT LAID OVER. These sit on the page rather than over the list, so an
+   alpha wash would be blending against a background that never changes —
+   compositing it once is the same colour and none of the transparency. */
+.mood-box[data-family],
+.panel-around[data-family],
+.mood-word[data-family] {
+  background-color: color-mix(in srgb, var(--mood) 18%, var(--color-light-50));
+}
+[data-theme="dark"] .mood-box[data-family],
+[data-theme="dark"] .panel-around[data-family],
+[data-theme="dark"] .mood-word[data-family] {
+  background-color: color-mix(in srgb, var(--mood) 22%, var(--color-dark-950));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .mood-box[data-family],
+  html:not([data-theme]) .panel-around[data-family],
+  html:not([data-theme]) .mood-word[data-family] {
+    background-color: color-mix(in srgb, var(--mood) 22%, var(--color-dark-950));
+  }
+}
+/* A CHOSEN WORD TAKES ITS FAMILY AT FULL BREADTH. Same hue, more of it — the
+   difference between "this is the anger row" and "this is the one I picked"
+   without reaching for a second colour. */
+.mood-word[data-family].is-picked {
+  background-color: color-mix(in srgb, var(--mood) 42%, var(--color-light-50));
+}
+[data-theme="dark"] .mood-word[data-family].is-picked {
+  background-color: color-mix(in srgb, var(--mood) 46%, var(--color-dark-950));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .mood-word[data-family].is-picked {
+    background-color: color-mix(in srgb, var(--mood) 46%, var(--color-dark-950));
+  }
+}
+
+/* AND NOT AT ALL WHEN THERE IS NOTHING IN IT. `is-empty` means the settled
+   person has never written to you — either because the correspondence has only
+   ever gone one way, or because you do not hold them and so there is no
+   correspondence to read. An empty box in the cluster is a promise of an answer
+   that is not coming; a letter box with no letter should not be on the wall.
+   `:not(.is-expanded)` so it cannot vanish under a finger that just opened it. */
+/* AN EMPTY ONE HOLDS ITS WASH AND SAYS NOTHING, which is what the band at the
+   top of the list does when no row has reached it. It keeps its brackets,
+   because they mean AIMING and it is still the thing the band is aimed at. */
+.scope-boxes .letterbox.is-empty .letterbox-screen {
+  background-color: var(--rg-absent);
 }
 
 /* ── THE PANEL LIST ───────────────────────────────────────────────────────────
@@ -1516,20 +1771,24 @@ html:not([data-theme]) .live-screen {
 
 /* ── THE ROW SWIPES ───────────────────────────────────────────────────────────
    Two scrollers at right angles in the same pixel: the LIST scrolls down, and
-   every ROW inside it scrolls sideways to uncover its action. They only coexist
-   because each one is told to keep out of the other's axis.
+   every ROW inside it scrolls sideways to uncover its action.
 
-   `touch-action: pan-x` on the row hands VERTICAL drags straight through to the
-   list — without it a finger starting on a row could drag neither reliably, and
-   which one moved depended on the angle of the first few pixels. The list has
-   the mirror instruction. Nothing here is JavaScript: `snap-mandatory` does the
-   resting, the browser does the momentum and the rubber-banding.
+   NO `touch-action` ON EITHER OF THEM, and that is the correction. I pinned the
+   row to `pan-x` and the list to `pan-y`, reasoning that each should be told to
+   keep out of the other's axis — and `pan-x` does not mean "prefer horizontal",
+   it means HORIZONTAL ONLY: a vertical drag beginning anywhere on a row was
+   refused outright and never reached the list. On a phone, where every touch
+   begins on a row, that is the entire list refusing to scroll.
+
+   The browser already does this correctly. Left alone it picks the axis from
+   the first few pixels of the gesture and hands the scroll to whichever
+   container wants it — which is the behaviour the two declarations were trying
+   and failing to describe.
 
    THE SCROLLBAR IS HIDDEN because a horizontal rail under every row would draw
    nineteen grey lines down a page whose subject is nineteen names. The action
    peeking at the row's edge is the affordance, and it is enough. */
 .row-swipe {
-  touch-action: pan-x;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -1543,7 +1802,6 @@ html:not([data-theme]) .live-screen {
    swipe. `:not(:has(...))` turns the scrolling off entirely for those. */
 .row-swipe:not(:has(.row-scope)) {
   overflow-x: hidden;
-  touch-action: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1567,6 +1825,19 @@ textarea::placeholder {
   color: var(--color-neutral-250);
   font-weight: 300;
   opacity: 1;
+  /* SMALLER AND LOOSER THAN THE ANSWER, which weight and colour alone could not
+     achieve. A placeholder inherits the field's size, and at a field's size in
+     capitals it draws as loudly as the thing you are about to type — the hint
+     shouting over the answer. It also drops the field's 0.14em tracking: that
+     spacing is what makes a NAME read as a name, and applied to a whole sentence
+     it spreads a hint across the full width of the room. */
+  /* 0.78, and the number was arrived at from both ends. At 1em — the field's
+     own size — an all-caps hint drew as loudly as the answer about to be typed.
+     At 0.62 it had stopped being a hint and become a caption, too small to read
+     at a glance on the step where you most need it. This sits a clear step below
+     the answer and still reads as a sentence. */
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
 }
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] textarea::placeholder {
@@ -1612,29 +1883,29 @@ textarea {
    rest with the ground and rooms at zero opacity. Hiding it would take the hook
    is-open class off an element that is no longer being observed, and the
    accordion has nothing to roll up from. */
-.fab-panel {
+.launcher {
   visibility: hidden;
   transition: visibility 0s 400ms;
 }
-.fab-panel.is-open {
+.launcher.is-open {
   visibility: visible;
   transition: visibility 0s;
 }
-.fab-ground {
+.launcher-ground {
   opacity: 0;
   transition: opacity 280ms ease;
 }
-.fab-panel.is-open .fab-ground {
+.launcher.is-open .launcher-ground {
   opacity: 1;
 }
-.fab-panel.is-open .fab-rooms {
+.launcher.is-open .launcher-rooms {
   pointer-events: auto;
 }
 
 /* THE ROOM ROLLS OPEN. max-height rather than height because the content's own
    height is unknown and a transition needs two numbers; 100dvh is simply "more
    than any room will be", and the flex parent does the real sizing. */
-.fab-body {
+.launcher-body {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
@@ -1642,32 +1913,29 @@ textarea {
     max-height 400ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 250ms ease;
 }
-.fab-panel.is-open .fab-body {
+.launcher.is-open .launcher-body {
   max-height: 100dvh;
   opacity: 1;
 }
-/* `hidden` is how the hook picks WHICH room; without this the attribute loses
-   to the display the flex parent gives it and every room shows at once. */
-.fab-body[hidden] {
-  display: none;
-}
-
+/* `hidden` is how the hook picks WHICH room, and it has to beat the `display:
+   flex` the centring rule below gives every room — without it they all show at
+   once. */
 /* THE CELLS ARRIVE IN ORDER rather than together — a grid that appears all at
    once reads as a screenshot, and one that counts itself in reads as a place
    opening. Two frames apart is enough to feel and too little to wait for. */
-.fab-panel.is-open .fab-cell {
-  animation: fab-cell-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+.launcher.is-open .launcher-cell {
+  animation: launcher-cell-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
-.fab-panel.is-open button:nth-child(2) .fab-cell {
+.launcher.is-open button:nth-child(2) .launcher-cell {
   animation-delay: 60ms;
 }
-.fab-panel.is-open button:nth-child(3) .fab-cell {
+.launcher.is-open button:nth-child(3) .launcher-cell {
   animation-delay: 120ms;
 }
-.fab-panel.is-open button:nth-child(4) .fab-cell {
+.launcher.is-open button:nth-child(4) .launcher-cell {
   animation-delay: 180ms;
 }
-@keyframes fab-cell-in {
+@keyframes launcher-cell-in {
   from {
     opacity: 0;
     transform: translateY(0.75rem);
@@ -1680,10 +1948,10 @@ textarea {
 
 /* THE BADGE ONLY EVER APPEARS. It pops in when something is waiting and never
    opens anything by itself — the count is news, not an interruption. */
-.fab-badge {
-  animation: fab-badge-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+.launcher-badge {
+  animation: launcher-badge-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-@keyframes fab-badge-in {
+@keyframes launcher-badge-in {
   from {
     opacity: 0;
     transform: translate(33%, -33%) scale(0.3);
@@ -1694,47 +1962,270 @@ textarea {
   }
 }
 
-/* ── THE ACT'S THREE ANSWERS ──────────────────────────────────────────────────
-   One button, three states, and the marks are all cut from bars this surface
-   already draws:
+/* ── THE MARK ANSWERS THE DOOR, AND COMES FORWARD ─────────────────────────────
+   It used to GLIDE from the left edge to the centre, which was the reference's
+   gesture and made sense while the mark lived on the left. It does not any
+   more — it is centred on the page too — so there is nowhere for it to travel
+   to, and a journey of zero distance is an animation that does nothing.
 
-     CLOSED        a plus — start something.
-     OVER LAUNCHER the SAME plus, turned 45 degrees. Not a different mark
-                   swapped in: the cross you close with is the plus you opened
-                   with, and watching it turn is what says so.
-     IN A ROOM     an arrow back, because a room steps back to the launcher
-                   rather than closing the app's whole front door.
+   SO IT SCALES INSTEAD, and the new gesture is better than the one it replaces.
+   Sliding sideways says "things are being rearranged"; coming forward out of
+   the page says "you have arrived somewhere", which is what opening a room is.
+   The page's own mark stays where it is and this one grows over it, so the two
+   read as the same object stepping toward you rather than as one being swapped
+   for another.
 
-   The turn is the only motion; the arrow crossfades under it. */
-.act-mark {
-  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-#act.is-open .act-mark {
-  transform: rotate(45deg);
-}
-.act-back {
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-#act.is-back .act-mark {
-  opacity: 0;
+   transform-origin is the top, so it grows DOWNWARD into the room rather than
+   pushing up into the safe area on a phone. */
+.launcher-head .head {
+  transform: scale(0.82);
+  transform-origin: top center;
+  opacity: 0.55;
   transition:
-    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease;
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 300ms ease;
 }
-#act.is-back .act-back {
+.launcher.is-open .launcher-head .head {
+  transform: scale(1);
   opacity: 1;
 }
 
+/* THE ROOM IS CENTRED, and the page behind it is not. That is not an
+   inconsistency — the page is a LIST, and a list is read down one edge; a room
+   is one question at a time with nothing else on screen, and a single field
+   pinned to the left of an empty page reads as a fragment of something wider.
+   It is also what the reference did, and the reason its rooms feel like places
+   rather than like the app with things hidden. */
+/* THE ROOM IS NOT SHARING THE RAIL WITH A LIST, so its boxes are not bound by
+   the page's narrow slots. On a phone the page gives the doing box 8rem because
+   three of them plus a letter box have to fit beside the band; in here there are
+   two, and `heartbroken` has to fit whole — a truncated feeling is a different
+   feeling. */
+@media (max-width: 40rem) {
+  .launcher-body {
+    --doing-w: 9.5rem;
+    --mood-w: 9.5rem;
+  }
+}
+.launcher-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  /* CLEARANCE FOR THE PINNED FOOT, which is fixed to the real viewport bottom
+     and therefore knows nothing about what is scrolling behind it. Without this
+     the last thing in a room — the country grid's final row, the recap's last
+     word — sits underneath the buttons and cannot be read or reached. The
+     reference reserves exactly this, and reserves more on a phone, where the
+     gap between the content's end and the pinned button is the only thing
+     saying the button is not part of the content. */
+  /* Two rows of buttons, not one — the pair and the way out beneath it — so
+     the reservation is taller than the reference's, which never stacked them. */
+  padding-bottom: calc(11rem + env(safe-area-inset-bottom));
+}
+@media (max-width: 40rem) {
+  .launcher-body {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom));
+  }
+}
+.launcher-body[hidden] {
+  display: none;
+}
+
+/* ── THE LETTER'S OWN FIELD ───────────────────────────────────────────────────
+   IT TAKES THE WHOLE ROOM BEFORE IT TAKES A SCROLLBAR. `field-sizing: content`
+   grows it line by line as you write; the cap is what the room actually has
+   left once its head, its title and the two rows of buttons at the foot are
+   accounted for, so the field runs out of page at exactly the moment the page
+   runs out — not a screen early, which is what a fixed `rows` does.
+
+   NO SCROLLBAR EITHER WAY. Every scroller on this surface hides one: the list,
+   the panel, the rows. A gutter appearing down the side of your own sentence
+   the moment it gets long is the interface reacting to the letter. */
+.compose-field {
+  field-sizing: content;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.compose-field::-webkit-scrollbar {
+  display: none;
+}
+
+/* THE CHECK IS NOT OFFERED UNTIL THERE IS SOMETHING TO SEND. An empty one was
+   pressable, and pressing it got you a refusal — the app inviting an act and
+   then declining it, the same fault the row's own SCOPE word was fixed for.
+
+   AND "SOMETHING" IS ANY OF THE THREE. The room asks how you are, what you are
+   doing and what you want to say, and each of those alone is a complete act — a
+   mood on its own is worth saying. So the check only goes dark when the letter
+   is empty AND nothing has been chosen. It read the field alone at first, which
+   meant a mood picked with no letter behind it left the way out greyed and the
+   quieter half of the room unreachable.
+
+   IT WEARS THE DISABLED LOOK RATHER THAN THE ATTRIBUTE, because `disabled` is
+   the server's word and the server cannot see the field: knowing would cost a
+   round trip and a full re-render on every keystroke, to answer a question the
+   browser already has in front of it.
+
+   THE SERVER STILL CHECKS. This governs the button, not the form — a keyboard
+   submit reaches `write_letter` either way, and it refuses an empty room there
+   and says so. This is the offer being honest, not the rule. */
+/* THE CHOICES ARE HIDDEN FIELDS NOW, not radios. They were radios when the room
+   asked its three questions as three lists; a box that opens onto its own grid
+   makes the choice with a press and the server holds it, so what reaches the
+   form is a value rather than a checked control — and `:checked` stopped
+   matching anything at all, which left the check greyed out over a perfectly
+   good mood. An empty value is the honest test. */
+[data-room="write"]:has(.compose-field:placeholder-shown):not(
+    :has([name="mood"]:not([value=""]), [name="activity"]:not([value=""]))
+  )
+  .launcher-foot
+  button[type="submit"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+  pointer-events: none;
+}
+/* A browser without field-sizing keeps the `rows` floor and simply does not
+   grow — the letter is still writable, which is the only thing that must hold. */
+/* THE RESERVE IS THE ROOM'S OWN, NOT A GUESS. `--head-top` is what sits above
+   the room; the rest is the head, the title, the address line, and the 11rem of
+   clearance `.launcher-body` already keeps for the two stacked rows of buttons
+   at the foot. Under-reserving does not clip anything — it runs the last lines
+   of the letter underneath the check you are about to press. */
+@supports (field-sizing: content) {
+  .launcher-body {
+    --compose-max: calc(100dvh - var(--head-top) - 21rem);
+  }
+  @media (max-width: 40rem) {
+    .launcher-body {
+      --compose-max: calc(100dvh - var(--head-top) - 23rem);
+    }
+  }
+}
+
+/* ── THE ACT STEPS ASIDE ──────────────────────────────────────────────────────
+   One button, one meaning: start something. It used to turn into a cross and
+   then into an arrow, doing the launcher's closing and the room's stepping-back
+   as well as its own job — three answers from a button sitting at the foot of
+   the page, a screen below the form it was answering for. The launcher has its
+   own master now, in the row with the room's back and forward, so this simply
+   leaves while a room is open.
+
+   IT POPS ON THE WAY BACK, and the hook replays the animation on every press —
+   which is what makes the button feel pressed rather than merely obeyed. */
+/* ── YOUR OWN PAGE'S DOOR ─────────────────────────────────────────────────────
+   THE BAND'S COLOUR, MIXED RATHER THAN LAID OVER. It was `bg-primary-600/15` —
+   the band's own class — and that is right everywhere the band is used and
+   wrong here: the band is TRANSLUCENT ON PURPOSE, so the row passing under it
+   reads through the wash. This button sits at the foot with the list scrolling
+   behind it, and at 15% the names and their arrows slid through the middle of
+   it. A control you can see the page moving inside is not a control.
+
+   `color-mix` GIVES THE SAME COLOUR AND NONE OF THE TRANSPARENCY: the wash
+   composited against the page it stands on, computed once instead of blended
+   every frame against whatever happens to be behind. Change either ramp and
+   this follows, which a hand-picked hex would not. */
+.self-box {
+  background-color: color-mix(in srgb, var(--color-primary-600) 15%, var(--color-light-50));
+}
+.self-box:hover {
+  background-color: color-mix(in srgb, var(--color-primary-600) 25%, var(--color-light-50));
+}
+[data-theme="dark"] .self-box {
+  background-color: color-mix(in srgb, var(--color-primary-500) 20%, var(--color-dark-950));
+}
+[data-theme="dark"] .self-box:hover {
+  background-color: color-mix(in srgb, var(--color-primary-500) 30%, var(--color-dark-950));
+}
+/* SYSTEM DARK IS DARK TOO, and it is a separate branch because "system" means
+   the attribute is absent — see the note on the dark variant at the top. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .self-box {
+    background-color: color-mix(in srgb, var(--color-primary-500) 20%, var(--color-dark-950));
+  }
+  html:not([data-theme]) .self-box:hover {
+    background-color: color-mix(in srgb, var(--color-primary-500) 30%, var(--color-dark-950));
+  }
+}
+
+/* ALL THREE POP, because all three are pressed. The pop was `#act`'s alone
+   while the act was the only button down here, and a row where one button
+   answers a press and the two beside it merely obey would read as two of them
+   being disabled. */
+.app-foot button {
+  animation: act-pop 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* THE WHOLE FOOT LEAVES, NOT THE ACT ALONE. There is one button down here no
+   longer: writing, your own page, and everything else. Leaving the other two
+   behind while a room is open would put a door to the launcher underneath the
+   launcher, and a door to your own page over the top of it. `is-away` moved
+   from the button to the row for that reason; the pop stays on the act, because
+   only the act pops. */
+.app-foot.is-away {
+  opacity: 0;
+  transform: scale(0.85);
+}
+/* AND THE BUTTONS ARE WHAT MUST STOP TAKING PRESSES, not the row around them.
+
+   THIS IS THE BUG THAT MOVING `is-away` UP INTRODUCED. `pointer-events` is not
+   a thing a parent can take away: `.app-foot` is `pointer-events-none` already
+   and every button inside it sets `pointer-events-auto` to opt back in, so
+   `none` on the row was silently overruled by all three children.
+
+   WHAT THAT LOOKED LIKE was uncanny rather than broken. The foot is z-50 and
+   the launcher's own foot is z-20 at the SAME `bottom`, so three invisible
+   buttons sat exactly on top of the room's way out: pressing the launcher's X
+   pressed the act instead and opened the write room, and pressing a hair to the
+   left opened your own page. Nothing looked wrong, because what you pressed was
+   at zero opacity. */
+.app-foot.is-away button {
+  pointer-events: none;
+}
+@keyframes act-pop {
+  from {
+    transform: scale(0.7);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .fab-ground,
-  .fab-body,
-  .act-mark,
-  .act-back {
+  .launcher-ground,
+  .launcher-body,
+  .launcher-head .head,
+  .app-foot {
     transition-duration: 1ms;
   }
-  .fab-panel.is-open .fab-cell,
-  .fab-badge {
+  .launcher.is-open .launcher-cell,
+  .launcher-badge,
+  .app-foot button {
+    animation: none;
+  }
+}
+
+/* ── THE TOAST ────────────────────────────────────────────────────────────────
+   One line, above the act, asking whether you meant it. It arrives from just
+   below so it reads as coming UP out of the button it is about, rather than
+   dropping in from somewhere else on the page. */
+.toast[hidden] {
+  display: none;
+}
+.toast .toast-line {
+  animation: toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast .toast-line {
     animation: none;
   }
 }
@@ -1794,6 +2285,12 @@ textarea {
      right-hand box against the box it is beside before it measures anything
      else. One number, one rhythm. */
   --band-h: 4.5rem;
+  /* FIXED, so the letter box never moves. Most people are around silently, so
+     these two are empty far more often than not — and boxes that collapsed when
+     empty would slide the one box that is always the same object sideways on
+     every settle. A stable rail is worth two rectangles of air. */
+  --doing-w: 10rem;
+  --mood-w: 7rem;
 
   /* ── THE LIST'S VOICE ────────────────────────────────────────────────────
      ONE TYPE, DECLARED ONCE. Every word that belongs to the list — a row's
@@ -1818,6 +2315,23 @@ textarea {
      uses, which is what keeps the age under a name and the word under a count
      sounding like the same kind of remark. */
   --row-type: clamp(var(--text-xl), 0.85rem + 0.38vw, var(--text-4xl));
+  /* THE LEDE IS ONE UNBREAKABLE LINE, so it is sized to fit rather than to
+     match. At --row-type "SO YOU DON'T DO LIFE ALONE" is 26 characters plus
+     0.15em of tracking between each, which runs past the rail on any phone and
+     wraps mid-word — and a standing sentence that wraps badly is read every
+     visit instead of never. The vw term is what makes it fit: it is the widest
+     line on the page, so it tracks the page's width more steeply than a row
+     does, and tops out well below the row's ceiling. */
+  --lede-type: clamp(0.72rem, 0.34rem + 2.05vw, var(--text-2xl));
+
+  /* THE FIELD, one step below the count. A field used to be set at --count-type
+     — the surface's loudest voice, the one reserved for the number in a box —
+     which was defensible while its placeholder was a sentence in mixed case and
+     became wrong the moment everything went to capitals. Caps have no
+     descenders and no x-height variation, so the same string at the same size
+     reads noticeably larger and heavier; "WHAT SHOULD WE CALL YOU" at the count's
+     size was competing with the room's own title. */
+  --field-type: clamp(var(--text-lg), 0.8rem + 0.35vw, var(--text-3xl));
   --row-track: 0.14em;
   --sub-type: var(--text-sm);
   --sub-track: 0.18em;
@@ -1844,6 +2358,10 @@ textarea {
      bar rather than recomputing the fraction, so this is the only place the
      answer exists. */
   --band-top: calc(var(--row-h) * 1.5);
+  /* THE LIST'S CAPTION, one comfortable line above the band. It is the same
+     relationship the panel's own LETTERS label has to the stage under it — the
+     thing that says what you are looking at, sitting directly over it. */
+  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - 3rem);
 
   /* THE LIST'S OWN INSET — and the second of the two levels this page has.
      They are NOT the same thing, and collapsing them is the mistake that put
@@ -1897,8 +2415,10 @@ textarea {
      air than the masthead gets, because the page ENDS here — there is nothing
      below it to be given room from. */
   --foot-bottom: 2.5rem;
-  /* What a room must keep clear at its bottom so nothing hides under the act. */
-  --fab-foot: calc(var(--foot-bottom) + var(--act-h) + 1.5rem);
+  /* THE FOOT'S OWN OFFSET is --foot-bottom, the same line the act stands on, so
+     the button that opens the launcher and the button that closes it sit at one
+     height. What a ROOM keeps clear of it is a padding on .launcher-body, not a
+     variable — see the note there. */
   /* THE ACT IS NOT ONE OF THE BOXES, so it does not take their height. It wore
      --band-h for a while on the argument that everything square on this surface
      should rhyme — but a rhyme needs two things near enough to hear together,
@@ -1906,7 +2426,10 @@ textarea {
      measured against. What decides its size is its job: a target you press,
      which wants to be comfortably bigger than a fingertip and no bigger. At the
      band's height it was reading as a fourth box that had wandered off. */
-  --act-h: 3.25rem;
+  /* THE ACT MATCHES THE PANEL'S OWN BUTTONS. It was 3.25rem while every button
+     inside the launcher was 4rem, so the door into the app read as the smallest
+     control in it — and the one you press most often was the hardest to hit. */
+  --act-h: 4rem;
   --body-top: 7.75rem;
 }
 
@@ -1981,7 +2504,8 @@ textarea {
      on the left starts where every name below it starts.
 
      left:0 AND right:0, so the cluster is the rail's width rather than its
-     content's. "PHILIPPINES" beside "33256 UNSCOPES" is wider than a phone, and
+     content's. "PHILIPPINES" beside "33256 RELATIONSHIPS" is wider than a phone,
+     and
      shrink-to-fit would have pushed one end off the screen with nothing to stop
      it. Made the full width, the place box (min-w-0, truncating) is the one
      that yields and the count keeps its digits, which is the right way round: a
@@ -2049,7 +2573,7 @@ textarea {
        empty space above a mark. */
     --head-top: 1.75rem;
     --foot-bottom: 1.5rem;
-    --act-h: 3rem;
+    --act-h: 3.5rem;
     /* The same arithmetic from this screen's own head-top, and the same 2rem of
        air between mark and line: 1.75 + 1.75 + 2. */
     --body-top: 5.5rem;
@@ -2064,6 +2588,15 @@ textarea {
        above it, and the letters — which are the subject — take the rest. Drag
        the handle down for the room, as before. */
     --sub-top: 5rem;
+    /* Three boxes across a phone, and they fit with room to spare — the rail is
+       ~358px at 390 and the cluster asks for ~324. The mood box is sized to hold
+       the LONGEST word in the vocabulary whole (`grateful`, `grieving`,
+       `restless`), because a truncated feeling is a different feeling. The doing
+       box truncates instead, and can afford to: its top line is the kind of
+       thing and its bottom line is somebody's own words, which are already
+       capped at sixty. */
+    --doing-w: 8rem;
+    --mood-w: 7rem;
   }
 
   /* A 3px arm is a corner mark on a desktop and a blunt stroke on a phone, where
@@ -2216,10 +2749,17 @@ textarea {
   padding-inline: var(--list-pad);
 }
 
-/* The header and the act fade with the rest of the page when the panel takes
-   over. A floating action hanging over a conversation you have opened is an
-   action pointed at nothing. */
-#scopes.is-open .app-foot,
+/* THE HEADER FADES WHEN THE PANEL TAKES OVER, and the foot no longer goes with
+   it.
+
+   IT USED TO, on the reasoning that "a floating action hanging over a
+   conversation you have opened is an action pointed at nothing". That was true
+   of a button whose whole job was to open a drawer — and this feature inverts
+   it exactly. Inside somebody's page the act is pointed at the most specific
+   thing it can be: them. It is how you write to the person whose panel you are
+   reading, and hiding it there would leave the targeted letter with no door at
+   all. The reasoning is kept rather than deleted because it was right about the
+   button it was written for. */
 #scopes.is-open .app-head {
   opacity: 0;
   visibility: hidden;
@@ -2227,9 +2767,13 @@ textarea {
     opacity 220ms ease-out,
     visibility 0s 220ms;
 }
-.app-foot,
 .app-head {
   transition:
     opacity 220ms ease-out,
     visibility 0s;
+}
+.app-foot {
+  transition:
+    opacity 250ms ease,
+    transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
 }

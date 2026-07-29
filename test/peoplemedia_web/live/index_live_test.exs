@@ -79,19 +79,62 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ "px-[1.95rem]"
   end
 
-  test "every row still hands the frame a state, even with nothing to put in it",
+  test "the letter box holds the last letter they sent, and nothing when there is none",
+       %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+
+    # THE ROW CARRIES THE BOX AS DATA and always has — the hook reads these on
+    # settle. What is in it is the newest INCOMING letter's kind, because the
+    # box is the one thing on this surface that answers you; a box holding the
+    # thread's newest entry would as often hold your own letter back at you.
+    #
+    # The cast is written so this cannot pass by accident: two of the six
+    # threads end on a letter of THEIRS that is not text.
+    kinds =
+      Regex.scan(~r/data-letter-kind="(\w+)"/, html, capture: :all_but_first) |> List.flatten()
+
+    assert "voice" in kinds
+    assert "face" in kinds
+
+    # A THREAD THAT ONLY EVER WENT ONE WAY HAS NOTHING TO SHOW, and neither does
+    # a person you do not hold — a letter is written to a scope, so a stranger's
+    # thread is not empty, it does not exist. Both arrive as "empty", and the
+    # hook draws nothing for it.
+    assert "empty" in kinds
+
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    strangers = Regex.scan(~r/data-letter-kind="(\w+)"/, unscoped, capture: :all_but_first)
+    assert Enum.all?(List.flatten(strangers), &(&1 == "empty"))
+
+    # PRESENCE IS READ OFF A REAL AROUND NOW, and both answers are in the cast —
+    # `present` used to be hardcoded for everybody, so this assertion passed on a
+    # placeholder and could never have caught it going wrong.
+    assert html =~ ~s(data-state="present")
+    assert html =~ ~s(data-state="absent")
+    # AND `live` IS NOT AROUND'S TO SET. It means a face or a voice actually
+    # running, which is one thing somebody might be doing inside an around
+    # rather than what being around is.
+    refute html =~ ~s(data-state="live")
+  end
+
+  test "the row hands the box the words, and the hook reads the name it is given",
        %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
-    # THE ROW CARRIES ITS FRAME AS DATA and always has — the hook reads these on
-    # settle. What changed is that presence is no longer a fixture: `state` and
-    # `frame` describe a LIVE line, and there is nothing live to describe until
-    # Presence lands. So every row reads present-and-empty, which is honest,
-    # where it used to read a spread of made-up states.
-    assert html =~ ~s(data-state="present")
-    assert html =~ ~s(data-frame="empty")
-    refute html =~ ~s(data-frame="face")
-    refute html =~ ~s(data-state="live")
+    # THE WORDS TRAVEL WITH THE KIND. A text letter is the only kind anyone can
+    # write yet, so a box that could only hold the two that play was a box for
+    # recordings.
+    assert html =~ ~s(data-body="hello")
+
+    # AND THE HOOK MUST READ THE ATTRIBUTE THAT IS ACTUALLY THERE. This is not
+    # paranoia about a typo — renaming the frame to the letter box rewrote
+    # `dataset.frame` into `dataset.letterbox` while the markup kept
+    # `data-letter-kind`, so the box showed nothing at all for a whole release
+    # and every server-side assertion above still passed. A string that crosses
+    # from Elixir to TypeScript has to be checked on both sides or neither.
+    hook = File.read!("assets/js/hooks/scopes.ts")
+    assert hook =~ "dataset.letterKind", "the hook reads a data attribute the row does not carry"
+    assert hook =~ "dataset.body"
   end
 
   test "picking a person lifts them into a header and opens the panel", %{conn: conn} do
@@ -149,7 +192,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # to stay, because hiding a media element does not silence it and only
     # scopes.ts can tear the media down. Render it conditionally and a voice
     # goes on playing over an open panel from a box nobody can see or press.
-    assert opened =~ ~s(id="frame")
+    assert opened =~ ~s(id="letterbox")
   end
 
   test "losing the selection closes the panel with it", %{conn: conn} do
@@ -169,24 +212,49 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     # WHERE, and WHICH OF THEM. The place box names the place; the population box
     # names the population you are inside and carries its own count.
-    assert boxes_say(live) =~ "FINLAND"
-    assert boxes_say(live) =~ "6 SCOPES"
+    assert tags_say(live) =~ "FINLAND"
+    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
 
     # THE POPULATION BOX SWAPS, and never leaves the people. It shows where you
     # ARE rather than offering both — one box, not a segmented pair.
     live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert boxes_say(live) =~ "122 UNSCOPES"
-    # One box, so the population it swapped OUT of is not on screen at all.
-    # (It cannot refute "SCOPES" — "UNSCOPES" contains it.)
-    refute boxes_say(live) =~ "6 SCOPES"
-    assert has_element?(live, "#frame")
+    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
+    # One box, so the population it swapped OUT of is not on screen at all. The
+    # two words no longer share a stem, so this can refute the WORD outright —
+    # it used to have to name the count as well, because "UNSCOPES" contains
+    # "SCOPES" and the plain refute passed for the wrong reason.
+    refute tags_say(live) =~ "RELATIONSHIPS"
+    assert has_element?(live, "#letterbox")
 
     # THE PLACE BOX SWAPS WHAT THE LIST HOLDS. The roll opens unselected, so the
     # box reads WORLD — no country chosen — and the world's own totals with it.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    refute has_element?(live, "#frame")
-    assert boxes_say(live) =~ "WORLD"
-    assert boxes_say(live) =~ "33256 UNSCOPES"
+    refute has_element?(live, "#letterbox")
+    assert tags_say(live) =~ "WORLD"
+    # EVERYWHERE IS THE SUM OF THE PLACES, and the whole cast lives in one, so
+    # the world says exactly what Finland said.
+    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
+  end
+
+  test "the box counts what the list under it holds", %{conn: conn} do
+    # THE TWO USED TO BE UNRELATED — a hand-written table over an unfiltered
+    # list, so Finland could claim 122 strangers above a list of five. The place
+    # is the list's parent now, which makes them one question asked twice.
+    {:ok, live, _html} = live(conn, ~p"/")
+    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
+    assert rows_in(render(live)) == held_count()
+
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
+    assert rows_in(unscoped) == stranger_count()
+
+    # And a place nobody is in says so, rather than borrowing the world's total.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    render_hook(live, "select", %{"index" => 1})
+    empty = live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert tags_say(live) =~ "NIGERIA"
+    assert tags_say(live) =~ "0 PEOPLE"
+    assert rows_in(empty) == 0
   end
 
   test "the band moves the place box but commits nothing", %{conn: conn} do
@@ -196,31 +264,37 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # A country scrolling through the band updates the box AND its counts, so
     # you can read a place's two populations without leaving the roll.
     render_hook(live, "select", %{"index" => 1})
-    assert boxes_say(live) =~ "NIGERIA"
-    assert boxes_say(live) =~ "41 SCOPES"
+    assert tags_say(live) =~ "NIGERIA"
+    assert tags_say(live) =~ "0 RELATIONSHIPS"
 
     # Still in the world. The band alone commits nothing, and neither does the
     # band's own press.
     live |> element(".focus-box") |> render_click()
-    refute has_element?(live, "#frame")
+    refute has_element?(live, "#letterbox")
 
     # AND THE WAY OUT THAT CHANGES NOTHING leaves with what you came in with.
     live |> element(~s(button[phx-click="cancel_place"])) |> render_click()
-    assert has_element?(live, "#frame")
-    assert boxes_say(live) =~ "FINLAND"
-    assert boxes_say(live) =~ "6 SCOPES"
+    assert has_element?(live, "#letterbox")
+    assert tags_say(live) =~ "FINLAND"
+    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
   end
 
   test "either box is a door back, and both take the place with them", %{conn: conn} do
+    # Somebody abroad, so the second place in this test is not an empty one.
+    person("CARIOCA", "Brazil")
     {:ok, live, _html} = live(conn, ~p"/")
 
     # THE PLACE BOX commits what settled and keeps the population you had.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    render_hook(live, "select", %{"index" => 1})
+    render_hook(live, "select", %{"index" => 2})
     scoped = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert boxes_say(live) =~ "NIGERIA"
-    assert boxes_say(live) =~ "41 SCOPES"
-    assert scoped =~ "MUM"
+    assert tags_say(live) =~ "BRAZIL"
+    assert tags_say(live) =~ "0 RELATIONSHIPS"
+    # You hold nobody in Brazil, so the list that came back is empty — and says
+    # so rather than showing Finland's people under Brazil's name. Read from the
+    # ROWS: the launcher's scoping room lists everyone you hold, everywhere, and
+    # is not what this is about.
+    assert rows_in(scoped) == 0
     refute has_element?(live, "#panel")
 
     # THE POPULATION BOX commits it too, and swaps population on the way — one
@@ -228,10 +302,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
     render_hook(live, "select", %{"index" => 2})
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert boxes_say(live) =~ "BRAZIL"
-    assert boxes_say(live) =~ "2652 UNSCOPES"
-    # A stranger only the unscoped world holds, so the list really swapped.
-    assert unscoped =~ "AMINA"
+    assert tags_say(live) =~ "BRAZIL"
+    assert tags_say(live) =~ "1 PEOPLE"
+    # A stranger only Brazil holds, so the place really came with it.
+    assert unscoped =~ "CARIOCA"
+    refute unscoped =~ "AMINA"
   end
 
   test "the cancel is the only exit while the roll of places is open", %{conn: conn} do
@@ -245,8 +320,8 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # WORLD is a choice like any other, so pressing the box on an empty band
     # commits it rather than being inert.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert boxes_say(live) =~ "WORLD"
-    assert boxes_say(live) =~ "232 SCOPES"
+    assert tags_say(live) =~ "WORLD"
+    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
     refute has_element?(live, ~s(button[phx-click="cancel_place"]))
   end
 
@@ -276,22 +351,29 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
   end
 
-  test "exactly one of the two boxes is lit, and it is the one the list obeys", %{conn: conn} do
+  test "only the place lights, and only while the world is open", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
-    wash = ~r/(list-place|list-scope)[^"]*bg-primary-600\/15/
+    lit = ~r/(list-place|list-scope)[^"]*text-primary-600/
+    tags = fn -> live |> element(".list-tags") |> render() end
 
-    # Over people the population box is lit and the place box is not: a
-    # population is READ OUT OF a place, so lighting both would claim two things
-    # are being chosen when only one is.
-    assert Regex.scan(wash, boxes_html(live), capture: :all_but_first) == [["list-scope"]]
+    # NOTHING IS LIT OVER PEOPLE. Both tags were washed boxes and exactly one was
+    # always on; as small tracked words at the head of the list, terracotta means
+    # what it means everywhere else here — look at this — and neither of them is
+    # asking anything of you while you are simply reading the list.
+    assert Regex.scan(lit, tags.(), capture: :all_but_first) == []
 
-    # Over the roll of places it swaps — and the population box goes quiet
-    # precisely because its count is now being driven by the band.
+    # OPENING THE WORLD IS A STATE WORTH SHOWING, and it is the only one either
+    # tag has. The population is a toggle you can press from either side, and
+    # neither side is more chosen than the other.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert Regex.scan(wash, boxes_html(live), capture: :all_but_first) == [["list-place"]]
+    assert Regex.scan(lit, tags.(), capture: :all_but_first) == [["list-place"]]
+
+    # And it goes out again on the way back.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert Regex.scan(lit, tags.(), capture: :all_but_first) == []
   end
 
-  test "the boxes answer the band from the rail, not the head of the column", %{conn: conn} do
+  test "the rail answers the band, and the head of the list answers the list", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
 
     # The cluster is placed by app.css against the stage box, so it carries no
@@ -304,12 +386,18 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute hd(own) =~ "ml-auto"
     refute hd(own) =~ "--list-w"
 
-    # Three boxes, flush and in one row: place, population, then the frame on
-    # the rail's right edge.
-    assert boxes =~ "list-place"
-    assert boxes =~ "list-scope"
-    assert boxes =~ ~s(id="frame")
-    refute boxes =~ "-ml-3"
+    # THE SPLIT IS THE POINT. The cluster's own comment used to claim all three
+    # boxes "answered the band" while two of them answered the LIST — the same
+    # whichever name had scrolled in. Those two are a caption at the head now,
+    # and what is left on the rail genuinely is about the person under the band.
+    assert boxes =~ ~s(id="letterbox")
+    refute boxes =~ "list-place"
+    refute boxes =~ "list-scope"
+
+    tags = live |> element(".list-tags") |> render()
+    assert tags =~ "list-place"
+    assert tags =~ "list-scope"
+    refute tags =~ "letterbox"
   end
 
   test "a place is one line, shouted, and its rows close up to suit", %{conn: conn} do
@@ -329,28 +417,39 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute places =~ "h-(--row-h)"
   end
 
-  test "the act opens the launcher, and is the only control that closes it", %{conn: conn} do
+  test "the act opens the launcher; the launcher's own master closes it",
+       %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
-    # ONE BUTTON, THREE ANSWERS — plus, cross, back — so there is no second
-    # control a thumb's width away arguing about the same panel.
+    # ONE MEANING EACH. The act used to be plus, cross and back — three answers
+    # from a button at the foot of the page, which put the way out of a form a
+    # screen below the form. It opens, and nothing else.
     assert html =~ ~s(id="act")
     assert html =~ "act-mark"
-    assert html =~ "act-back"
+    refute html =~ "act-back"
     assert html =~ ~s(aria-expanded="false")
-    refute html =~ "panel-close"
+
+    # AND EVERY ROOM CARRIES THE WAY OUT, in the row with its own buttons. A
+    # room you can enter and not leave is the bug this catches.
+    rooms = Regex.scan(~r/data-room="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
+    assert length(rooms) > 1
+
+    for room <- rooms do
+      body = Regex.run(~r/data-room="#{room}".*?(?=data-room="|\z)/s, html) |> List.first()
+      assert body =~ "data-launcher-back", "the #{room} room has no way back"
+    end
   end
 
-  test "the fab panel is one overlay with a room per door", %{conn: conn} do
+  test "the launcher is one overlay with a room per door", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
     # THE REGISTRY: a body per room, a cell per door, joined by name alone. If
     # a door ever names a room that does not exist, this is what catches it.
     doors =
-      Regex.scan(~r/data-panel-open="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
+      Regex.scan(~r/data-open-room="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
 
     rooms =
-      Regex.scan(~r/data-panel-body="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
+      Regex.scan(~r/data-room="([a-z]+)"/, html, capture: :all_but_first) |> List.flatten()
 
     assert "launcher" in rooms
     assert doors != []
@@ -358,7 +457,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     # It is OPAQUE. The panel it came from floated on a 90% wash because the
     # thing behind it was a map you read through; here it is a list of names.
-    assert html =~ "fab-ground absolute inset-0 bg-light-50 dark:bg-dark-950"
+    assert html =~ "launcher-ground absolute inset-0 bg-light-50 dark:bg-dark-950"
     refute html =~ "bg-white/90"
   end
 
@@ -374,7 +473,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # THE CELL IS ALWAYS "PASSPORT". It leads to a room holding BOTH doors —
     # request one, or check in with one you have — so naming it after either
     # half would be a door lying about where it goes.
-    assert html =~ ">\n    Passport\n  <"
+    assert html =~ "PASSPORT"
     refute html =~ ">\n    Check in\n  <"
   end
 
@@ -385,7 +484,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # SCOPED is the list's subject and the right default for anyone who holds
     # people — but for a visitor it is empty, and opening on an empty list makes
     # an app look broken when it is merely new. So the strangers lead.
-    assert html =~ "UNSCOPES"
+    assert html =~ "PEOPLE"
     # Everyone the cast made is a stranger to a visitor, including the owner.
     assert html |> String.split(~s(class="scopes-item)) |> length() ==
              held_count() + stranger_count() + 1 + 1
@@ -429,13 +528,22 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # substring of the raw HTML holds a whole phrase. Stripping the tags and
   # collapsing the whitespace asks the question the tests actually mean: read
   # aloud, does this cluster name a place and a population of it.
-  defp boxes_say(live) do
+  # WHERE THE LIST'S OWN TWO FACTS ARE NOW. They were the first two of the three
+  # boxes on the right rail and read out of `.scope-boxes`; they are a caption at
+  # the head of the list, because a place and a population are true of the LIST
+  # and the rail is for the things that answer the BAND.
+  defp tags_say(live) do
     live
-    |> boxes_html()
+    |> element(".list-tags")
+    |> render()
     |> String.replace(~r/<[^>]*>/, " ")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end
 
   defp boxes_html(live), do: live |> element(".scope-boxes") |> render()
+
+  # How many people the list is actually showing. `scopes-item` is the row and
+  # nothing else wears it, so counting them is counting the list.
+  defp rows_in(html), do: html |> String.split(~s(class="scopes-item)) |> length() |> Kernel.-(1)
 end

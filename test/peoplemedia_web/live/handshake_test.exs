@@ -18,11 +18,11 @@ defmodule PeoplemediaWeb.HandshakeTest do
   describe "answering" do
     test "scope back, then they accept, and only then are you held",
          %{conn: conn, me: me} do
-      them = person("INBOUND", "Brazil")
+      them = person("INBOUND")
       {:ok, _} = Relationships.request_scope(them.id, me.id, "FRIEND")
 
       {:ok, live, _} = live(conn, ~p"/")
-      assert render(live) =~ "calls you “FRIEND” — answer"
+      assert render(live) =~ "CALLS YOU “FRIEND” — ANSWER"
 
       # ROUND TWO is not merely a yes: it is where I say what I call them, and
       # that claim is theirs to see before it stands.
@@ -39,12 +39,12 @@ defmodule PeoplemediaWeb.HandshakeTest do
     end
 
     test "the initiator finalises what came back", %{conn: conn, me: me} do
-      them = person("OUTBOUND", "Brazil")
+      them = person("OUTBOUND")
       {:ok, _} = Relationships.request_scope(me.id, them.id, "COUSIN")
       {:ok, _} = Relationships.scope_back(them.id, me.id, "OJO")
 
       {:ok, live, _} = live(conn, ~p"/")
-      assert render(live) =~ "scoped you back “OJO” — finalise"
+      assert render(live) =~ "SCOPED YOU BACK “OJO” — FINALISE"
 
       render_click(live, :scope_accept, %{"id" => them.id})
 
@@ -56,7 +56,7 @@ defmodule PeoplemediaWeb.HandshakeTest do
 
     test "an answer with no name is refused — the name IS round two",
          %{conn: conn, me: me} do
-      them = person("INBOUND", "Brazil")
+      them = person("INBOUND")
       {:ok, _} = Relationships.request_scope(them.id, me.id, "FRIEND")
 
       {:ok, live, _} = live(conn, ~p"/")
@@ -69,7 +69,7 @@ defmodule PeoplemediaWeb.HandshakeTest do
     end
 
     test "declining deletes nothing and can be re-asked", %{conn: conn, me: me} do
-      them = person("INBOUND", "Brazil")
+      them = person("INBOUND")
       {:ok, _} = Relationships.request_scope(them.id, me.id, "FRIEND")
 
       {:ok, live, _} = live(conn, ~p"/")
@@ -85,7 +85,7 @@ defmodule PeoplemediaWeb.HandshakeTest do
     end
 
     test "each round tells the other side", %{conn: conn, me: me} do
-      them = person("INBOUND", "Brazil")
+      them = person("INBOUND")
       {:ok, _} = Relationships.request_scope(them.id, me.id, "FRIEND")
 
       {:ok, live, _} = live(conn, ~p"/")
@@ -125,14 +125,25 @@ defmodule PeoplemediaWeb.HandshakeTest do
       assert length(Letters.thread(me.id, them.id)) == before
     end
 
-    test "you cannot write to someone you have not scoped", %{conn: conn, me: me} do
-      them = person("STRANGER", "Brazil")
+    test "a letter opens the tie it needs, and grants nothing by doing so",
+         %{conn: conn, me: me} do
+      them = person("STRANGER")
 
+      # THIS USED TO BE REFUSED, on the reasoning that being able to write is
+      # the point of scoping. That is a rule about PERMISSION — who may write to
+      # whom — and this app has not decided it; refusing decided it by accident,
+      # and decided it "never".
       {:ok, live, _} = live(conn, ~p"/")
       render_click(live, :pick_person, %{"id" => them.id, "act" => "write"})
+      render_submit(live, :write_letter, %{"body" => "hello"})
 
-      assert render_submit(live, :write_letter, %{"body" => "hello"}) =~ "SCOPE THEM FIRST"
-      assert Letters.thread(me.id, them.id) == []
+      assert [%{body: "hello", from: "you"}] = Letters.thread(me.id, them.id)
+
+      # AND THEY ARE STILL A STRANGER. The row a letter makes says two people
+      # have a correspondence; being scoped wants a settled state and two agreed
+      # scopes, and this has neither.
+      refute Relationships.related?(me.id, them.id)
+      assert Enum.any?(Relationships.not_held_by(me.id), &(&1.id == them.id))
     end
 
     test "opening a thread IS reading it", %{conn: conn, me: me} do

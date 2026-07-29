@@ -6,6 +6,16 @@ defmodule Peoplemedia.Letters do
   scope is not — mine says "MUM", hers says something else, and a thread hung off
   either would be a thread only one of us could see.
 
+  ## OR OFF AN AUDIENCE, AND NEVER BOTH
+
+  A LETTERHEAD is the other kind: written to a population rather than to a
+  person, with nobody in particular to answer it. It carries an `audience` and
+  no relationship, which is why nothing here had to learn a new shape — a thread
+  query asks for one relationship id, and NULL is not one.
+
+  The two are one table because they are one thing said two ways, and the day a
+  letterhead grows replies the reply will be a letter like any other.
+
   ## THE THREAD READS FROM WHERE YOU STAND
 
   The rows are the same for both people; what differs is the reading. `from` is
@@ -20,6 +30,7 @@ defmodule Peoplemedia.Letters do
   import Ecto.Query, warn: false
 
   alias Peoplemedia.Letters.Letter
+  alias Peoplemedia.Relationships
   alias Peoplemedia.Relationships.{Relationship, Scope}
   alias Peoplemedia.Repo
 
@@ -53,11 +64,18 @@ defmodule Peoplemedia.Letters do
   end
 
   @doc """
-  Write one. The relationship has to exist — you cannot write to somebody you
-  have not scoped, which is the point of scoping.
+  Write one, opening the tie if there is not one yet.
+
+  IT USED TO REFUSE ANYONE YOU HAD NOT SCOPED, on the reasoning that being able
+  to write is the point of scoping. That is a rule about PERMISSION — who may
+  write to whom — and this app has not decided it; refusing here decided it by
+  accident, and decided it "never". A letter now makes the row it needs. The row
+  grants nothing on its own: `Relationships.related?/2` still wants a settled
+  state and two agreed scopes, so a letter does not make anybody scoped.
   """
   def write(sender_id, recipient_id, attrs) do
-    case relationship_id(sender_id, recipient_id) do
+    case relationship_id(sender_id, recipient_id) ||
+           tie_id(sender_id, recipient_id) do
       nil ->
         {:error, :no_relationship}
 
@@ -66,6 +84,42 @@ defmodule Peoplemedia.Letters do
         |> Letter.changeset(Map.merge(attrs, %{relationship_id: rel_id, sender_id: sender_id}))
         |> Repo.insert()
     end
+  end
+
+  @doc """
+  Say one out loud — a LETTERHEAD, addressed to an audience rather than to
+  anybody.
+
+  NO TIE IS OPENED, and that is the difference from `write/3` rather than an
+  omission. A tie is a row saying these two people have spoken; a letterhead is
+  not spoken to anyone, so there is nobody for it to be a row about.
+  """
+  def broadcast(sender_id, audience, attrs) do
+    %Letter{}
+    |> Letter.broadcast_changeset(Map.merge(attrs, %{sender_id: sender_id, audience: audience}))
+    |> Repo.insert()
+  end
+
+  @doc """
+  Everything this person has said out loud, newest first, read from their own
+  side — the self page's list.
+
+  `read` IS ALWAYS FALSE ON THESE AND MUST NOT BE READ. The field means the
+  RECIPIENT opened it, and a letterhead has as many recipients as its audience
+  is wide; who has read one is a table that does not exist yet. It is here at all
+  only because these share the reading the panel has always been handed, and a
+  shape that dropped a key would be a shape the panel has to branch on.
+  """
+  def broadcasts_by(sender_id, limit \\ 30) do
+    Repo.all(
+      from(l in Letter,
+        where: l.sender_id == ^sender_id and not is_nil(l.audience),
+        order_by: [desc: l.inserted_at, desc: l.id],
+        limit: ^limit,
+        preload: [:sender]
+      )
+    )
+    |> Enum.map(&read_from(&1, sender_id))
   end
 
   @doc """
@@ -131,6 +185,16 @@ defmodule Peoplemedia.Letters do
       min < 43_200 -> "#{div(min, 10_080)}w"
       min < 525_600 -> "#{div(min, 43_200)}mo"
       true -> "#{div(min, 525_600)}y"
+    end
+  end
+
+  # Writing to yourself is the one case with no tie to make.
+  defp tie_id(a_id, b_id) when a_id == b_id, do: nil
+
+  defp tie_id(a_id, b_id) do
+    case Relationships.tie(a_id, b_id) do
+      %{id: id} -> id
+      _ -> nil
     end
   end
 

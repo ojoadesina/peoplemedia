@@ -14,9 +14,11 @@
 // screen gives twenty faces too small to recognise, which defeats the point of
 // showing faces at all. A page holds as many as can be seen properly — fewer on
 // a phone — and the rest wait their turn. Paging happens HERE rather than on the
-// server because the grid is phx-update="ignore": the server may not touch these
-// rows without throwing away the playing videos and the reticle mid-flight.
-type HookCtx = { el: HTMLElement; cleanup?: () => void };
+// server because a page turn is a way of LOOKING at the room, not a change to
+// who is in it — asking the server to re-render the grid to see the next three
+// faces would throw away the playing videos and the reticle mid-flight to say
+// something the browser already knew.
+type HookCtx = { el: HTMLElement; cleanup?: () => void; relayout?: () => void };
 
 const PHONE = "(max-width: 40rem)";
 
@@ -126,10 +128,19 @@ export const LiveRoom = {
     const onResize = () => render(false);
     window.addEventListener("resize", onResize);
 
+    // The room is server-rendered and hook-arranged: who is live comes down in a
+    // patch, where the reticle rests and how many pages there are do not. So a
+    // patch is re-measured rather than exempted.
+    this.relayout = () => requestAnimationFrame(() => render(false));
+
     this.cleanup = () => {
       window.clearTimeout(timer);
       window.removeEventListener("resize", onResize);
     };
+  },
+
+  updated(this: HookCtx) {
+    this.relayout?.();
   },
 
   destroyed(this: HookCtx) {

@@ -22,16 +22,22 @@
 // It reverts itself. When the media finishes, or the list moves under it, the
 // box shrinks back and mutes again. Nothing keeps playing over a moving list,
 // and nothing stays enlarged once it is done.
-type HookCtx = { el: HTMLElement; cleanup?: () => void };
+type HookCtx = { el: HTMLElement; cleanup?: () => void; resettle?: () => void };
 
 export const Panel = {
   mounted(this: HookCtx) {
     const scroll = this.el;
-    const items = Array.from(scroll.querySelectorAll<HTMLElement>(".panel-item"));
+    // LOOKED UP FRESH, never captured. The letters are patched — writing one
+    // adds a row, opening a thread clears its unread marks — so a list captured
+    // at mount holds detached nodes after the first patch. That is not a slow
+    // leak: a detached row measures zero, so rowHeight() went to 0, the lead and
+    // trail went to 0, and the panel list slammed to the top and could never
+    // select anything again.
+    const items = () => Array.from(scroll.querySelectorAll<HTMLElement>(".panel-item"));
     const stage = scroll.parentElement?.querySelector<HTMLElement>(".stage") ?? null;
     const video = stage?.querySelector<HTMLVideoElement>(".stage-video") ?? null;
     const audio = stage?.querySelector<HTMLAudioElement>(".stage-audio") ?? null;
-    if (!items.length || !stage) return;
+    if (!items().length || !stage) return;
 
     // The box's state is CLASSES, not data attributes: it is phx-update="ignore"
     // so a patch never rewrites it, and classes survive a re-render where a
@@ -202,7 +208,12 @@ export const Panel = {
     // the scroller cannot perform (already at an end) gives up rather than loop.
     let snaps = 0;
 
-    const rowHeight = () => items[0].getBoundingClientRect().height;
+    // WHICH ROW IS CHOSEN, kept as an INDEX rather than as the element. A patch
+    // replaces the rows, so a remembered element is a node no longer in the
+    // page; the position in the list survives.
+    let focused: number | null = null;
+
+    const rowHeight = () => items()[0]?.getBoundingClientRect().height || 1;
 
     // THE BAND SITS A FIXED ROW-AND-A-HALF FROM THE TOP, not a third of the way
     // down. The chosen presence reads NEAR THE TOP with a single row peeking
@@ -227,7 +238,7 @@ export const Panel = {
     const nearest = (): { el: HTMLElement; delta: number } | null => {
       const centre = bandCentre();
       let best: { el: HTMLElement; delta: number } | null = null;
-      for (const el of items) {
+      for (const el of items()) {
         const r = el.getBoundingClientRect();
         const delta = r.top + r.height / 2 - centre;
         if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { el, delta };
@@ -236,7 +247,8 @@ export const Panel = {
     };
 
     const clear = () =>
-      items.forEach((i) => i.classList.remove("is-focused", "is-expanded", "is-playing"));
+      focused = null;
+      items().forEach((i) => i.classList.remove("is-focused", "is-expanded", "is-playing"));
 
     const settle = () => {
       pad();
@@ -271,6 +283,7 @@ export const Panel = {
 
     const take = (el: HTMLElement) => {
       clear();
+      focused = items().indexOf(el);
       el.classList.add("is-focused");
       scroll.classList.add("has-selection");
       preview(el);
@@ -295,22 +308,49 @@ export const Panel = {
     // Clicking a row that is NOT yet chosen scrolls it into the band — the same
     // act as scrolling it there by hand, and the gesture the audio will need.
     // Clicking the one already chosen is the commit: sound on, face enlarged.
-    items.forEach((el) =>
-      el.addEventListener("click", () => {
-        if (el.classList.contains("is-focused")) {
-          commit();
-          return;
-        }
-        const r = el.getBoundingClientRect();
-        scroll.scrollBy({ top: r.top + r.height / 2 - bandCentre(), behavior: "smooth" });
-      }),
-    );
+    // Delegated: a patch replaces these rows, and a listener bound per row at
+    // mount would be bound to rows that are no longer in the page.
+    scroll.addEventListener("click", (e) => {
+      const el = (e.target as HTMLElement).closest?.(".panel-item") as HTMLElement | null;
+      if (!el) return;
+      if (el.classList.contains("is-focused")) {
+        commit();
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      scroll.scrollBy({ top: r.top + r.height / 2 - bandCentre(), behavior: "smooth" });
+    });
 
     window.addEventListener("resize", settle);
 
     // Opening another relationship replaces this element; stop the progress loop
     // with it, or it runs on forever against a detached box.
-    this.cleanup = () => cancelAnimationFrame(raf);
+    // ── WHAT A PATCH IS ALLOWED TO DO ───────────────────────────────────────
+    // Only put back what the patch took: the measured lead and trail, and the
+    // mark on the row already chosen. NOT `settle`, which is allowed to
+    // smooth-scroll and to commit — both of which are answers to a gesture, and
+    // running them on the strength of a patch starts a loop with the server.
+    // See the long note in scopes.ts, where this cost the whole list.
+    const restore = () => {
+      pad();
+      const el = items()[focused ?? -1];
+      if (el) el.classList.add("is-focused");
+    };
+
+    let pending = 0;
+    this.resettle = () => {
+      if (scroll.classList.contains("is-scrolling")) return;
+      cancelAnimationFrame(pending);
+      pending = requestAnimationFrame(restore);
+    };
+
+    this.cleanup = () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(pending);
+      // Never removed before, so every relationship you opened left one more
+      // listener behind holding a scroller that was gone.
+      window.removeEventListener("resize", settle);
+    };
 
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
@@ -318,6 +358,10 @@ export const Panel = {
         settle();
       }),
     );
+  },
+
+  updated(this: HookCtx) {
+    this.resettle?.();
   },
 
   destroyed(this: HookCtx) {

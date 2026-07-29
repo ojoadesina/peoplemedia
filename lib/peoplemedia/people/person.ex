@@ -19,6 +19,12 @@ defmodule Peoplemedia.People.Person do
   schema "people" do
     field(:name, :string)
     field(:country, :string)
+    # WHETHER THEY APPEAR AT ALL. Being around is automatic — opening the app is
+    # the whole gesture — so the way out has to be a standing fact about the
+    # person rather than a choice made per session. On the around itself it would
+    # expire along with the thing it was protecting, which is the one moment it
+    # must not. See `Peoplemedia.Around`, which is the only place it is read.
+    field(:around_hidden, :boolean, default: false)
 
     timestamps()
   end
@@ -28,5 +34,10 @@ defmodule Peoplemedia.People.Person do
     |> cast(attrs, [:name, :country])
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 60)
+  end
+
+  @doc "Appear, or do not. The one thing on this row that is a preference."
+  def around_changeset(person, attrs) do
+    cast(person, attrs, [:around_hidden])
   end
 end

@@ -375,6 +375,41 @@ defmodule Peoplemedia.Relationships do
     )
   end
 
+  @doc """
+  The row that joins two people, made if it is not there yet.
+
+  A LETTER NEEDS ONE AND A SCOPE IS NOT REQUIRED FOR IT. Writing to somebody
+  used to demand a settled scope, which quietly answered a question this app has
+  not decided — who may write to whom — and answered it "only people who have
+  agreed". That is a rule about permission; this is a row that says two people
+  have a correspondence.
+
+  IT MAKES STRANGER SCOPES, and it has to. A `relationships` row carries no
+  participants — who it joins is known only through the `scopes` hanging off it
+  — so a bare relationship is a row nothing can ever find again, including the
+  thread that was written into it. `stranger` is the type this app already uses
+  for a tracked tie that grants nothing, and it is the honest word here: you
+  have written to each other and that is all.
+
+  CREATING IT GRANTS NOTHING. `related?/2` wants a `scoped` state and two
+  `related` scopes; `not_held_by/1` filters on exactly that pair, so somebody
+  you have only written to stays in the unscoped list where they belong. And
+  `request_scope/3` reads a `stranger` row as a fresh ask, so scoping them later
+  is a first ask rather than a repeat.
+  """
+  def tie(a_id, b_id) when a_id != b_id do
+    Repo.transaction(fn ->
+      rel = find_or_create_one(a_id, b_id)
+      make_stranger(rel.id, a_id, b_id)
+      make_stranger(rel.id, b_id, a_id)
+      rel
+    end)
+    |> case do
+      {:ok, rel} -> rel
+      {:error, _} = err -> err
+    end
+  end
+
   defp find_or_create_one(owner_id, target_id) do
     case relationship_between(owner_id, target_id) do
       nil ->

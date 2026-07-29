@@ -7,7 +7,10 @@ defmodule Peoplemedia.Fixtures do
   wants a list has to say whose it is — which is the honest cost of the list
   becoming real, and worth paying in one place rather than nineteen.
   """
-  alias Peoplemedia.{Identity, Letters, People, Relationships}
+  import Ecto.Query
+
+  alias Peoplemedia.{Around, Identity, Letters, People, Relationships}
+  alias Peoplemedia.People.Person
   alias Peoplemedia.Repo
 
   @held [
@@ -82,10 +85,46 @@ defmodule Peoplemedia.Fixtures do
       end
     end
 
-    for name <- @strangers, do: person(name, "Brazil")
+    # STRANGERS WHERE THE OWNER IS. The list is filtered by the place in the box
+    # now, so a cast whose strangers all live somewhere else would hand every
+    # test an empty unscoped list — and the two questions the surface asks are
+    # "who here do I hold" and "who here do I not".
+    for name <- @strangers, do: person(name, "Finland")
+
+    # AND NOT EVERYONE IS HERE. Presence is read off a real around now, so a cast
+    # in which everybody is around would leave `absent` — half of what the row
+    # can say — drawn by nothing and asserted by nobody. Three states, all three
+    # in the cast: loud, silent, and gone.
+    #
+    # SARAH IS THE LOUD ONE, and she is the only one, because the boxes beside
+    # the band show one person at a time and a test that finds a mood needs to
+    # know whose it is.
+    speak(by_name("SARAH"), %{mood: "happy", activity: "watching", about: "the witchers"})
+    here(by_name("MICHAEL"))
+    here(by_name("AMINA"))
 
     me
   end
+
+  @doc "Somebody who opened the app and said nothing about it — the silent around."
+  def here(%Person{} = person) do
+    {:ok, _} = Around.touch(person.id)
+    person
+  end
+
+  @doc "Somebody here with a mood and a doing — the loud around."
+  def speak(%Person{} = person, attrs) do
+    {:ok, _} = Around.speak(person.id, attrs)
+    person
+  end
+
+  @doc "Send somebody's around into the past, the way leaving does."
+  def gone(%Person{} = person) do
+    {:ok, _} = Around.hush(person.id)
+    person
+  end
+
+  defp by_name(name), do: Repo.one!(from(p in Person, where: p.name == ^name))
 
   # Straight to the row, because `Letters.mark_read/2` marks a whole side of a
   # thread and these need one letter at a time.

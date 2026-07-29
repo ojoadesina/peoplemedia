@@ -23,3 +23,13 @@ config :logger, level: :info
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
+
+# THE MASTER PASSPORT, and it is in the PRODUCTION config on purpose while this
+# app is still a demonstration of itself — the deployed copy is something to be
+# logged into and looked at, not somewhere real people keep anything. It is
+# `compile_env`, so it cannot be moved to runtime.exs; it has to be decided when
+# the release is built.
+#
+# THIS LINE GOES the day the first real passport is issued. Until then it is the
+# only thing standing between a demo and a locked door.
+config :peoplemedia, master_handle: "angel"
