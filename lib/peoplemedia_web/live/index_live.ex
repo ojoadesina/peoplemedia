@@ -2056,6 +2056,19 @@ defmodule PeoplemediaWeb.IndexLive do
                THE NAME IS A TITLE, NOT A LETTER. Words are their own thing and
                they come later; this is what the words will be under.
 
+               IT HAS A GROUND, at the page's own colour. On a wide screen it is
+               one row exactly as tall as the band it replaced, so the list never
+               showed through; wrapped onto two on a phone, the gaps between its
+               boxes had names scrolling behind them. A form you can read the
+               list through is a form and a list arguing over the same pixels.
+
+               IT GROWS DOWN FROM THE BAND'S TOP EDGE, not out from its centre.
+               Centred, it was fine on a wide screen where it is one line — and
+               on a phone, where the name bar takes the full width and the boxes
+               wrap beneath it, half of that second line grew UPWARD through the
+               caption above. A form that reaches backwards over the thing that
+               says who it is for is a form arguing with its own answer.
+
                `pointer-events-auto` ON THE ROW ITSELF, because it sits over a
                list that is still scrolling beneath it — anything that is not a
                control here would be a strip swallowing presses meant for the
@@ -2065,7 +2078,7 @@ defmodule PeoplemediaWeb.IndexLive do
             id="round-form"
             phx-change="round_change"
             phx-submit="round_send"
-            class="round-form pointer-events-none absolute inset-x-0 top-(--band-top) z-30 flex -translate-y-1/2 flex-wrap items-start gap-3"
+            class="round-form pointer-events-none absolute inset-x-0 top-(--list-top) z-30 flex flex-wrap items-start gap-3 bg-light-50 pb-3 dark:bg-dark-950"
           >
             <div class="list-box pointer-events-auto flex min-h-(--band-h) shrink-0 items-center bg-primary-600/15 dark:bg-primary-500/20">
               <input
@@ -2186,7 +2199,7 @@ defmodule PeoplemediaWeb.IndexLive do
                underneath are not the question. --%>
           <div
             :if={@going && @picker}
-            class="round-picker absolute inset-x-0 top-(--band-top) z-40 mt-8 max-h-[60vh] overflow-y-auto bg-light-50/95 py-4 dark:bg-dark-950/95"
+            class="round-picker absolute inset-x-0 top-(--list-top) z-40 mt-(--picker-top) max-h-[55vh] overflow-y-auto bg-light-50/95 py-4 dark:bg-dark-950/95"
           >
             <div :if={@picker == "mood"} class="flex flex-col gap-5">
               <div :for={{family, words} <- Rounds.mood_families()} class="flex flex-col gap-2">

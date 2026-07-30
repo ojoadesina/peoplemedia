@@ -1003,7 +1003,6 @@ html[data-theme="dark"] {
    to put a cluster of boxes in. The 1.25rem feather is so a row ARRIVES rather
    than appearing all at once at the moment it clears the edge. */
 .scopes-scroll {
-  --list-top: calc(var(--band-top) - var(--band-h) / 2);
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
   mask-image: linear-gradient(
@@ -2362,12 +2361,24 @@ textarea {
      bar rather than recomputing the fraction, so this is the only place the
      answer exists. */
   --band-top: calc(var(--row-h) * 1.5);
+  /* THE BAND'S TOP EDGE. It lived on `.scopes-scroll`, which is where its first
+     reader was — but a custom property is INHERITED, not global, and the form
+     that opens over the band is the scroller's SIBLING. It read nothing, the
+     `top` was invalid, and the whole creation UI dropped to its static position
+     off the bottom of the page. Anything two siblings both need belongs on the
+     root they share. */
+  --list-top: calc(var(--band-top) - var(--band-h) / 2);
+  /* HOW FAR UNDER THE FORM ITS OWN GRID OPENS. One band's height on a wide
+     screen, where the form is a single row; on a phone the boxes wrap beneath
+     the name bar, so the grid has to clear two. */
+  --picker-top: calc(var(--band-h) + 0.75rem);
   /* THE LIST'S CAPTION, and it wants AIR under it rather than a hairline. Held
      one line off the band it read as a label stuck to the box — the two crowded
      into one object instead of a caption standing over a thing. The panel's own
      LETTERS label keeps roughly this distance from the stage beneath it, and
      that is the relationship worth matching. */
-  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - 4.25rem);
+  --tags-gap: 3.2rem;
+  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - var(--tags-gap) - 1.05rem);
 
   /* THE LIST'S OWN INSET — and the second of the two levels this page has.
      They are NOT the same thing, and collapsing them is the mistake that put
@@ -2522,9 +2533,24 @@ textarea {
      grows DOWNWARD, straight over the names, and a bottom-anchored one grows
      UPWARD into the empty page above it. The gap to the band is then a constant
      rather than a leftover. */
+  /* THE CAPTION HUGS THE BAND HERE, and it has to. On a wide screen the boxes
+     sit BESIDE the band and the caption has the whole strip above it to itself;
+     below 66rem the boxes have no rail to sit on, so they stack above the band —
+     straight through where the caption was. Two things claiming one strip, and
+     the caption lost because it is drawn second.
+
+     SO IT IS PINNED TO THE BAND rather than laid out among them: one line of
+     margin off the top edge, with the boxes clearing it from above. The caption
+     belongs to the band either way — it says what the list under it holds — so
+     anchoring it there is what it always meant, and the wide screen simply had
+     enough room to hide that. */
+  .app-root {
+    --tags-gap: 1.05rem;
+    --picker-top: calc(var(--band-h) * 2 + 1.5rem);
+  }
   .scope-boxes {
     top: auto;
-    bottom: calc(100% - var(--band-top) + var(--band-h) / 2 + 3rem);
+    bottom: calc(100% - var(--band-top) + var(--band-h) / 2 + 3.3rem);
     right: 0;
     left: 0;
     justify-content: flex-start;
