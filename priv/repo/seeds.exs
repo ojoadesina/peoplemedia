@@ -232,24 +232,26 @@ IO.puts(
     " people, " <> to_string(scopes) <> " scopes, " <> to_string(letters) <> " letters"
 )
 
-# ── WHO IS AROUND ─────────────────────────────────────────────────────────────
-# Presence is read off a real around now, so a seed in which nobody is here
-# would draw the surface's newest two boxes empty on every row — and `absent`,
-# which is half of what a row can say, would be the only half anybody saw.
-alias Peoplemedia.Around
+# ── WHO IS ROUND ──────────────────────────────────────────────────────────────
+# The list is people-first and never a feed, so what makes it worth looking at is
+# who has gone round: a name, a mood, a doing. A seed in which nobody has would
+# draw the surface's newest boxes empty on every row — and `absent`, which is
+# half of what a row can say, would be the only half anybody saw.
+alias Peoplemedia.{Presence, Rounds}
 
-around = [
-  {"SARAH", %{mood: "happy", activity: "watching", about: "the witchers"}},
-  {"KEMI", %{mood: "sad", activity: "walking"}},
+rounds = [
+  {"SARAH", %{name: "the witchers, finally", mood: "happy", activity: "movie", about: "the witchers"}},
+  {"KEMI", %{name: "walking it off", mood: "sad", activity: "walking"}},
   {"IBRAHIM", %{mood: "restless", activity: "training", about: "hill sprints"}},
-  {"ELENA", %{mood: "content", activity: "cooking", about: "borscht"}},
-  {"MICHAEL", %{}},
-  {"ROSE", %{}}
+  {"ELENA", %{name: "borscht, third attempt", mood: "content", activity: "cooking", about: "borscht"}},
+  {"MICHAEL", :here_only},
+  {"ROSE", :here_only}
 ]
 
-for {name, said} <- around,
+for {name, said} <- rounds,
     person = Repo.one(from p in Person, where: p.name == ^name) do
-  if said == %{}, do: Around.touch(person.id), else: Around.speak(person.id, said)
+  {:ok, _} = Presence.touch(person.id)
+  if said != :here_only, do: {:ok, _} = Rounds.go(person.id, said)
 end
 
-IO.puts("around: #{length(around)} of them")
+IO.puts("round: #{length(rounds)} of them")

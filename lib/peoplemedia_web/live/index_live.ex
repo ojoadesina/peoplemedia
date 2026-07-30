@@ -71,7 +71,7 @@ defmodule PeoplemediaWeb.IndexLive do
   """
   use PeoplemediaWeb, :live_view
 
-  alias Peoplemedia.{Around, Directory, Letters, Notifications, Relationships}
+  alias Peoplemedia.{Directory, Letters, Notifications, Presence, Relationships, Rounds}
   alias Phoenix.LiveView.JS
 
   @impl true
@@ -98,8 +98,8 @@ defmodule PeoplemediaWeb.IndexLive do
     # only redrew on a notification would keep showing people who left.
     if connected?(socket) && me do
       Notifications.subscribe(me.id)
-      Around.touch(me.id)
-      :timer.send_interval(Around.beat_ms(), self(), :around)
+      Presence.touch(me.id)
+      :timer.send_interval(Presence.beat_ms(), self(), :beat)
     end
 
     {:ok,
@@ -133,7 +133,7 @@ defmodule PeoplemediaWeb.IndexLive do
      # the server's: a mood is data the send will use, not a fact about a
      # gesture in one browser, and holding it here is what lets the room be
      # re-rendered from state rather than read back out of the DOM.
-     |> assign(picker: nil, around_pick: %{mood: nil, activity: nil, about: nil})
+     |> assign(going: false, picker: nil, round_pick: blank_round())
      |> assign(pending: pending_for(me))
      |> assign(live: Enum.filter(scopes, &(&1.state == "live")))
      |> put_list()
@@ -222,9 +222,17 @@ defmodule PeoplemediaWeb.IndexLive do
   # STILL HERE, AND WHO ELSE IS. The two halves of the beat: say so, and find
   # out. It re-reads rather than settling, so a list that quietly lost somebody
   # does not also lose the reader's place in it.
-  def handle_info(:around, socket) do
+  def handle_info(:beat, socket) do
     me = socket.assigns.current_person
-    if me, do: Around.touch(me.id)
+
+    if me do
+      Presence.touch(me.id)
+      # AND THE ROUND GOES ON WHILE ITS CREATOR DOES. It expires forty-five
+      # minutes after THEY go quiet, not after the last person to say something,
+      # so the beat that says "still here" is the same one that keeps it up.
+      Rounds.keep(me.id)
+    end
+
     {:noreply, socket |> reread() |> put_list() |> put_current()}
   end
 
@@ -306,6 +314,72 @@ defmodule PeoplemediaWeb.IndexLive do
   # meaning changed as the list scrolled would be a button you had to check
   # before pressing. Your own page does not target either — that is the whole
   # point of it.
+  # ── GOING ROUND ─────────────────────────────────────────────────────────────
+  # NO PANEL. It opened a room over the whole page, which is a great deal of
+  # screen for four short answers — and it hid the very thing the round is about
+  # to join. The creation UI takes the BAND'S place instead: the band is the top
+  # marked area, it is already the shape of what a round produces, and leaving
+  # the list underneath means you can see who you are going round among while
+  # you do it.
+  #
+  # THE PLUS AND NOTHING ELSE OPENS IT. Not a press on the band — that is one
+  # thumb-width from the row you were reading, and a misfire would drop you into
+  # a form you never asked for. A dedicated button costs a deliberate reach,
+  # which is the right price for a deliberate act.
+  def handle_event("go_round", _params, socket) do
+    {:noreply,
+     socket
+     # A FRESH FORM EVERY TIME. What you were part way through saying an hour ago
+     # is not an answer to being asked again now.
+     |> assign(going: true, picker: nil, round_pick: blank_round())
+     # THE LIST STAYS, but the SELECTION cannot: the form has taken the band's
+     # line, and a picked name would be claiming it at the same time.
+     |> assign(mode: :list)
+     |> put_subject()}
+  end
+
+  # SEND AS IS. Everything on the form is optional, so there is nothing to refuse
+  # — an empty round is "I am here and open to being joined", which is the
+  # smallest true thing anybody can say here and the one this surface exists for.
+  def handle_event("round_send", params, socket) do
+    me = socket.assigns.current_person
+
+    # THE FORM CARRIES ALL OF IT, and that is what the hidden fields are for. A
+    # mood is chosen by pressing a word rather than by ticking a control, so the
+    # server holds it in order to RE-RENDER the boxes — but it also puts it back
+    # into the form, and a shut picker keeps its answer in a hidden input rather
+    # than dropping out of the DOM. So the post is complete either way, and the
+    # submit trusts the form the way every other form here does.
+    said =
+      params
+      |> Map.take(~w(name mood activity about))
+      |> Map.merge(audience_for_tab(socket.assigns.scope))
+
+    case me && Rounds.go(me.id, said) do
+      nil ->
+        {:noreply, assign(socket, going: false)}
+
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(going: false, picker: nil, round_pick: blank_round())
+         |> reread()
+         |> put_list()
+         |> put_current()
+         |> push_event("toast", %{words: round_receipt(socket.assigns.scope, said)})}
+
+      {:error, _} ->
+        {:noreply, push_event(socket, "toast", %{words: "THAT DID NOT GO THROUGH"})}
+    end
+  end
+
+  # MANUAL CANCEL, and it is the only way out that changes nothing. Sending is
+  # the other door and it commits; a form with one exit would make every escape
+  # an act.
+  def handle_event("round_cancel", _params, socket) do
+    {:noreply, assign(socket, going: false, picker: nil, round_pick: blank_round())}
+  end
+
   def handle_event("write_head", _params, socket) do
     them =
       case socket.assigns do
@@ -319,7 +393,7 @@ defmodule PeoplemediaWeb.IndexLive do
      # A FRESH ROOM EVERY TIME. What you were part way through saying an hour ago
      # is not an answer to being asked again now — and an around left half filled
      # in would send a mood you had forgotten choosing.
-     |> assign(picker: nil, around_pick: %{mood: nil, activity: nil, about: nil})}
+     |> assign(picker: nil, round_pick: blank_round())}
   end
 
   # ── OPENING A BOX ONTO ITS OWN OPTIONS ──────────────────────────────────────
@@ -351,10 +425,30 @@ defmodule PeoplemediaWeb.IndexLive do
   # a mood picked by accident is a mood you have to send.
   def handle_event("pick", %{"which" => which, "word" => word}, socket) do
     key = String.to_existing_atom(which)
-    pick = socket.assigns.around_pick
+    pick = socket.assigns.round_pick
     next = if pick[key] == word, do: nil, else: word
 
-    {:noreply, assign(socket, around_pick: Map.put(pick, key, next), picker: nil)}
+    {:noreply, assign(socket, round_pick: Map.put(pick, key, next), picker: nil)}
+  end
+
+  # ── WHAT IS BEING TYPED IS THE SERVER'S ─────────────────────────────────────
+  # AND IT HAS TO BE. Pressing a box re-renders the form — the picker opens
+  # inside it — so anything the browser was holding alone is wiped by the patch
+  # that answers the press. The name went first: type a title, reach for a mood,
+  # and the title was gone by the time the moods arrived.
+  #
+  # A ROUND TRIP PER KEYSTROKE, and here it is worth it. The argument against it
+  # is for a LETTER, which is long and whose only reader is the person it goes
+  # to; a round's name is a title capped at eighty characters, and it shares a
+  # form with three controls that each re-render the thing it sits in. Holding it
+  # in one place is what makes the form survive being used.
+  def handle_event("round_change", params, socket) do
+    kept =
+      socket.assigns.round_pick
+      |> Map.put(:name, params["name"])
+      |> Map.put(:about, params["about"] || socket.assigns.round_pick.about)
+
+    {:noreply, assign(socket, round_pick: kept)}
   end
 
   # ── SCOPING ─────────────────────────────────────────────────────────────────
@@ -646,22 +740,35 @@ defmodule PeoplemediaWeb.IndexLive do
   # offered. The column holds `relationships` too, so the day the room grows a
   # pair of words to pick between, this line is where the answer arrives — no
   # migration, and nothing else moves.
-  # THE AROUND FIRST, THEN THE LETTER, and the order is the sentence: I am here
-  # and this is how I am, and by the way here is what I think about it. It also
-  # means a bad mood word fails BEFORE a letter is written, so nobody ends up
+  # THE ROUND FIRST, THEN THE WORDS, and the order is the sentence: here I am and
+  # this is what it is about, and here is the first thing I have to say. It also
+  # means a bad mood word fails BEFORE anything is written, so nobody ends up
   # having said something whose state they cannot see.
   #
-  # HOW YOU ARE IS ABOUT YOU, NOT ABOUT THE LETTER, so it is set whether the
-  # letter is addressed to the world or to one person. Writing to Kemi while
-  # happy does not make you privately happy.
+  # GOING ROUND IS A NEW ROW EVERY TIME. It does not edit the last one and it
+  # does not revive an expired one — the old round keeps its words and its place
+  # in the history, and this one is simply newer.
+  #
+  # A ROUND EITHER WAY. How you are is about YOU, not about who the words are
+  # addressed to, so writing to one person while restless still puts you round
+  # restless. The audience of the ROUND and the address of the WORDS are two
+  # different questions and the surface answers both without asking.
   defp around_then_letter(me, them, standing, said, body) do
-    with {:ok, _} <- speak_if(me, standing, said) do
+    with {:ok, _} <- go_round_if(me, them, standing, said) do
       write_if(me, them, body)
     end
   end
 
-  defp speak_if(_me, _standing, false), do: {:ok, :nothing_said}
-  defp speak_if(me, standing, true), do: Around.speak(me.id, standing)
+  defp go_round_if(_me, _them, _standing, false), do: {:ok, :nothing_said}
+
+  defp go_round_if(me, them, standing, true),
+    do: Rounds.go(me.id, Map.merge(standing, audience_for(them)))
+
+  # THE TAB, OR THE PERSON WHOSE PAGE YOU ARE ON. Nobody is ever asked who a
+  # round is for: standing on somebody's page aims it at them, and standing on
+  # the list means everyone.
+  defp audience_for(nil), do: %{"audience" => "public"}
+  defp audience_for(them), do: %{"audience" => "private", "target_id" => them.id}
 
   # A ROOM ANSWERED WITH ONLY A MOOD IS A COMPLETE ACT. There is nothing to write
   # and nothing has gone wrong.
@@ -685,7 +792,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # only ever reported the letter would leave the two quieter acts landing in
   # silence — which, on a surface where the room closes on the way out, is
   # indistinguishable from nothing having happened at all.
-  defp receipt(_them, "", standing), do: "AROUND — #{standing_words(standing)}"
+  defp receipt(_them, "", standing), do: "ROUND — #{standing_words(standing)}"
   defp receipt(nil, _body, _standing), do: "SENT TO THE WORLD"
   defp receipt(them, _body, _standing), do: "SENT TO #{String.upcase(them.name)}"
 
@@ -694,6 +801,32 @@ defmodule PeoplemediaWeb.IndexLive do
     |> Enum.map(&standing[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.map_join(" · ", &String.upcase/1)
+  end
+
+  # AN EMPTY ROUND, and every field on it is optional on purpose: a round with
+  # nothing filled in is "I am here and open to being joined", which is the
+  # smallest true thing anybody can say here.
+  defp blank_round, do: %{name: nil, mood: nil, activity: nil, about: nil}
+
+  # ── WHO A ROUND IS FOR IS THE TAB YOU ARE STANDING ON ───────────────────────
+  # PEOPLE is everyone, so a round made there is public. RELATIONSHIPS is the
+  # people you hold, so a round made there is private to them. Nobody is asked,
+  # because the answer is already on screen and a control offering it again would
+  # be asking somebody to restate where they are standing.
+  defp audience_for_tab("SCOPED"), do: %{"audience" => "private"}
+  defp audience_for_tab(_people), do: %{"audience" => "public"}
+
+  defp round_receipt("SCOPED", said), do: "ROUND WITH YOUR RELATIONSHIPS#{round_words(said)}"
+  defp round_receipt(_people, said), do: "ROUND, PUBLICLY#{round_words(said)}"
+
+  defp round_words(said) do
+    ~w(name mood activity)
+    |> Enum.map(&said[&1])
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> case do
+      [] -> ""
+      words -> " — " <> Enum.map_join(words, " · ", &String.upcase/1)
+    end
   end
 
   defp other_scope("SCOPED"), do: "UNSCOPED"
@@ -1039,19 +1172,24 @@ defmodule PeoplemediaWeb.IndexLive do
            on the box it counts. A confirmation has nowhere like that to live,
            because the thing it is about is a press that has not happened yet.
 
-           IT SITS ON THE ACT'S OWN LINE, above the button, so the second press
-           and the question about it are in the same corner of the screen rather
-           than at opposite ends of it. Client-owned: what it says and whether it
-           is showing are both facts about a gesture in one browser. --%>
+           IT MOVED TO THE TOP RIGHT, and off the act's line. It sat directly
+           over the foot, which was right while its only job was asking whether
+           you meant a press you had just made — the question and the button
+           belonged together. It carries RECEIPTS now as well, and a receipt over
+           the controls is a receipt in the way of the next thing you do. The top
+           right is the one corner of this surface nothing else claims.
+
+           Client-owned: what it says and whether it is showing are both facts
+           about a gesture in one browser. --%>
       <div
         id="toast"
         phx-hook="Confirm"
         phx-mounted={JS.ignore_attributes(["class", "hidden"])}
-        class="toast pointer-events-none fixed inset-x-0 bottom-[calc(var(--foot-bottom)+var(--act-h)+1rem)] z-50"
+        class="toast pointer-events-none fixed inset-x-0 top-(--head-top) z-50"
         aria-live="polite"
         hidden
       >
-        <div class="rail">
+        <div class="rail flex justify-end">
           <%!-- THE WORDS ARE THE CLIENT'S TOO, and leaving that unsaid left the
                toast showing an EMPTY terracotta box.
 
@@ -1132,12 +1270,16 @@ defmodule PeoplemediaWeb.IndexLive do
                `data-open-room` opens the room — the launcher's registry catches
                that attribute anywhere on the page, so this button needed no new
                JavaScript at all. --%>
+          <%!-- ONE BUTTON, BOTH DIRECTIONS. A plus that stays a plus while the
+               form it opened is already open is a control offering something you
+               already have — press it again and you get another request for the
+               same thing. It turns, and the turn IS the way out, which also
+               takes a control off a foot that has to fit a phone. --%>
           <button
             id="act"
             type="button"
-            aria-label="Write a letterhead"
-            data-open-room="write"
-            phx-click="write_head"
+            aria-label={(@going && "Leave without going round") || "Go round"}
+            phx-click={(@going && "round_cancel") || "go_round"}
             class={[
               "pointer-events-auto relative flex size-(--act-h) cursor-pointer items-center justify-center",
               "bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600",
@@ -1150,9 +1292,15 @@ defmodule PeoplemediaWeb.IndexLive do
                  degrees into a cross and then crossfade to an arrow, three
                  jobs on one button — which read well and put the way out of a
                  form a screen away from the form. --%>
+            <%!-- THE SAME TWO BARS, TURNED. Not a second drawing: one plus
+                 rotated is one object with two states, and a cross cut fresh
+                 would be free to drift from the plus it is supposed to be. --%>
             <svg
               viewBox="0 0 24 24"
-              class="act-mark absolute h-1/2 w-1/2"
+              class={[
+                "act-mark absolute h-1/2 w-1/2 transition-transform duration-200",
+                @going && "rotate-45"
+              ]}
               fill="currentColor"
               aria-hidden="true"
             >
@@ -1221,10 +1369,6 @@ defmodule PeoplemediaWeb.IndexLive do
         scope_target={@scope_target}
         scope_error={@scope_error}
         pending={@pending}
-        mood_families={Around.mood_families()}
-        picker={@picker}
-        around_pick={@around_pick}
-        activities={Around.activities()}
       />
 
       <div class="rail flex h-screen flex-col pt-(--body-top)">
@@ -1327,13 +1471,32 @@ defmodule PeoplemediaWeb.IndexLive do
                other; lighting it would claim one of them is. The place is
                different — it can be OPEN, with the whole roll of the world
                scrolling under the band — and that is a state worth showing. --%>
-          <div class="list-tags absolute top-(--tags-top) left-0 z-20 flex items-baseline gap-5 px-(--list-pad)">
+          <%!-- `pl-`, NOT `px-`, AND POINTER-EVENTS OFF THE BOX. This is an
+               absolutely positioned strip at z-20 sitting directly over the
+               rows, so every part of it that is not a tag — the gap between the
+               two, and the padding after the last — was an invisible surface
+               swallowing presses meant for the list underneath it.
+
+               AND NO PADDING EITHER SIDE. It had --list-pad on the left, which
+               is the LIST's inset — where a row's words start, one step in from
+               the rail. These are not a row: they are a caption for the whole
+               column, so they belong on the RAIL, level with the strapline above
+               them and with the band's own left edge below. Indented, they read
+               as a row that had lost its name.
+
+               Trailing padding on a shrink-to-fit box shows nothing and costs a
+               press, which is the worst trade available.
+
+               The container/child split is the one `.scope-boxes` and
+               `.app-foot` already use, and for exactly this reason. --%>
+          <div class="list-tags pointer-events-none absolute top-(--tags-top) left-0 z-20 flex items-baseline gap-5">
             <button
               type="button"
               phx-click="place_box"
               aria-pressed={to_string(@list_mode == :location)}
               class={[
-                "list-place min-w-0 cursor-pointer truncate outline-none transition-colors",
+                "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
+                "transition-colors",
                 "text-(length:--sub-type) tracking-(--sub-track) focus-visible:underline",
                 tag_ink(@list_mode == :location)
               ]}
@@ -1352,7 +1515,8 @@ defmodule PeoplemediaWeb.IndexLive do
               aria-pressed={to_string(@list_mode == :people)}
               class={
                 [
-                  "list-scope flex shrink-0 cursor-pointer items-baseline gap-1.5 outline-none",
+                  "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-1.5",
+                  "outline-none",
                   "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
                   "focus-visible:underline",
                   # QUIETER THAN THE PLACE, and deliberately the quietest thing on
@@ -1381,7 +1545,7 @@ defmodule PeoplemediaWeb.IndexLive do
               type="button"
               phx-click="cancel_place"
               aria-label="Leave the world without changing place"
-              class="cursor-pointer text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
+              class="pointer-events-auto cursor-pointer text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1669,7 +1833,15 @@ defmodule PeoplemediaWeb.IndexLive do
                AIMING, and these are already aimed by the band — the letter box
                wears them because it holds a thing you can open, and these hold a
                word. --%>
-          <div class="scope-boxes pointer-events-none z-20 flex items-center gap-3">
+          <%!-- IT FILLS WHAT IS BESIDE THE BAND. Three fixed boxes left a strip
+               of empty rail on a narrow desktop while the doing box — the only
+               one carrying somebody's own words — truncated inside ten rems. The
+               two short answers keep their slots; the one with no fixed length
+               takes the rest. --%>
+          <div class={[
+            "scope-boxes pointer-events-none z-20 flex items-center gap-3",
+            @going && "invisible"
+          ]}>
             <%!-- ONE: WHAT THEY ARE DOING. The kind of thing above, quiet, in
                  the same small tracked voice the age under a name uses; the
                  THING itself below, at the count's size. That order is the way
@@ -1683,8 +1855,8 @@ defmodule PeoplemediaWeb.IndexLive do
               data-opens="what they are doing"
               aria-label="Expand what they are doing"
               class={[
-                "around-box doing-box pointer-events-auto relative flex h-(--band-h) w-(--doing-w)",
-                "shrink-0 cursor-pointer flex-col justify-center gap-1 overflow-hidden px-4",
+                "around-box doing-box pointer-events-auto relative flex h-(--band-h) min-w-0",
+                "flex-1 cursor-pointer flex-col justify-center gap-1 overflow-hidden px-4",
                 "bg-neutral-400/10 dark:bg-neutral-300/15"
               ]}
             >
@@ -1695,30 +1867,30 @@ defmodule PeoplemediaWeb.IndexLive do
                    one browser, which is the same reason the letter box's is. --%>
               <div class="around-brief flex flex-col gap-1 overflow-hidden">
                 <span
-                  :if={@current[:around][:activity]}
+                  :if={@current[:round][:activity]}
                   class="truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
                 >
-                  {String.upcase(@current.around.activity)}
+                  {String.upcase(@current.round.activity)}
                 </span>
                 <span
-                  :if={@current[:around][:about]}
+                  :if={@current[:round][:about]}
                   class="truncate text-(length:--row-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100"
                 >
-                  {String.upcase(@current.around.about)}
+                  {String.upcase(@current.round.about)}
                 </span>
               </div>
               <div class="around-full flex-col justify-center gap-3 overflow-y-auto text-left">
                 <span
-                  :if={@current[:around][:activity]}
+                  :if={@current[:round][:activity]}
                   class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
                 >
-                  {String.upcase(@current.around.activity)}
+                  {String.upcase(@current.round.activity)}
                 </span>
                 <span
-                  :if={@current[:around][:about]}
+                  :if={@current[:round][:about]}
                   class="text-(length:--row-type) leading-tight tracking-(--row-track) text-light-900 dark:text-dark-100"
                 >
-                  {String.upcase(@current.around.about)}
+                  {String.upcase(@current.round.about)}
                 </span>
               </div>
             </div>
@@ -1750,15 +1922,15 @@ defmodule PeoplemediaWeb.IndexLive do
               class={[
                 "around-box mood-box pointer-events-auto relative flex h-(--band-h) w-(--mood-w)",
                 "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-3",
-                !@current[:around][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
+                !@current[:round][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
               ]}
-              data-family={@current[:around][:family]}
+              data-family={@current[:round][:family]}
             >
               <span
-                :if={@current[:around][:mood]}
+                :if={@current[:round][:mood]}
                 class="around-brief truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100"
               >
-                {String.upcase(@current.around.mood)}
+                {String.upcase(@current.round.mood)}
               </span>
               <%!-- OPEN, IT NAMES THE FAMILY TOO. The colour belongs to the
                    family and the word to the feeling, so a box that only ever
@@ -1766,10 +1938,10 @@ defmodule PeoplemediaWeb.IndexLive do
                    learn it eventually and never once be told. --%>
               <div class="around-full flex-col items-center justify-center gap-3 text-center">
                 <span class="text-(length:--count-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100">
-                  {String.upcase(@current[:around][:mood] || "")}
+                  {String.upcase(@current[:round][:mood] || "")}
                 </span>
                 <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400">
-                  {String.upcase(@current[:around][:family] || "")}
+                  {String.upcase(@current[:round][:family] || "")}
                 </span>
               </div>
             </div>
@@ -1869,13 +2041,224 @@ defmodule PeoplemediaWeb.IndexLive do
           <%!-- BAND AND FRAME ARE ONE ROW, so the two can never fall out of line.
                The band answers "which one", the frame answers "and what are they
                sending". Both appear only on a settled selection. --%>
+          <%!-- ── GOING ROUND, IN PLACE ──────────────────────────────────
+               IT TAKES THE BAND'S LINE, and the list goes on underneath. That
+               is the whole reason it is not a panel: a room over the page would
+               hide the people the round exists to reach, and it would cost a
+               full screen to ask four short questions.
+
+               IT IS THE SHAPE OF WHAT IT MAKES. The bar is where the round's
+               NAME goes and it wears the band's own wash and width; the three
+               boxes to its right are the same three that will carry the answer
+               once it is sent. Nothing here has to be learned, because it is
+               already on screen.
+
+               THE NAME IS A TITLE, NOT A LETTER. Words are their own thing and
+               they come later; this is what the words will be under.
+
+               `pointer-events-auto` ON THE ROW ITSELF, because it sits over a
+               list that is still scrolling beneath it — anything that is not a
+               control here would be a strip swallowing presses meant for the
+               names below. --%>
+          <form
+            :if={@going}
+            id="round-form"
+            phx-change="round_change"
+            phx-submit="round_send"
+            class="round-form pointer-events-none absolute inset-x-0 top-(--band-top) z-30 flex -translate-y-1/2 flex-wrap items-start gap-3"
+          >
+            <div class="list-box pointer-events-auto flex min-h-(--band-h) shrink-0 items-center bg-primary-600/15 dark:bg-primary-500/20">
+              <input
+                type="text"
+                name="name"
+                value={@round_pick.name}
+                maxlength={Rounds.name_limit()}
+                placeholder="WHAT IS GOING ON?"
+                autocomplete="off"
+                class="w-full bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+              />
+            </div>
+
+            <input type="hidden" name="mood" value={@round_pick.mood || ""} />
+            <input type="hidden" name="activity" value={@round_pick.activity || ""} />
+            <input
+              :if={@picker != "activity"}
+              type="hidden"
+              name="about"
+              value={@round_pick.about || ""}
+            />
+
+            <%!-- THE SAME THREE BOXES, asking instead of answering. --%>
+            <%!-- THE BOXES TAKE THE REST OF THE RAIL, and the doing box takes
+                 whatever the other two leave. It is the only one holding
+                 somebody's own words, so it is the only one whose content has no
+                 fixed length — a doing pinned to ten rems truncated while the
+                 space beside it sat empty. WRAPPING, because on a phone the name
+                 bar is already the full width and these belong on their own
+                 line rather than off the edge of it. --%>
+            <div class="pointer-events-auto flex min-w-0 flex-1 items-center gap-3">
+              <button
+                type="button"
+                phx-click="pick_open"
+                phx-value-which="activity"
+                class={[
+                  "around-box flex h-(--band-h) min-w-0 flex-1 cursor-pointer flex-col",
+                  "items-start justify-center gap-1 overflow-hidden px-4 text-left outline-none",
+                  "bg-neutral-400/10 transition-colors hover:bg-neutral-400/20",
+                  "dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+                ]}
+              >
+                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+                  DOING
+                </span>
+                <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
+                  {String.upcase(@round_pick.activity || "—")}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                phx-click="pick_open"
+                phx-value-which="mood"
+                data-family={Rounds.family_of(@round_pick.mood)}
+                class={[
+                  "around-box mood-box flex h-(--band-h) w-(--mood-w) shrink-0 cursor-pointer",
+                  "flex-col items-start justify-center gap-1 overflow-hidden px-4 text-left",
+                  "outline-none transition-colors",
+                  !Rounds.family_of(@round_pick.mood) &&
+                    "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+                ]}
+              >
+                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+                  MOOD
+                </span>
+                <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
+                  {String.upcase(@round_pick.mood || "—")}
+                </span>
+              </button>
+
+              <%!-- THE FRAME'S PLACE, and it is empty because a frame is
+                   CAPTURED and there is nothing here to capture with yet. It
+                   pulses rather than sitting blank: an unfilled round frame is
+                   somebody here with nothing to show, which is a real state and
+                   the commonest one. --%>
+              <div
+                aria-label="A frame, when there is one"
+                class="around-box presence-box relative flex size-(--band-h) shrink-0 items-center justify-center bg-primary-600/15 dark:bg-primary-500/20"
+              >
+                <span class="presence-pulse block size-3 bg-primary-600 dark:bg-primary-500"></span>
+              </div>
+
+              <%!-- SEND AS IS, OR CANCEL. Two doors, and only one of them acts —
+                   a form whose single exit was the send would make every escape
+                   from it an act nobody chose. --%>
+              <button
+                type="submit"
+                aria-label="Go round"
+                class="flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  class="size-6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="butt"
+                  stroke-linejoin="miter"
+                  aria-hidden="true"
+                >
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+            </div>
+          </form>
+
+          <%!-- ── WHAT A BOX OPENS ONTO ──────────────────────────────────
+               MOODS COME IN THEIR FAMILIES, one row each, coloured by the family
+               rather than by the word. Forty-eight hues would be a language
+               nobody could learn; seven is one you pick up by using it, and
+               inside a family the words differ by intensity — annoyed,
+               irritated, furious — so the colour says the weather and the word
+               says the temperature.
+
+               IT COVERS THE LIST while it is open, and that is the one moment
+               this surface is allowed to: you are choosing, and the names
+               underneath are not the question. --%>
+          <div
+            :if={@going && @picker}
+            class="round-picker absolute inset-x-0 top-(--band-top) z-40 mt-8 max-h-[60vh] overflow-y-auto bg-light-50/95 py-4 dark:bg-dark-950/95"
+          >
+            <div :if={@picker == "mood"} class="flex flex-col gap-5">
+              <div :for={{family, words} <- Rounds.mood_families()} class="flex flex-col gap-2">
+                <p class="px-(--list-pad) text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+                  {String.upcase(family)}
+                </p>
+                <div class="flex flex-wrap gap-2 px-(--list-pad)">
+                  <button
+                    :for={mood <- words}
+                    type="button"
+                    phx-click="pick"
+                    phx-value-which="mood"
+                    phx-value-word={mood}
+                    data-family={family}
+                    class={[
+                      "mood-word cursor-pointer px-3 py-2 text-(length:--sub-type) outline-none",
+                      "tracking-(--sub-track) text-light-900 transition-colors dark:text-dark-100",
+                      @round_pick.mood == mood && "is-picked"
+                    ]}
+                  >
+                    {String.upcase(mood)}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <%!-- DOINGS ARE A PLAIN GRID. They have no families worth colouring
+                 — "reading" is not warmer than "walking" — and what makes one
+                 specific is the line underneath, which is yours. --%>
+            <div :if={@picker == "activity"} class="flex flex-col gap-4">
+              <div class="flex flex-wrap gap-2 px-(--list-pad)">
+                <button
+                  :for={doing <- Rounds.activities()}
+                  type="button"
+                  phx-click="pick"
+                  phx-value-which="activity"
+                  phx-value-word={doing}
+                  class={[
+                    "cursor-pointer px-3 py-2 text-(length:--sub-type) tracking-(--sub-track)",
+                    "outline-none transition-colors",
+                    (@round_pick.activity == doing &&
+                       "bg-primary-600/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200") ||
+                      "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 hover:text-neutral-700 dark:bg-neutral-300/10 dark:text-neutral-400 dark:hover:bg-neutral-300/20"
+                  ]}
+                >
+                  {String.upcase(doing)}
+                </button>
+              </div>
+              <input
+                type="text"
+                form="round-form"
+                name="about"
+                value={@round_pick.about}
+                maxlength="60"
+                placeholder="WHAT EXACTLY?"
+                class="w-full bg-transparent px-(--list-pad) text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+              />
+            </div>
+          </div>
+
           <div
             id="bar"
             phx-hook="Bar"
-            class={[
-              "bar pointer-events-none absolute inset-x-0 top-(--band-top) flex -translate-y-1/2 items-center",
-              @mode in [:open, :self] && "is-picked"
-            ]}
+            class={
+              [
+                "bar pointer-events-none absolute inset-x-0 top-(--band-top) flex -translate-y-1/2 items-center",
+                @mode in [:open, :self] && "is-picked",
+                # THE FORM HAS THE LINE. Two things on it would be two answers to
+                # "what is at the top of this list".
+                @going && "invisible"
+              ]
+            }
           >
             <%!-- THE LEFT HALF IS THE HANDLE — pressing here picks the whole bar
                  up and carries it to the top; pressing the frame at the other
@@ -2013,17 +2396,17 @@ defmodule PeoplemediaWeb.IndexLive do
               <p class="absolute top-6 left-0 z-20 flex items-center gap-4 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
                 <span>LETTERS</span>
                 <span
-                  :if={@subject[:around][:activity] || @subject[:around][:mood]}
+                  :if={@subject[:round][:activity] || @subject[:round][:mood]}
                   class="panel-around flex items-center gap-3 px-3 py-1 text-light-900 dark:text-dark-100"
-                  data-family={@subject[:around][:family]}
+                  data-family={@subject[:round][:family]}
                 >
-                  <span :if={@subject[:around][:mood]}>{String.upcase(@subject.around.mood)}</span>
+                  <span :if={@subject[:round][:mood]}>{String.upcase(@subject.round.mood)}</span>
                   <span
-                    :if={@subject[:around][:activity]}
+                    :if={@subject[:round][:activity]}
                     class="text-neutral-500 dark:text-neutral-400"
                   >
                     {String.upcase(
-                      [@subject.around.activity, @subject.around[:about]]
+                      [@subject.round.activity, @subject.round[:about]]
                       |> Enum.reject(&(&1 in [nil, ""]))
                       |> Enum.join(" · ")
                     )}

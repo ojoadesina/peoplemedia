@@ -9,7 +9,7 @@ defmodule Peoplemedia.Fixtures do
   """
   import Ecto.Query
 
-  alias Peoplemedia.{Around, Identity, Letters, People, Relationships}
+  alias Peoplemedia.{Identity, Letters, People, Presence, Relationships, Rounds}
   alias Peoplemedia.People.Person
   alias Peoplemedia.Repo
 
@@ -91,36 +91,43 @@ defmodule Peoplemedia.Fixtures do
     # "who here do I hold" and "who here do I not".
     for name <- @strangers, do: person(name, "Finland")
 
-    # AND NOT EVERYONE IS HERE. Presence is read off a real around now, so a cast
-    # in which everybody is around would leave `absent` — half of what the row
-    # can say — drawn by nothing and asserted by nobody. Three states, all three
-    # in the cast: loud, silent, and gone.
+    # AND NOT EVERYONE IS HERE. Presence is real now, so a cast in which everybody
+    # is here would leave `absent` — half of what the row can say — drawn by
+    # nothing and asserted by nobody. Three states, all three in the cast: round,
+    # here-and-quiet, and gone.
     #
-    # SARAH IS THE LOUD ONE, and she is the only one, because the boxes beside
-    # the band show one person at a time and a test that finds a mood needs to
-    # know whose it is.
-    speak(by_name("SARAH"), %{mood: "happy", activity: "watching", about: "the witchers"})
+    # SARAH IS THE ONE WHO WENT ROUND, and she is the only one, because the boxes
+    # beside the band show one person at a time and a test that finds a mood
+    # needs to know whose it is.
+    round(by_name("SARAH"), %{
+      name: "the witchers, finally",
+      mood: "happy",
+      activity: "movie",
+      about: "the witchers"
+    })
+
     here(by_name("MICHAEL"))
     here(by_name("AMINA"))
 
     me
   end
 
-  @doc "Somebody who opened the app and said nothing about it — the silent around."
+  @doc "Somebody who opened the app. Presence, and nothing else."
   def here(%Person{} = person) do
-    {:ok, _} = Around.touch(person.id)
+    {:ok, _} = Presence.touch(person.id)
     person
   end
 
-  @doc "Somebody here with a mood and a doing — the loud around."
-  def speak(%Person{} = person, attrs) do
-    {:ok, _} = Around.speak(person.id, attrs)
+  @doc "Somebody who went round — here on purpose, and saying what it is about."
+  def round(%Person{} = person, attrs \\ %{}) do
+    {:ok, _} = Presence.touch(person.id)
+    {:ok, _} = Rounds.go(person.id, attrs)
     person
   end
 
-  @doc "Send somebody's around into the past, the way leaving does."
+  @doc "Send somebody's presence into the past, the way leaving does."
   def gone(%Person{} = person) do
-    {:ok, _} = Around.hush(person.id)
+    {:ok, _} = Presence.leave(person.id)
     person
   end
 

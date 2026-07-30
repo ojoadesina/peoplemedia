@@ -2003,7 +2003,6 @@ textarea {
    feeling. */
 @media (max-width: 40rem) {
   .launcher-body {
-    --doing-w: 9.5rem;
     --mood-w: 9.5rem;
   }
 }
@@ -2217,7 +2216,9 @@ textarea {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(0.5rem);
+    /* DOWN, not up. It used to rise out of the act it sat over; it lives at the
+       top right now, so it arrives from the edge it is nearest. */
+    transform: translateY(-0.5rem);
   }
   to {
     opacity: 1;
@@ -2289,7 +2290,10 @@ textarea {
      these two are empty far more often than not — and boxes that collapsed when
      empty would slide the one box that is always the same object sideways on
      every settle. A stable rail is worth two rectangles of air. */
-  --doing-w: 10rem;
+  /* THE MOOD BOX'S SLOT. The doing box has none any more — it takes whatever the
+     other two leave, because it is the only one holding somebody's own words and
+     so the only one with no length to fix. Three fixed boxes left a strip of
+     empty rail beside them while that one truncated. */
   --mood-w: 7rem;
 
   /* ── THE LIST'S VOICE ────────────────────────────────────────────────────
@@ -2358,10 +2362,12 @@ textarea {
      bar rather than recomputing the fraction, so this is the only place the
      answer exists. */
   --band-top: calc(var(--row-h) * 1.5);
-  /* THE LIST'S CAPTION, one comfortable line above the band. It is the same
-     relationship the panel's own LETTERS label has to the stage under it — the
-     thing that says what you are looking at, sitting directly over it. */
-  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - 3rem);
+  /* THE LIST'S CAPTION, and it wants AIR under it rather than a hairline. Held
+     one line off the band it read as a label stuck to the box — the two crowded
+     into one object instead of a caption standing over a thing. The panel's own
+     LETTERS label keeps roughly this distance from the stage beneath it, and
+     that is the relationship worth matching. */
+  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - 4.25rem);
 
   /* THE LIST'S OWN INSET — and the second of the two levels this page has.
      They are NOT the same thing, and collapsing them is the mistake that put
@@ -2595,7 +2601,6 @@ textarea {
        box truncates instead, and can afford to: its top line is the kind of
        thing and its bottom line is somebody's own words, which are already
        capped at sixty. */
-    --doing-w: 8rem;
     --mood-w: 7rem;
   }
 

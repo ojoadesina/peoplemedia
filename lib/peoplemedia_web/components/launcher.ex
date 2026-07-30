@@ -57,16 +57,6 @@ defmodule PeoplemediaWeb.Launcher do
   attr :scope_labels, :map, default: %{mine: nil, theirs: nil}
   attr :scope_error, :any, default: nil
   attr :pending, :map, default: %{incoming: [], outgoing: [], settled: []}
-  # THE TWO CLOSED VOCABULARIES, handed in rather than read from the context here
-  # — a component that reached into a domain module would be a second place the
-  # surface knows where moods come from.
-  attr :mood_families, :list, default: []
-  attr :activities, :list, default: []
-  # WHICH BOX IS OPEN, and what has been chosen so far. Both are the SERVER'S:
-  # a mood is data the send will use, not a fact about a gesture, and the room is
-  # re-rendered from these rather than reading anything back out of the DOM.
-  attr :picker, :any, default: nil
-  attr :around_pick, :map, default: %{mood: nil, activity: nil, about: nil}
 
   def launcher(assigns) do
     ~H"""
@@ -369,31 +359,17 @@ defmodule PeoplemediaWeb.Launcher do
           />
         </div>
 
-        <%!-- ── AROUND ─────────────────────────────────────────────────────
-             THE ROOM THE ACT OPENS, and it is the surface it came from, turned
-             into a form.
+        <%!-- ── WRITE ──────────────────────────────────────────────────────
+             WORDS TO ONE PERSON, and nothing else any more. It briefly asked
+             three questions and produced a round; going round happens on the
+             surface now, in the band's own place, so this room is back to the
+             one job the swipe opens it for.
 
-             IT WAS CALLED A LETTERHEAD AND THAT WAS THE WRONG NAME for what it
-             asks. A letterhead is one of three answers here; the thing you are
-             filling in is an AROUND — are you here, how are you, what are you
-             doing — and calling the room after its last field made the first two
-             read as decoration on a letter rather than as the point.
-
-             ITS SHAPE IS THE LIST'S SHAPE. A band on the left and three boxes on
-             the right, the same objects at the same sizes: the bar is where the
-             words go, and the boxes are the same three that answer the band on
-             the page behind. So the form and what it produces are visibly the
-             same thing, and nothing has to be learned twice.
-
-             A BOX OPENS ONTO ITS OWN OPTIONS. Pressing one hides its neighbours
-             and fills the rail with everything you could choose — moods laid out
-             in their families and coloured by them, doings in a plain grid. That
-             is the same gesture the boxes make on the page, where opening one
-             pushes the others aside; here what it uncovers is a choice rather
-             than a longer reading. --%>
+             IT IS A WORD IN WAITING. Threaded speech with attachments is what
+             this becomes; the shape is right and the model has not arrived. --%>
         <div data-room="write" class="launcher-body min-h-0 flex-1 overflow-y-auto" hidden>
           <.room_title>
-            {(@scope_target && String.upcase(@scope_target.name)) || "AROUND"}
+            {(@scope_target && String.upcase(@scope_target.name)) || "WRITE"}
           </.room_title>
 
           <p
@@ -403,197 +379,27 @@ defmodule PeoplemediaWeb.Launcher do
             {String.upcase(@scope_error)}
           </p>
 
-          <form :if={@scope_stage == :write} id="write-form" phx-submit="write_letter" class="pt-8">
-            <%!-- THE CHOICES RIDE AS HIDDEN FIELDS. They are made by pressing a
-                 word rather than by ticking a control, so the server already
-                 holds them by the time this submits — these are the form
-                 agreeing with what has already been said, not asking again. --%>
-            <%!-- `|| ""` RATHER THAN nil, and it is not cosmetic. HEEx drops an
-                 attribute whose value is nil, so an unanswered mood rendered as
-                 an input with no `value` at all — and the stylesheet's test for
-                 "nothing has been chosen yet" is `[value=""]`, which an absent
-                 attribute does not match. The check sat enabled over an empty
-                 room, offering an act that would then be refused. --%>
-            <input type="hidden" name="mood" value={@around_pick.mood || ""} />
-            <input type="hidden" name="activity" value={@around_pick.activity || ""} />
-
-            <p class={[heading_cls(), "px-(--list-pad) pb-5"]}>
-              {(@scope_target && "A LETTER TO #{String.upcase(@scope_target.name)}") ||
-                "TO THE WORLD"}
+          <%!-- THE ONE PLACE THE APP DOES NOT SHOUT. Everything else on this
+               surface is set in capitals because it is the app talking; what you
+               say to somebody is you talking, and putting your own words in
+               capitals would be the app raising its voice on your behalf. --%>
+          <form :if={@scope_stage == :write} id="write-form" phx-submit="write_letter" class="pt-6">
+            <p class={[heading_cls(), "px-(--list-pad)"]}>
+              {(@scope_target && "TO #{String.upcase(@scope_target.name)}") || "TO NOBODY YET"}
             </p>
-
-            <div class="flex flex-col items-stretch gap-6 lg:flex-row lg:items-start">
-              <%!-- THE BAR, and it is the page's band with a caret in it. Same
-                   wash, same height at rest, same left edge — so a letter looks
-                   like the thing it will become before it is written. It grows
-                   with what you type and stops at the room's own height; see
-                   --compose-max. --%>
-              <div class={[
-                "around-bar relative flex min-h-(--band-h) w-full shrink-0 items-center",
-                "bg-primary-600/15 px-(--list-pad) py-4 lg:w-(--list-w)",
-                @picker && "hidden lg:flex",
-                "dark:bg-primary-500/20"
-              ]}>
-                <textarea
-                  name="body"
-                  rows="1"
-                  placeholder="SAY SOMETHING"
-                  class="compose-field max-h-(--compose-max) w-full resize-none overflow-y-auto bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-                ></textarea>
-              </div>
-
-              <%!-- THE THREE BOXES, closed. Each says what it holds and opens
-                   onto everything it could hold. --%>
-              <%!-- WRAPPING, because on a phone the room is one column and three
-                   boxes across it are wider than the rail. They centre rather
-                   than starting left: this row is the only thing on its line and
-                   the room centres everything else. --%>
-              <div :if={is_nil(@picker)} class="flex flex-wrap justify-center gap-3 lg:flex-nowrap">
-                <button
-                  type="button"
-                  phx-click="pick_open"
-                  phx-value-which="activity"
-                  class={[
-                    "around-box flex h-(--band-h) w-(--doing-w) shrink-0 cursor-pointer flex-col",
-                    "items-start justify-center gap-1 overflow-hidden px-4 text-left outline-none",
-                    "bg-neutral-400/10 transition-colors hover:bg-neutral-400/20",
-                    "dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-                  ]}
-                >
-                  <span class={heading_cls()}>DOING</span>
-                  <%!-- THE SMALLER VOICE, not the row's. On the page these
-                       boxes show a fact and the big type is what makes it
-                       readable in passing; here they show a CHOICE, and
-                       `heartbroken` has to fit whole — a truncated feeling is a
-                       different feeling. --%>
-                  <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
-                    {String.upcase(@around_pick.activity || "—")}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  phx-click="pick_open"
-                  phx-value-which="mood"
-                  data-family={family_of(@around_pick.mood)}
-                  class={[
-                    "around-box mood-box flex h-(--band-h) w-(--doing-w) shrink-0 cursor-pointer",
-                    "flex-col items-start justify-center gap-1 overflow-hidden px-4 text-left",
-                    "outline-none transition-colors",
-                    !family_of(@around_pick.mood) &&
-                      "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-                  ]}
-                >
-                  <span class={heading_cls()}>MOOD</span>
-                  <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
-                    {String.upcase(@around_pick.mood || "—")}
-                  </span>
-                </button>
-
-                <%!-- THE THIRD BOX HAS NOTHING TO ASK YET, and saying so is more
-                     honest than filling it. Words go in the bar now, which left
-                     this one with no job — and it is the right shape for the job
-                     it will have: a face, a voice, or the fact that there is
-                     neither. It breathes, because being here with the camera off
-                     is still being here, and that is the commonest around there
-                     is. --%>
-                <div
-                  aria-label="Here, with nothing to show yet"
-                  class="around-box presence-box relative flex size-(--band-h) shrink-0 items-center justify-center bg-primary-600/15 dark:bg-primary-500/20"
-                >
-                  <span class="presence-pulse block size-3 bg-primary-600 dark:bg-primary-500"></span>
-                </div>
-              </div>
-            </div>
-
-            <%!-- ── WHAT A BOX OPENS ONTO ──────────────────────────────────
-                 MOODS COME IN THEIR FAMILIES, one row each, coloured by the
-                 family rather than by the word. Forty-eight hues would be a
-                 language nobody could learn; seven is one you pick up by using
-                 it, and inside a family the words differ by intensity — annoyed,
-                 irritated, furious — so the colour says the weather and the word
-                 says the temperature. Vent's idea, muted to this surface's
-                 register. --%>
-            <div :if={@picker == "mood"} class="flex flex-col gap-6 px-(--list-pad) pt-2">
-              <div :for={{family, words} <- @mood_families} class="flex flex-col gap-3">
-                <p class={heading_cls()}>{String.upcase(family)}</p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    :for={mood <- words}
-                    type="button"
-                    phx-click="pick"
-                    phx-value-which="mood"
-                    phx-value-word={mood}
-                    data-family={family}
-                    class={[
-                      "mood-word cursor-pointer px-3 py-2 text-(length:--sub-type) outline-none",
-                      "tracking-(--sub-track) text-light-900 transition-colors",
-                      "dark:text-dark-100",
-                      @around_pick.mood == mood && "is-picked"
-                    ]}
-                  >
-                    {String.upcase(mood)}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <%!-- DOINGS ARE A PLAIN GRID. They have no families worth colouring
-                 — "reading" is not warmer than "walking" — and the thing that
-                 makes one specific is the line underneath, which is yours. --%>
-            <div :if={@picker == "activity"} class="flex flex-col gap-5 px-(--list-pad) pt-2">
-              <div class="flex flex-wrap gap-2">
-                <button
-                  :for={doing <- @activities}
-                  type="button"
-                  phx-click="pick"
-                  phx-value-which="activity"
-                  phx-value-word={doing}
-                  class={[
-                    "cursor-pointer px-3 py-2 text-(length:--sub-type) tracking-(--sub-track)",
-                    "outline-none transition-colors",
-                    (@around_pick.activity == doing &&
-                       "bg-primary-600/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200") ||
-                      "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 hover:text-neutral-700 dark:bg-neutral-300/10 dark:text-neutral-400 dark:hover:bg-neutral-300/20"
-                  ]}
-                >
-                  {String.upcase(doing)}
-                </button>
-              </div>
-              <input
-                type="text"
-                name="about"
-                value={@around_pick.about}
-                maxlength="60"
-                placeholder="WHAT EXACTLY?"
-                class="w-full bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-              />
-            </div>
-
-            <%!-- The `about` line has to reach the form even while its own box is
-                 shut, or choosing a doing and closing the picker would throw the
-                 words away. --%>
-            <input
-              :if={@picker != "activity"}
-              type="hidden"
-              name="about"
-              value={@around_pick.about || ""}
-            />
+            <textarea
+              name="body"
+              rows="5"
+              placeholder="SAY SOMETHING"
+              class="compose-field max-h-(--compose-max) w-full resize-none overflow-y-auto bg-transparent pt-6 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+            ></textarea>
           </form>
 
-          <%!-- THE SWIPE IS NO LONGER THE ONLY WAY IN — the act at the foot
-               opens this room too — so an instruction naming one of the two
-               would be sending people the long way round. --%>
           <p :if={@scope_stage != :write} class={[heading_cls(), "px-(--list-pad) pt-10"]}>
-            PRESS THE ACT TO SAY YOU ARE AROUND
+            SWIPE A NAME TO WRITE TO THEM
           </p>
 
-          <.foot
-            form="write-form"
-            icon={(@scope_stage == :write && :check) || :none}
-            label="Send it"
-            back={@picker != nil}
-          />
+          <.foot form="write-form" icon={(@scope_stage == :write && :check) || :none} label="Send it" />
         </div>
       </div>
     </div>
@@ -974,12 +780,6 @@ defmodule PeoplemediaWeb.Launcher do
 
   defp line_for(%{phase: "waiting_back", my_label: l}), do: "YOU CALL THEM “#{l}” · WAITING"
   defp line_for(_), do: "IN MOTION"
-
-  # THE COLOUR HANGS OFF THE FAMILY, and the room needs it in two places — the
-  # closed box and the picked word. Delegated rather than passed in as a third
-  # attr: it is a pure fact about the vocabulary, and threading it through the
-  # markup would be handing the same lookup down twice.
-  defp family_of(mood), do: Peoplemedia.Around.family_of(mood)
 
   @doc """
   A WORD YOU CAN PRESS, and the same object whether it is a mood or a doing.

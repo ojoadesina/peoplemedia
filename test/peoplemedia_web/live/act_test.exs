@@ -1,11 +1,12 @@
-defmodule PeoplemediaWeb.LetterheadTest do
+defmodule PeoplemediaWeb.ActTest do
   @moduledoc """
-  THE ACT WRITES, AND WHERE YOU PRESSED IT FROM SAYS WHO TO.
+  THE FOOT, AND YOUR OWN PAGE.
 
-  Nobody is ever asked "who is this for?" — the surface already knows, and these
-  tests are that claim written down. The failure they exist to catch is silent
-  in both directions: a letterhead that quietly went to one person, and a letter
-  meant for somebody that went to the world.
+  Three buttons, and each of them means one thing. The act goes round — in place,
+  with no panel — and what it produces is `RoundTest`'s subject; what is left here
+  is the furniture around it: that the three doors are where they should be, that
+  the count rides the one that can discharge it, and that a receipt survives the
+  patch it arrives with.
   """
   use PeoplemediaWeb.ConnCase
 
@@ -17,108 +18,6 @@ defmodule PeoplemediaWeb.LetterheadTest do
   setup %{conn: conn} do
     me = cast()
     %{conn: check_in(conn, me), me: me}
-  end
-
-  describe "the act" do
-    test "from the list it writes a letterhead, to the world and to nobody", %{
-      conn: conn,
-      me: me
-    } do
-      {:ok, live, _} = live(conn, ~p"/")
-
-      # TWO HALVES OF ONE PRESS, and this is the server's half. The other — the
-      # room opening — is `data-open-room` on the same button.
-      live |> element("#act") |> render_click()
-      assert render(live) =~ "TO THE WORLD"
-
-      render_submit(live, :write_letter, %{"body" => "hello everyone"})
-
-      assert [head] = Letters.broadcasts_by(me.id)
-      assert head.body == "hello everyone"
-
-      # THE RECEIPT. A send is the one act with no room left to report into —
-      # the room closes on the way out — so it says who it went to on the toast.
-      assert_push_event(live, "toast", %{words: "SENT TO THE WORLD"})
-
-      # NOBODY IS TOLD, because a letterhead is not addressed to anybody. A
-      # badge for it would be an obligation the app invented, and one nothing
-      # on their screen could discharge.
-      for {_scope, them} <- Relationships.held_by(me.id) do
-        assert Notifications.unread_count(them.id) == 0
-      end
-    end
-
-    # THE BAND IS NOT THE PANEL. A name passing under the band is not a claim
-    # that you are on that person's page, and an act whose meaning changed as
-    # the list scrolled would be one you had to check before pressing.
-    test "a name settled in the band does not target it", %{conn: conn, me: me} do
-      {:ok, live, _} = live(conn, ~p"/")
-      render_hook(live, "select", %{"index" => 0})
-
-      live |> element("#act") |> render_click()
-      assert render(live) =~ "TO THE WORLD"
-
-      render_submit(live, :write_letter, %{"body" => "still to nobody"})
-      assert [%{body: "still to nobody"}] = Letters.broadcasts_by(me.id)
-    end
-
-    test "from inside somebody's page it writes to them, and leaves the page open", %{
-      conn: conn,
-      me: me
-    } do
-      [{_scope, them} | _] = Relationships.held_by(me.id)
-
-      {:ok, live, _} = live(conn, ~p"/")
-      render_hook(live, "select", %{"index" => 0})
-      live |> element(".focus-box") |> render_click()
-      assert has_element?(live, "#panel")
-
-      live |> element("#act") |> render_click()
-      assert render(live) =~ "A LETTER TO #{them.name}"
-
-      render_submit(live, :write_letter, %{"body" => "just for you"})
-
-      # It went to them, as a letter and not as a letterhead.
-      assert [newest | _] = Letters.thread(me.id, them.id)
-      assert newest.body == "just for you"
-      assert Letters.broadcasts_by(me.id) == []
-      assert Notifications.unread_count(them.id) >= 1
-      assert_push_event(live, "toast", %{words: words})
-      assert words == "SENT TO #{String.upcase(them.name)}"
-
-      # AND THE PAGE YOU WROTE FROM IS STILL OPEN. Sending used to run through
-      # the same reset the list uses after you scope somebody, which drops the
-      # mode — so writing to the person whose page you were on closed it.
-      assert has_element?(live, "#panel")
-    end
-
-    test "from your own page it writes a letterhead, not a letter to yourself", %{
-      conn: conn,
-      me: me
-    } do
-      {:ok, live, _} = live(conn, ~p"/")
-      live |> element("#self") |> render_click()
-      assert has_element?(live, "#panel")
-
-      live |> element("#act") |> render_click()
-      assert render(live) =~ "TO THE WORLD"
-
-      render_submit(live, :write_letter, %{"body" => "out loud"})
-
-      assert [%{body: "out loud"}] = Letters.broadcasts_by(me.id)
-      assert has_element?(live, "#panel")
-    end
-
-    test "a letterhead with no words is refused, and says so in the room", %{
-      conn: conn,
-      me: me
-    } do
-      {:ok, live, _} = live(conn, ~p"/")
-      live |> element("#act") |> render_click()
-
-      assert render_submit(live, :write_letter, %{"body" => "   "}) =~ "SAY SOMETHING"
-      assert Letters.broadcasts_by(me.id) == []
-    end
   end
 
   describe "your own page" do
@@ -168,7 +67,11 @@ defmodule PeoplemediaWeb.LetterheadTest do
       # it makes something now, and the drawer has a door of its own.
       {:ok, live, _} = live(conn, ~p"/")
 
-      assert has_element?(live, ~s(#act[data-open-room="write"][phx-click="write_head"]))
+      # THE ACT OPENS NO PANEL. It used to carry `data-open-room`, which handed
+      # it to the launcher's registry; going round happens on the surface now,
+      # so the only thing it names is a handler.
+      assert has_element?(live, ~s(#act[phx-click="go_round"]))
+      refute has_element?(live, ~s(#act[data-open-room]))
       assert has_element?(live, "#more")
       assert has_element?(live, ~s(#self[phx-click="open_self"]))
 

@@ -13,10 +13,11 @@ defmodule Peoplemedia.Directory do
   reads it keeps working". The spine has arrived and the promise held: the views
   above never moved.
   """
-  alias Peoplemedia.Around
+  alias Peoplemedia.Presence
   alias Peoplemedia.Letters
   alias Peoplemedia.People.Person
   alias Peoplemedia.Relationships
+  alias Peoplemedia.Rounds
   alias Peoplemedia.Repo
 
   # WORLD COUNTRIES — the LOCATION list. A scroll of places rather than people;
@@ -46,7 +47,7 @@ defmodule Peoplemedia.Directory do
 
   def scopes(%Person{id: owner_id}) do
     held = Relationships.held_by(owner_id)
-    arounds = Around.live_for(Enum.map(held, fn {_scope, person} -> person.id end))
+    standing = standing_for(Enum.map(held, fn {_scope, person} -> person.id end))
 
     Enum.map(held, fn {scope, person} ->
       letters = Letters.thread_of(scope.relationship_id, owner_id)
@@ -63,8 +64,9 @@ defmodule Peoplemedia.Directory do
         letter: summarise(letters)
       }
       |> Map.merge(letterbox(letters))
-      |> Map.merge(standing(arounds[person.id]))
+      |> Map.merge(standing[person.id])
     end)
+    |> by_round()
   end
 
   @doc """
@@ -95,11 +97,11 @@ defmodule Peoplemedia.Directory do
       country: person.country,
       letters: Letters.broadcasts_by(person.id)
     }
-    # YOUR OWN AROUND READS BACK TO YOU, and it is the only place you can check
+    # YOUR OWN ROUND READS BACK TO YOU, and it is the only place you can check
     # what you are telling everybody else. It goes through the same filter as
     # theirs, so hiding hides you from yourself too — which is right: the page is
     # showing you what other people see, and what they see is nothing.
-    |> Map.merge(standing(Around.of(person.id)))
+    |> Map.merge(standing_for([person.id])[person.id])
   end
 
   @doc """
@@ -108,9 +110,9 @@ defmodule Peoplemedia.Directory do
   """
   def unscopes(nil) do
     everyone = Relationships.everyone()
-    arounds = Around.live_for(Enum.map(everyone, & &1.id))
+    standing = standing_for(Enum.map(everyone, & &1.id))
 
-    Enum.map(everyone, &stranger(&1, arounds))
+    everyone |> Enum.map(&stranger(&1, standing)) |> by_round()
   end
 
   def unscopes(%Person{id: owner_id}) do
@@ -127,9 +129,11 @@ defmodule Peoplemedia.Directory do
     # One query for the lot, not one per row — this list is the whole country.
     phases = phases_for(owner_id)
     strangers = Relationships.not_held_by(owner_id)
-    arounds = Around.live_for(Enum.map(strangers, & &1.id))
+    standing = standing_for(Enum.map(strangers, & &1.id))
 
-    Enum.map(strangers, &Map.put(stranger(&1, arounds), :phase, Map.get(phases, &1.id)))
+    strangers
+    |> Enum.map(&Map.put(stranger(&1, standing), :phase, Map.get(phases, &1.id)))
+    |> by_round()
   end
 
   defp phases_for(owner_id) do
@@ -146,7 +150,7 @@ defmodule Peoplemedia.Directory do
   # was not there and died. "No letters" and "not a thing that can have letters"
   # are different claims, and only the first one is true of a person: a stranger
   # is somebody you have not written to yet, not somebody unwritable.
-  defp stranger(%Person{} = person, arounds) do
+  defp stranger(%Person{} = person, standing) do
     %{
       id: person.id,
       label: nil,
@@ -158,26 +162,55 @@ defmodule Peoplemedia.Directory do
       letters: [],
       letter: nil
     }
-    |> Map.merge(standing(arounds[person.id]))
+    |> Map.merge(standing[person.id])
   end
 
-  # ── WHETHER THEY ARE HERE, AND WHAT THEY ARE DOING ──────────────────────────
-  # `state` STOPPED BEING A PLACEHOLDER HERE. Every row used to be handed the
-  # word "present" with a comment admitting it was pretend; it is read off a real
-  # around now, and the surface has been carrying the vocabulary for it the whole
-  # time — the row's `data-state` and the letter box's `is-present`/`is-absent`.
+  # ── WHETHER THEY ARE HERE, WHAT THEY ARE ROUND WITH, AND WHEN THEY LAST WERE ──
+  # THREE QUESTIONS, THREE READS, and they are deliberately not one. Being HERE
+  # is a state; going ROUND is an act; when they LAST went is a fact that outlives
+  # both. The row used to get all three from one table and the table could only
+  # honestly answer the first.
   #
-  # `live` IS NOT AROUND'S TO SET. It was tempting: it is the third word in that
-  # vocabulary and it was sitting unused. But `live` means a face or a voice
-  # actually running, which is ONE thing somebody might be doing inside an
-  # around, not what being around IS — most people are here with the camera off.
-  # Reducing presence to streaming is the mistake this feature exists to avoid.
+  # `state` IS PRESENCE AND NOTHING ELSE. It stopped being a placeholder when
+  # presence became real and it does not now become a placeholder for rounds:
+  # somebody with no round is still here, and the surface has always had the
+  # vocabulary for that — `data-state`, `is-present`, `is-absent`.
   #
-  # THE AROUND ITSELF RIDES ALONG, for the boxes beside the band. nil is the
-  # honest value for somebody who is not here and for somebody who is here and
-  # has said nothing about it — the two differ in `state`, not in this.
-  defp standing(nil), do: %{state: "absent", around: nil}
-  defp standing(around), do: %{state: "present", around: around}
+  # `live` IS NOT OURS TO SET. It means a face or a voice actually running, which
+  # is ONE thing somebody might be doing inside a round, not what being here IS.
+  defp standing_for(ids) do
+    here = Presence.live_for(ids)
+    rounds = Rounds.live_for(ids)
+    last = Rounds.last_round_for(ids)
+
+    Map.new(ids, fn id ->
+      {id,
+       %{
+         state: (MapSet.member?(here, id) && "present") || "absent",
+         round: rounds[id],
+         last_round: last[id]
+       }}
+    end)
+  end
+
+  # ── THE LIST'S ORDER ────────────────────────────────────────────────────────
+  # GOING ROUND PULLS YOU TO THE FRONT, and running out leaves you exactly where
+  # you were. That second half is the whole rule: an expired round is not demoted,
+  # because being overtaken is something SOMEBODY ELSE did and fading is not.
+  # Sorting on "is their round live" would drop a person down the list at a moment
+  # nobody acted — which is the app moving on their behalf, and it is the same
+  # fault as announcing that they had gone.
+  #
+  # SO IT SORTS ON WHEN THEY LAST WENT, which expiry does not touch. Nobody who
+  # has never gone round has an answer, so they hold the order they arrived in,
+  # underneath everybody who has.
+  defp by_round(rows), do: Enum.sort_by(rows, &round_key/1)
+
+  # Ascending, so `{0, ...}` leads. Anybody who has ever gone round comes first,
+  # newest first; anybody who never has holds the order they arrived in
+  # underneath — `Enum.sort_by/2` is stable, which is what keeps that true.
+  defp round_key(%{last_round: seq}) when is_integer(seq), do: {0, -seq}
+  defp round_key(_never), do: {1, 0}
 
   # ── THE LETTER BOX ──────────────────────────────────────────────────────────
   # What the bracketed box beside the band holds: THE LAST LETTER THEY SENT YOU,
