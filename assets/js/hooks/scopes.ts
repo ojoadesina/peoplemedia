@@ -237,14 +237,29 @@ export const Scopes = {
     const cluster = document.querySelector<HTMLElement>(".scope-boxes");
     const onBoxPress = (e: Event) => {
       const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
-      // Replay is a different intent that happens to live inside the box.
+      // Replay is a different intent that happens to live inside the box, and so
+      // is putting a caret in a field.
       if (!el || (e.target as HTMLElement).closest?.(".letterbox-restart")) return;
+      if (writing(e.target)) return;
       toggleExpand(el);
     };
     cluster?.addEventListener("click", onBoxPress);
     // role="button" earns a keyboard, and a keyboard expects both of these.
+    // ── AND NOT WHILE SOMEBODY IS WRITING ───────────────────────────────────
+    // role="button" earns a keyboard and a keyboard expects Enter and Space to
+    // press. Then a TEXTAREA moved inside one of these boxes, and those are the
+    // two keys writing is made of: every space and every line break was caught
+    // here and preventDefault'd, so the doing field silently ate them —
+    // "mending the fence" came out "mendingthefence" and Return did nothing at
+    // all. The symptom looked like a broken input; the cause was a listener two
+    // elements up claiming keys it had every right to before the box had
+    // anything in it you could type into.
+    const writing = (el: EventTarget | null) =>
+      !!(el as HTMLElement)?.closest?.("input, textarea, [contenteditable]");
+
     cluster?.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
+      if (writing(e.target)) return;
       const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
       if (!el) return;
       e.preventDefault();

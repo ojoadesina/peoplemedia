@@ -30,15 +30,15 @@ defmodule Peoplemedia.RoundsTest do
       me = person("OJO")
 
       assert {:ok, _} = Rounds.go(me.id)
-      assert %{mood: nil, activity: nil, live: true} = Rounds.live(me.id)
+      assert %{mood: nil, doing: nil, live: true} = Rounds.live(me.id)
     end
 
     test "and with both of them" do
       me = person("OJO")
 
-      {:ok, _} = Rounds.go(me.id, %{activity: "the witchers, finally", mood: "happy"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "the witchers, finally", mood: "happy"})
 
-      assert %{activity: "the witchers, finally", mood: "happy", family: "joy", number: 1} =
+      assert %{doing: "the witchers, finally", mood: "happy", family: "joy", number: 1} =
                Rounds.live(me.id)
     end
 
@@ -64,12 +64,12 @@ defmodule Peoplemedia.RoundsTest do
     test "going round twice keeps both" do
       me = person("OJO")
 
-      {:ok, _} = Rounds.go(me.id, %{activity: "first"})
-      {:ok, _} = Rounds.go(me.id, %{activity: "second"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "first"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "second"})
 
       assert length(rows(me)) == 2
       # The newest is the one that surfaces them; the older simply stops.
-      assert %{activity: "second"} = Rounds.live(me.id)
+      assert %{doing: "second"} = Rounds.live(me.id)
     end
 
     # THE MOOD KEEPS ITS SET AND THE DOING DOES NOT, and the difference is the
@@ -81,22 +81,22 @@ defmodule Peoplemedia.RoundsTest do
       assert {:error, mood} = Rounds.go(me.id, %{mood: "peckish"})
       assert "is invalid" in errors_on(mood).mood
 
-      assert {:ok, _} = Rounds.go(me.id, %{activity: "vibing, honestly"})
+      assert {:ok, _} = Rounds.go(me.id, %{doing: "vibing, honestly"})
     end
 
     test "an empty field is absent, not invalid" do
       me = person("OJO")
 
-      assert {:ok, _} = Rounds.go(me.id, %{activity: "", mood: ""})
-      assert %{mood: nil, activity: nil} = Rounds.live(me.id)
+      assert {:ok, _} = Rounds.go(me.id, %{doing: "", mood: ""})
+      assert %{mood: nil, doing: nil} = Rounds.live(me.id)
     end
 
     test "a doing longer than the box can hold is refused" do
       me = person("OJO")
       long = String.duplicate("a", Rounds.doing_limit() + 1)
 
-      assert {:error, changeset} = Rounds.go(me.id, %{activity: long})
-      assert errors_on(changeset).activity != []
+      assert {:error, changeset} = Rounds.go(me.id, %{doing: long})
+      assert errors_on(changeset).doing != []
     end
   end
 
@@ -150,19 +150,19 @@ defmodule Peoplemedia.RoundsTest do
     # its mood and its age — it simply stops surfacing the person.
     test "stops it surfacing and deletes nothing" do
       me = person("OJO")
-      {:ok, _} = Rounds.go(me.id, %{activity: "still here somewhere"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "still here somewhere"})
       expire(me)
 
       assert Rounds.live(me.id) == nil
       assert length(rows(me)) == 1
-      assert [%{activity: "still here somewhere", live: false}] = Rounds.history(me.id)
+      assert [%{doing: "still here somewhere", live: false}] = Rounds.history(me.id)
     end
 
     # IT DOES NOT COME BACK. Going round again is one tap and a new row, so there
     # is nothing to revive and no state to reconcile.
     test "an expired round is not revived by the creator returning" do
       me = person("OJO")
-      {:ok, _} = Rounds.go(me.id, %{activity: "the old one"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "the old one"})
       expire(me)
 
       assert Rounds.keep(me.id) == 0
@@ -184,11 +184,11 @@ defmodule Peoplemedia.RoundsTest do
 
     test "stopping is not deleting either" do
       me = person("OJO")
-      {:ok, _} = Rounds.go(me.id, %{activity: "done for now"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "done for now"})
 
       assert Rounds.stop(me.id) == 1
       assert Rounds.live(me.id) == nil
-      assert [%{activity: "done for now"}] = Rounds.history(me.id)
+      assert [%{doing: "done for now"}] = Rounds.history(me.id)
     end
   end
 
@@ -311,20 +311,20 @@ defmodule Peoplemedia.RoundsTest do
     test "newest first, expired ones included" do
       me = person("OJO")
 
-      {:ok, _} = Rounds.go(me.id, %{activity: "older"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "older"})
       expire(me)
-      {:ok, _} = Rounds.go(me.id, %{activity: "newer"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "newer"})
 
-      assert [%{activity: "newer"}, %{activity: "older"}] = Rounds.history(me.id)
+      assert [%{doing: "newer"}, %{doing: "older"}] = Rounds.history(me.id)
     end
 
     test "and somebody else's is not yours" do
       me = person("OJO")
       them = person("SARAH")
-      {:ok, _} = Rounds.go(them.id, %{activity: "theirs"})
+      {:ok, _} = Rounds.go(them.id, %{doing: "theirs"})
 
       assert Rounds.history(me.id) == []
-      assert [%{activity: "theirs"}] = Rounds.history(them.id)
+      assert [%{doing: "theirs"}] = Rounds.history(them.id)
     end
   end
 end

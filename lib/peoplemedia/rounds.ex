@@ -259,7 +259,7 @@ defmodule Peoplemedia.Rounds do
       target_id: r.target_id,
       mood: r.mood,
       family: Round.family_of(r.mood),
-      activity: r.activity,
+      doing: r.doing,
       audience: r.audience,
       # A ROUND BETWEEN TWO PEOPLE IS A DIFFERENT KIND OF THING from one going
       # out to everybody you hold, and the row marks it. Derived, because it is

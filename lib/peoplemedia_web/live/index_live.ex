@@ -362,7 +362,7 @@ defmodule PeoplemediaWeb.IndexLive do
     # submit trusts the form the way every other form here does.
     said =
       params
-      |> Map.take(~w(mood activity))
+      |> Map.take(~w(mood doing))
       |> Map.merge(audience_for_tab(socket.assigns.scope))
 
     case me && Rounds.go(me.id, said) do
@@ -459,8 +459,11 @@ defmodule PeoplemediaWeb.IndexLive do
   # form with three controls that each re-render the thing it sits in. Holding it
   # in one place is what makes the form survive being used.
   def handle_event("round_change", params, socket) do
-    kept = Map.put(socket.assigns.round_pick, :activity, params["activity"])
-    {:noreply, assign(socket, round_pick: kept)}
+    # NOTHING TO KEEP. The doing is the browser's while it is being written and
+    # the mood is set by pressing a word, so a change event has no news in it —
+    # the handler stays because the form declares one, and a form that announced
+    # changes to a LiveView with no clause for them would crash on the first key.
+    {:noreply, socket}
   end
 
   # ── SCOPING ─────────────────────────────────────────────────────────────────
@@ -572,7 +575,7 @@ defmodule PeoplemediaWeb.IndexLive do
     # any one of them is a complete act — a mood on its own is a thing worth
     # saying, and demanding a letter to go with it would make the quieter half of
     # the feature unreachable.
-    standing = Map.take(params, ~w(mood activity about))
+    standing = Map.take(params, ~w(mood doing about))
     said = Enum.any?(Map.values(standing), &(&1 not in [nil, ""]))
 
     cond do
@@ -809,7 +812,7 @@ defmodule PeoplemediaWeb.IndexLive do
   defp receipt(them, _body, _standing), do: "SENT TO #{String.upcase(them.name)}"
 
   defp standing_words(standing) do
-    ~w(mood activity about)
+    ~w(mood doing about)
     |> Enum.map(&standing[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.map_join(" · ", &String.upcase/1)
@@ -818,7 +821,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # AN EMPTY ROUND, and every field on it is optional on purpose: a round with
   # nothing filled in is "I am here and open to being joined", which is the
   # smallest true thing anybody can say here.
-  defp blank_round, do: %{mood: nil, activity: nil}
+  defp blank_round, do: %{mood: nil, doing: nil}
 
   # ── WHO A ROUND IS FOR IS THE TAB YOU ARE STANDING ON ───────────────────────
   # PEOPLE is everyone, so a round made there is public. RELATIONSHIPS is the
@@ -852,7 +855,7 @@ defmodule PeoplemediaWeb.IndexLive do
   defp round_receipt(_people, said), do: "ROUND, PUBLICLY#{round_words(said)}"
 
   defp round_words(said) do
-    ~w(activity mood)
+    ~w(doing mood)
     |> Enum.map(&said[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> case do
@@ -1712,39 +1715,14 @@ defmodule PeoplemediaWeb.IndexLive do
                 <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
                   <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
                     <div class="flex min-w-0 flex-1 items-start">
-                      <%!-- ── WHAT IS IN THIS ROUND ─────────────────────────
-                           NUMBERS, NOT A MARK. The column held the kind of the
-                           last letter — a face, a voice, words — which is what
-                           the row was about when a row was a correspondence. It
-                           is about a ROUND now, and the two things worth knowing
-                           are which round it is and how much of it you have not
-                           read.
-
-                           THE ROUND'S NUMBER IS ITS NAME. Names repeat, names
-                           are optional, and no two people's are comparable; the
-                           number is per creator and increasing, so "their
-                           fourth" means something on its own.
-
-                           THE COUNT IS UNREAD WORDS, and it is zero everywhere
-                           until words exist — drawn now because the column has
-                           to be the same width on every row whether or not
-                           there is anything in it, and because a count that
-                           appeared later would move every name on the page.
-
-                           PRIMARY ONLY FOR A DIRECT ROUND. Terracotta means
-                           look here, and words between two people are the one
-                           thing on this list actually addressed to you. --%>
-                      <span
-                        :if={@list_mode == :people}
-                        class={[
-                          "mr-3 w-[3.2em] shrink-0 text-(length:--sub-type) tracking-(--sub-track)",
-                          "tabular-nums",
-                          (item[:round][:direct] && "text-primary-600 dark:text-primary-500") ||
-                            "text-neutral-300 dark:text-neutral-700"
-                        ]}
-                      >
-                        <span :if={item[:round]}>{item.round.number}·{item[:words] || 0}</span>
-                      </span>
+                      <%!-- NOTHING ON THE LEFT. It held the last letter's kind
+                           as a mark, then briefly a round number and an unread
+                           count — `2·0`, which is a database row wearing a
+                           serif. Neither is what you are scanning a list of
+                           people for. The FLOW on the right is the row's one
+                           mark, and it says the only thing a glance needs: is
+                           anything waiting, and did the last word go out or
+                           come in. --%>
                       <div class="min-w-0 flex-1 leading-tight">
                         <p class="scopes-line flex items-baseline">
                           {String.upcase(item[:label] || item[:name])}
@@ -1937,58 +1915,78 @@ defmodule PeoplemediaWeb.IndexLive do
                one carrying somebody's own words — truncated inside ten rems. The
                two short answers keep their slots; the one with no fixed length
                takes the rest. --%>
-          <div class="scope-boxes pointer-events-none z-20 flex items-center gap-3">
+          <%!-- A GROUND WHILE THE FORM IS IN IT, because the doing box grows
+               downward as you write and the names are directly underneath. --%>
+          <div class={[
+            "scope-boxes pointer-events-none z-20 flex items-start gap-3",
+            @going && "bg-light-50 dark:bg-dark-950"
+          ]}>
             <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
                  exactly where the answers will be, so nothing moves between
                  filling the form in and reading it back. --%>
+            <%!-- THE BOX IS THE FIELD. It had a DOING label over a one-line
+                 input tucked underneath, which is a caption and a control where
+                 there should be one thing you can write in — and the label named
+                 what the box obviously was. The placeholder does that job and
+                 leaves when you answer it.
+
+                 A TEXTAREA, NOT AN INPUT, and that is not a detail. Return in a
+                 single-line input SUBMITS THE FORM, so trying to break a line
+                 sent the round and shut the form — the one keystroke somebody
+                 reaches for while writing was the one that ended it. A textarea
+                 takes the newline and grows into it; the check at the foot is
+                 the only thing that sends. --%>
             <div
               :if={@going}
               class={[
-                "around-box pointer-events-auto flex h-(--band-h) min-w-0 flex-1 flex-col",
-                "items-start justify-center gap-1 overflow-hidden px-4",
-                "bg-neutral-400/10 dark:bg-neutral-300/15"
+                "around-box pointer-events-auto flex min-h-(--band-h) min-w-0 flex-1 items-center",
+                "overflow-hidden px-4 bg-neutral-400/10 dark:bg-neutral-300/15"
               ]}
             >
-              <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-                DOING
-              </span>
-              <%!-- TYPED, NOT PICKED. It offered fourteen words with a free line
-                   underneath, which is a vocabulary competing with a sentence —
-                   either the list is redundant or it is the thing stopping you
-                   saying what you mean. `form=` because the form itself is the
-                   bar up at the band, and a control belongs to a form by id
-                   wherever it stands. --%>
-              <input
-                type="text"
+              <%!-- `phx-update="ignore"`, AND WITHOUT IT THE FIELD FOUGHT BACK.
+                   The server held what was typed and rendered it into the
+                   textarea's CONTENT, so every keystroke's patch rewrote the
+                   node somebody was typing into — newlines were normalised away
+                   and spaces went missing mid-word. The letter composer has the
+                   same note for the same reason.
+
+                   SO THE FIELD IS THE BROWSER'S until it is sent. It survives
+                   the picker opening because an ignored node is not re-rendered,
+                   and the submit posts whatever is in it. Nothing else needs to
+                   read it while it is being written. --%>
+              <textarea
+                id="doing-field"
+                phx-update="ignore"
                 form="round-form"
-                name="activity"
-                value={@round_pick.activity}
+                name="doing"
+                rows="1"
                 maxlength={Rounds.doing_limit()}
                 placeholder="WHAT ARE YOU UP TO?"
-                autocomplete="off"
-                class="w-full bg-transparent text-(length:--sub-type) tracking-(--sub-track) text-light-900 outline-none dark:text-dark-100"
-              />
+                class="doing-field max-h-(--doing-max) w-full resize-none overflow-y-auto bg-transparent py-4 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+              ></textarea>
             </div>
 
+            <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
+                 answer replaces it, the same way the doing box works one step to
+                 the left. A label reading MOOD over a dash was two lines to say
+                 nothing. --%>
             <button
               :if={@going}
               type="button"
               phx-click="pick_open"
               phx-value-which="mood"
               data-family={Rounds.family_of(@round_pick.mood)}
+              aria-label="How are you"
               class={[
-                "around-box mood-box pointer-events-auto flex h-(--band-h) w-(--mood-w) shrink-0",
-                "cursor-pointer flex-col items-start justify-center gap-1 overflow-hidden px-4",
-                "text-left outline-none transition-colors",
+                "around-box mood-box pointer-events-auto flex min-h-(--band-h) w-(--mood-w)",
+                "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-4",
+                "outline-none transition-colors",
                 !Rounds.family_of(@round_pick.mood) &&
                   "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
               ]}
             >
-              <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-                MOOD
-              </span>
               <span class={[
-                "w-full truncate text-(length:--sub-type) tracking-(--sub-track)",
+                "w-full truncate text-center text-(length:--row-type) tracking-(--row-track)",
                 (@round_pick.mood && "text-light-900 dark:text-dark-100") ||
                   "text-neutral-300 dark:text-neutral-700"
               ]}>
@@ -2000,12 +1998,17 @@ defmodule PeoplemediaWeb.IndexLive do
                  and there is nothing to capture with yet. It pulses rather than
                  sitting blank: an unfilled round frame is somebody here with
                  nothing to show, which is a real state and the commonest one. --%>
+            <%!-- THE WHOLE BOX BREATHES, not a dot inside it. A small mark
+                 pulsing in the middle of a still square reads as a status light
+                 bolted to a container; the frame IS the thing that is empty, so
+                 the frame is what should say so. It is also what a captured one
+                 will fill, and a box that changed shape when it got contents
+                 would be two objects. --%>
             <div
               :if={@going}
               aria-label="A frame, when there is one"
-              class="around-box presence-box pointer-events-auto relative flex size-(--band-h) shrink-0 items-center justify-center bg-primary-600/15 dark:bg-primary-500/20"
+              class="around-box presence-box pointer-events-auto relative size-(--band-h) shrink-0 bg-primary-600/15 dark:bg-primary-500/20"
             >
-              <span class="presence-pulse block size-3 bg-primary-600 dark:bg-primary-500"></span>
             </div>
 
             <%!-- ONE: WHAT THEY ARE DOING. The kind of thing above, quiet, in
@@ -2034,10 +2037,10 @@ defmodule PeoplemediaWeb.IndexLive do
                    one browser, which is the same reason the letter box's is. --%>
               <div class="around-brief flex flex-col gap-1 overflow-hidden">
                 <span
-                  :if={@current[:round][:activity]}
+                  :if={@current[:round][:doing]}
                   class="truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
                 >
-                  {String.upcase(@current.round.activity)}
+                  {String.upcase(@current.round.doing)}
                 </span>
                 <span
                   :if={@current[:round][:about]}
@@ -2048,10 +2051,10 @@ defmodule PeoplemediaWeb.IndexLive do
               </div>
               <div class="around-full flex-col justify-center gap-3 overflow-y-auto text-left">
                 <span
-                  :if={@current[:round][:activity]}
+                  :if={@current[:round][:doing]}
                   class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
                 >
-                  {String.upcase(@current.round.activity)}
+                  {String.upcase(@current.round.doing)}
                 </span>
                 <span
                   :if={@current[:round][:about]}
@@ -2230,9 +2233,20 @@ defmodule PeoplemediaWeb.IndexLive do
             id="round-form"
             phx-change="round_change"
             phx-submit="round_send"
-            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) items-center bg-primary-600/15 dark:bg-primary-500/20"
+            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) items-center"
           >
-            <%!-- THE BAR SAYS WHO IS GOING ROUND, and it is not a field. It
+            <%!-- OPAQUE, AND THAT IS THE WHOLE OF THE FIX. It wore the band's
+                 own wash — `bg-primary-600/15` — and the band is TRANSLUCENT on
+                 purpose so the row passing under it reads through. Here the row
+                 underneath is whoever happened to be settled when you pressed
+                 the plus, so your own name sat on top of theirs: FUNMI over
+                 IBRAHIM, two names in one line of text. Clearing the selection
+                 server-side did not help, because where the list is SCROLLED to
+                 is the browser's and the row is still physically there. Same
+                 colour, composited once — see .self-box for the same trick and
+                 the same reason.
+
+                 THE BAR SAYS WHO IS GOING ROUND, and it is not a field. It
                  held the round's NAME, which was the same thought the doing box
                  was asking for one step to the right — so the name has gone and
                  the doing box is where you type. What is left in the band's
@@ -2434,17 +2448,17 @@ defmodule PeoplemediaWeb.IndexLive do
               <p class="absolute top-6 left-0 z-20 flex items-center gap-4 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
                 <span>LETTERS</span>
                 <span
-                  :if={@subject[:round][:activity] || @subject[:round][:mood]}
+                  :if={@subject[:round][:doing] || @subject[:round][:mood]}
                   class="panel-around flex items-center gap-3 px-3 py-1 text-light-900 dark:text-dark-100"
                   data-family={@subject[:round][:family]}
                 >
                   <span :if={@subject[:round][:mood]}>{String.upcase(@subject.round.mood)}</span>
                   <span
-                    :if={@subject[:round][:activity]}
+                    :if={@subject[:round][:doing]}
                     class="text-neutral-500 dark:text-neutral-400"
                   >
                     {String.upcase(
-                      [@subject.round.activity, @subject.round[:about]]
+                      [@subject.round.doing, @subject.round[:about]]
                       |> Enum.reject(&(&1 in [nil, ""]))
                       |> Enum.join(" · ")
                     )}

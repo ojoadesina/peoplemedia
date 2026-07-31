@@ -1404,22 +1404,22 @@ html:not([data-theme]) .presence-row .stream-name {
    says so by breathing rather than by holding a word — it is the one box whose
    subject is not something you chose. It will hold a face or a voice when there
    is one; until then the honest content is the fact of somebody being there. */
-.presence-pulse {
+.presence-box {
   animation: presence-breathe 2.4s ease-in-out infinite;
 }
+/* THE WHOLE BOX, so it breathes rather than blinking: no scale, because a box
+   that changed size would push the two beside it about. Opacity alone. */
 @keyframes presence-breathe {
   0%,
   100% {
-    opacity: 0.35;
-    transform: scale(0.8);
+    opacity: 0.4;
   }
   50% {
     opacity: 1;
-    transform: scale(1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .presence-pulse {
+  .presence-box {
     animation: none;
     opacity: 0.7;
   }
@@ -2040,11 +2040,13 @@ textarea {
    NO SCROLLBAR EITHER WAY. Every scroller on this surface hides one: the list,
    the panel, the rows. A gutter appearing down the side of your own sentence
    the moment it gets long is the interface reacting to the letter. */
+.doing-field,
 .compose-field {
   field-sizing: content;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+.doing-field::-webkit-scrollbar,
 .compose-field::-webkit-scrollbar {
   display: none;
 }
@@ -2123,13 +2125,15 @@ textarea {
    composited against the page it stands on, computed once instead of blended
    every frame against whatever happens to be behind. Change either ramp and
    this follows, which a hand-picked hex would not. */
-.self-box {
+.self-box,
+.round-form {
   background-color: color-mix(in srgb, var(--color-primary-600) 15%, var(--color-light-50));
 }
 .self-box:hover {
   background-color: color-mix(in srgb, var(--color-primary-600) 25%, var(--color-light-50));
 }
-[data-theme="dark"] .self-box {
+[data-theme="dark"] .self-box,
+[data-theme="dark"] .round-form {
   background-color: color-mix(in srgb, var(--color-primary-500) 20%, var(--color-dark-950));
 }
 [data-theme="dark"] .self-box:hover {
@@ -2138,7 +2142,8 @@ textarea {
 /* SYSTEM DARK IS DARK TOO, and it is a separate branch because "system" means
    the attribute is absent — see the note on the dark variant at the top. */
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .self-box {
+  html:not([data-theme]) .self-box,
+  html:not([data-theme]) .round-form {
     background-color: color-mix(in srgb, var(--color-primary-500) 20%, var(--color-dark-950));
   }
   html:not([data-theme]) .self-box:hover {
@@ -2372,6 +2377,10 @@ textarea {
      screen, where the form is a single row; on a phone the boxes wrap beneath
      the name bar, so the grid has to clear two. */
   --picker-top: calc(var(--band-h) + 0.75rem);
+  /* HOW FAR THE DOING GROWS. Three band-heights is a few lines of what somebody
+     is up to — past that it stops being a doing and starts being a letter, and
+     the box is sitting over a list of names. */
+  --doing-max: calc(var(--band-h) * 3);
   /* THE LIST'S CAPTION, and it wants AIR under it rather than a hairline. Held
      one line off the band it read as a label stuck to the box — the two crowded
      into one object instead of a caption standing over a thing. The panel's own

@@ -2,8 +2,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   use PeoplemediaWeb.ConnCase
   import Phoenix.LiveViewTest
 
-  alias Peoplemedia.{Relationships, Rounds}
-
   # THE LIST BELONGS TO SOMEBODY NOW. It used to be nineteen module attributes
   # that every test got for free; a scope is a row joining two people, so a test
   # about the list has to say whose it is. `cast/0` drives the full three-round
@@ -51,17 +49,24 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute rows =~ "scopes-round"
   end
 
-  # THE COLUMN IS A COUNT NOW, and it is on every people row for the same reason
-  # the mark used to be: the SCOPED and UNSCOPED lists share one scroller and one
-  # band, and a name that jumped sideways between them would make the two read as
-  # different columns.
-  test "a stranger keeps the count's column, and it says nothing", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+  # NOTHING ON THE LEFT OF A ROW. It held the last letter's kind as a mark, then
+  # briefly a round number and an unread count — `2·0`, which is a database row
+  # wearing a serif. Neither is what anybody scans a list of PEOPLE for.
+  test "a row carries no marks but the flow", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+    rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    rows = unscoped |> String.split(~s(class="scopes-item)) |> tl()
-    refute rows == []
-    assert Enum.all?(rows, &(&1 =~ "tabular-nums")), "the column has to hold its width"
+    refute rows =~ "letter-glyph"
+    refute rows =~ "tabular-nums"
+    # One word for a person, and nothing under it.
+    refute rows =~ "scopes-name"
+    refute rows =~ "scopes-when"
+
+    # THE FLOW STAYS. It is the row's one mark and it answers the only thing a
+    # glance needs: is anything waiting, and did the last word go out or come in.
+    assert rows =~ "letter-flow"
+
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
     refute unscoped =~ "letter-glyph"
   end
 
@@ -323,21 +328,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert tags_say(live) =~ "WORLD"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
     refute has_element?(live, ~s(button[phx-click="cancel_place"]))
-  end
-
-  # TERRACOTTA ON A ROW MEANS ONE THING NOW: words between the two of you. It was
-  # the unread letter mark, which left with the glyph — and the rule is the same
-  # one, kept: colour here means "this is addressed to you", and a round going out
-  # to everybody somebody holds is not.
-  test "the count is lit only for a round between two people", %{conn: conn, me: me} do
-    [{_scope, them} | _] = Relationships.held_by(me.id)
-    {:ok, _} = Rounds.go(them.id, %{audience: "private", target_id: me.id})
-
-    {:ok, _live, html} = live(conn, ~p"/")
-    rows = html |> String.split(~s(class="scopes-item)) |> tl()
-
-    lit = Enum.count(rows, &(&1 =~ "tabular-nums text-primary-600"))
-    assert lit == 1, "only a direct round is addressed to you"
   end
 
   test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do

@@ -78,7 +78,7 @@ defmodule Peoplemedia.Rounds.Round do
     belongs_to(:person, Person)
     belongs_to(:target, Person)
     field(:mood, :string)
-    field(:activity, :string)
+    field(:doing, :string)
     # PER CREATOR, INCREASING. Names repeat and names are optional; a number is
     # neither, so it is what a word hangs off and what a page lists by.
     field(:number, :integer)
@@ -90,13 +90,13 @@ defmodule Peoplemedia.Rounds.Round do
 
   def changeset(round, attrs) do
     round
-    |> cast(attrs, [:person_id, :target_id, :mood, :activity, :audience, :expires_at, :number])
+    |> cast(attrs, [:person_id, :target_id, :mood, :doing, :audience, :expires_at, :number])
     |> validate_required([:person_id, :audience, :expires_at, :number])
     |> validate_inclusion(:audience, @audiences)
     |> validate_inclusion(:mood, @moods)
     # SHORT BY CONSTRUCTION. It rides in a box beside the band, so a paragraph
     # set there would either overrun the rail or truncate into nonsense.
-    |> validate_length(:activity, max: @doing_limit)
+    |> validate_length(:doing, max: @doing_limit)
     |> unique_constraint([:person_id, :number], name: :rounds_person_id_number_index)
     # AIMING A PUBLIC ROUND IS NOT A STRICTER PUBLIC ROUND, it is two different
     # answers to one question. The database says the same; naming it here is what

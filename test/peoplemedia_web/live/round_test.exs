@@ -167,10 +167,13 @@ defmodule PeoplemediaWeb.RoundTest do
       assert has_element?(live, "#round-form")
       assert has_element?(live, ".scopes-item")
 
+      # THE BOXES ARE THE FIELDS. They had labels over them — DOING, MOOD —
+      # which named what the box obviously was and left the answer squeezed
+      # underneath. The placeholder does that job and leaves when answered.
       room = render(live)
       assert room =~ "WHAT ARE YOU UP TO?"
-      assert room =~ "DOING"
-      assert room =~ "MOOD"
+      refute room =~ ">DOING<"
+      refute room =~ ">MOOD<"
 
       # A box opens onto everything it could hold — the moods in their families,
       # coloured by the family rather than by the word.
@@ -206,7 +209,7 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
       render_submit(live, :round_send, %{})
 
-      assert %{mood: nil, activity: nil} = Rounds.live(me.id)
+      assert %{mood: nil, doing: nil} = Rounds.live(me.id)
     end
 
     # MANUAL CANCEL, and it is the only way out that changes nothing.
@@ -224,13 +227,13 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
 
       render_submit(live, :round_send, %{
-        "activity" => "fixing the bike before it rains",
+        "doing" => "fixing the bike before it rains",
         "mood" => "happy"
       })
 
       # THE NUMBER IS WHAT IT IS KNOWN BY. Per creator, increasing — a name
       # repeats and is optional, and no two people's are comparable.
-      assert %{activity: "fixing the bike before it rains", mood: "happy", number: 1} =
+      assert %{doing: "fixing the bike before it rains", mood: "happy", number: 1} =
                Rounds.live(me.id)
     end
 
@@ -299,7 +302,7 @@ defmodule PeoplemediaWeb.RoundTest do
       assert html =~ "TELLER"
       refute render(live) =~ "SOUP AND A FILM"
 
-      round(teller, %{name: "soup and a film", activity: "cooking", audience: "public"})
+      round(teller, %{name: "soup and a film", doing: "cooking", audience: "public"})
       Peoplemedia.Notifications.stir_all()
 
       # GOING ROUND PULLS THEM TO THE FRONT, and that is what a watcher sees
@@ -329,7 +332,7 @@ defmodule PeoplemediaWeb.RoundTest do
 
       {:ok, live, _} = live(check_in(build_conn(), watcher), ~p"/")
 
-      round(teller, %{name: "soup and a film", activity: "cooking", audience: "private"})
+      round(teller, %{name: "soup and a film", doing: "cooking", audience: "private"})
       Peoplemedia.Notifications.stir_all()
 
       refute leader(live) =~ "TELLER", "a private round surfaced somebody to a stranger"
@@ -362,7 +365,7 @@ defmodule PeoplemediaWeb.RoundTest do
     test "hidden removes the round while leaving them in the list", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
       [{scope, _} | _] = Relationships.held_by(me.id)
-      round(them, %{mood: "happy", activity: "reading"})
+      round(them, %{mood: "happy", doing: "reading"})
       {:ok, _} = People.set_around_hidden(them, true)
 
       {:ok, live, html} = live(conn, ~p"/")
