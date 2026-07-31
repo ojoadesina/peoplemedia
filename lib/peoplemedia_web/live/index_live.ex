@@ -74,6 +74,14 @@ defmodule PeoplemediaWeb.IndexLive do
   alias Peoplemedia.{Directory, Letters, Notifications, Presence, Relationships, Rounds}
   alias Phoenix.LiveView.JS
 
+  # HOW LONG A NEW ROUND WAITS BEFORE IT JOINS THE LIST. Long enough that it
+  # never lands under a finger already moving, short enough that it still reads
+  # as live. The skeleton stands in its place for exactly this long.
+  @landing_ms 2200
+
+  # AND HOW LONG IT WEARS THE COLOUR AFTERWARDS.
+  @fresh_ms 6000
+
   @impl true
   def mount(_params, _session, socket) do
     # WHOSE LIST IS THIS. `current_person` arrives from the session by way of
@@ -140,10 +148,18 @@ defmodule PeoplemediaWeb.IndexLive do
      # gesture in one browser, and holding it here is what lets the room be
      # re-rendered from state rather than read back out of the DOM.
      |> assign(going: false, picker: nil, round_pick: blank_round())
+     # ── HOW NEWS ARRIVES ──────────────────────────────────────────────────
+     # `live` is whether it arrives at all; `waiting` counts what is being held
+     # while it does not. `landing` is true between somebody going round and the
+     # list taking them in — the pause the skeleton fills. `fresh` is the one
+     # person who has just arrived, and it is ONE on purpose: two rows wearing
+     # "this is new" is a page of new rows, which is a feed refreshing.
+     |> assign(live: true, waiting: 0, landing: false, fresh: nil, seen: %{})
      |> assign(pending: pending_for(me))
      |> assign(live: Enum.filter(scopes, &(&1.state == "live")))
      |> put_list()
-     |> put_current()}
+     |> put_current()
+     |> put_seen()}
   end
 
   # ── WHO THE PANEL IS ABOUT ──────────────────────────────────────────────────
@@ -221,9 +237,42 @@ defmodule PeoplemediaWeb.IndexLive do
   # SOMEBODY ELSE MOVED. Re-read everything this surface stands on; the message
   # carries nothing, so there is no version of this that can be out of step with
   # the database.
+  # YOUR OWN BUSINESS LANDS AT ONCE. A handshake answered, a letter arrived —
+  # holding one of those back would be the app withholding your own post.
   @impl true
   def handle_info(:stir, socket),
-    do: {:noreply, socket |> reread() |> put_list() |> put_current()}
+    do: {:noreply, socket |> reread() |> put_list() |> put_current() |> put_seen()}
+
+  # ── SOMEBODY ELSE MOVED ─────────────────────────────────────────────────────
+  # NOT AT ONCE, AND NOT SILENTLY. A round dropping straight in reorders the list
+  # under a finger that was reading it — the row you were about to press is now
+  # one lower and you pressed the wrong person. So it waits a beat, says a
+  # SKELETON is coming while it does, and arrives wearing the colour of a thing
+  # that just happened.
+  #
+  # ONE TIMER, NOT ONE PER STIR. Five people going round in the same second is
+  # one arrival as far as a reader is concerned; scheduling five would make the
+  # list twitch five times.
+  def handle_info(:surface_stir, %{assigns: %{live: false}} = socket) do
+    # HELD, AND COUNTED. Turning the feed off is asking not to be moved; the
+    # count is the offer to catch up, which is a different thing from being made
+    # to.
+    {:noreply, assign(socket, waiting: socket.assigns.waiting + 1)}
+  end
+
+  def handle_info(:surface_stir, %{assigns: %{landing: true}} = socket),
+    do: {:noreply, socket}
+
+  def handle_info(:surface_stir, socket) do
+    Process.send_after(self(), :land, @landing_ms)
+    {:noreply, assign(socket, landing: true)}
+  end
+
+  def handle_info(:land, socket), do: {:noreply, land(socket)}
+
+  # AND IT FADES BACK ON ITS OWN. A row that stayed marked would be a row that
+  # is permanently new, which is the same as no mark at all.
+  def handle_info(:dissolve, socket), do: {:noreply, assign(socket, fresh: nil)}
 
   # STILL HERE, AND WHO ELSE IS. The two halves of the beat: say so, and find
   # out. It re-reads rather than settling, so a list that quietly lost somebody
@@ -239,7 +288,7 @@ defmodule PeoplemediaWeb.IndexLive do
       Rounds.keep(me.id)
     end
 
-    {:noreply, socket |> reread() |> put_list() |> put_current()}
+    {:noreply, socket |> reread() |> put_list() |> put_current() |> put_seen()}
   end
 
   # ── STATE ───────────────────────────────────────────────────────────────────
@@ -392,6 +441,19 @@ defmodule PeoplemediaWeb.IndexLive do
   # MANUAL CANCEL, and it is the only way out that changes nothing. Sending is
   # the other door and it commits; a form with one exit would make every escape
   # an act.
+  # ── BEING MOVED, OR NOT ─────────────────────────────────────────────────────
+  # TURNING IT OFF IS ASKING NOT TO BE MOVED, so nothing arrives until you say
+  # so — and turning it back on takes in whatever was held, because that is what
+  # asking for it means.
+  def handle_event("toggle_live", _params, socket) do
+    socket = assign(socket, live: !socket.assigns.live)
+    {:noreply, (socket.assigns.live && land(socket)) || socket}
+  end
+
+  # THE COUNT IS AN OFFER, not a notice. Pressing it is the reader choosing the
+  # moment the list moves under them, which is the whole point of holding it.
+  def handle_event("catch_up", _params, socket), do: {:noreply, land(socket)}
+
   def handle_event("round_cancel", _params, socket) do
     {:noreply, assign(socket, going: false, picker: nil, round_pick: blank_round())}
   end
@@ -458,7 +520,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # to; a round's name is a title capped at eighty characters, and it shares a
   # form with three controls that each re-render the thing it sits in. Holding it
   # in one place is what makes the form survive being used.
-  def handle_event("round_change", params, socket) do
+  def handle_event("round_change", _params, socket) do
     # NOTHING TO KEEP. The doing is the browser's while it is being written and
     # the mood is set by pressing a word, so a change event has no news in it —
     # the handler stays because the form declares one, and a form that announced
@@ -862,6 +924,45 @@ defmodule PeoplemediaWeb.IndexLive do
       [] -> ""
       words -> " — " <> Enum.map_join(words, " · ", &String.upcase/1)
     end
+  end
+
+  # ── TAKING SOMEBODY IN ──────────────────────────────────────────────────────
+  # RE-READ, THEN WORK OUT WHO IS NEW BY DIFFING. The broadcast carries nothing —
+  # deliberately, so it can be sent to everybody and the READ decides who may see
+  # what — which means the surface has to notice the arrival itself. Comparing
+  # the round ids it had against the ones it has is the whole of it.
+  #
+  # THE NEWEST ONE ONLY. Several may have landed while the timer ran; marking all
+  # of them would be a page of new rows, which is a feed refreshing rather than
+  # somebody arriving.
+  defp land(socket) do
+    before = socket.assigns.seen
+
+    socket =
+      socket
+      |> assign(landing: false, waiting: 0)
+      |> reread()
+      |> put_list()
+      |> put_current()
+
+    # SORT AND TAKE THE HEAD, not `Enum.max_by/3` with a fallback — that arity's
+    # third argument is a SORTER, and a zero-arity function handed to it is a
+    # crash waiting for the first non-empty list.
+    fresh =
+      socket.assigns.list
+      |> Enum.filter(&(&1[:last_round] && &1[:last_round] > Map.get(before, &1[:id], 0)))
+      |> Enum.sort_by(& &1.last_round, :desc)
+      |> List.first()
+
+    if fresh, do: Process.send_after(self(), :dissolve, @fresh_ms)
+    socket |> assign(fresh: fresh && fresh.id) |> put_seen()
+  end
+
+  # WHAT THE LIST LOOKED LIKE LAST TIME, so the next arrival has something to be
+  # new against. Kept as ids rather than rows: it is a comparison, not a copy.
+  defp put_seen(socket) do
+    seen = Map.new(socket.assigns.list, &{&1[:id], &1[:last_round] || 0})
+    assign(socket, seen: seen)
   end
 
   defp other_scope("SCOPED"), do: "UNSCOPED"
@@ -1615,6 +1716,44 @@ defmodule PeoplemediaWeb.IndexLive do
               <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
             </button>
 
+            <%!-- ── WHETHER THE LIST MOVES ON ITS OWN ──────────────────────
+               LIVE IS A CHOICE, and it belongs beside the other two facts about
+               the list because it is one: where you are, which population, and
+               whether it comes to you.
+
+               OFF IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that said
+               nothing would be a list quietly going stale; the number is the
+               offer to catch up, and pressing it is the reader choosing the
+               moment the ground moves under them. --%>
+            <button
+              type="button"
+              phx-click="toggle_live"
+              aria-pressed={to_string(@live)}
+              class={[
+                "list-live pointer-events-auto shrink-0 cursor-pointer outline-none",
+                "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
+                "focus-visible:underline",
+                (@live && "text-neutral-300 hover:text-neutral-400 dark:text-neutral-700") ||
+                  "text-neutral-400 hover:text-neutral-500 dark:text-neutral-500"
+              ]}
+            >
+              {(@live && "LIVE") || "PAUSED"}
+            </button>
+
+            <button
+              :if={!@live && @waiting > 0}
+              type="button"
+              phx-click="catch_up"
+              class={[
+                "list-waiting pointer-events-auto shrink-0 cursor-pointer px-2 py-0.5 outline-none",
+                "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
+                "bg-secondary-500/20 text-secondary-700 hover:bg-secondary-500/30",
+                "dark:bg-secondary-400/25 dark:text-secondary-200"
+              ]}
+            >
+              {@waiting} NEW
+            </button>
+
             <%!-- THE WAY OUT THAT CHANGES NOTHING, and it travels with the control
                  it undoes. Both tags COMMIT something when pressed, and the roll
                  of places has no empty state to escape to — the band always holds
@@ -1653,6 +1792,18 @@ defmodule PeoplemediaWeb.IndexLive do
                    They are MEASURED, so they are the hook's to write and the
                    server's to leave alone — see the note above. --%>
             <ul phx-mounted={JS.ignore_attributes(["style"])}>
+              <%!-- SOMEBODY IS ARRIVING. It holds the row's exact shape for the
+                   couple of seconds between the news and the list taking it in,
+                   so the movement is announced before it happens rather than
+                   simply happening. An empty pause would be the same jolt with
+                   a delay on it. --%>
+              <li
+                :if={@landing && @list_mode == :people}
+                class="scopes-item scopes-landing flex h-(--row-h) items-center px-(--list-pad)"
+                aria-hidden="true"
+              >
+                <span class="skeleton block h-[0.9em] w-40"></span>
+              </li>
               <%!-- The row carries its own frame as DATA, not markup: one
                      shared frame reads these on settle, so nineteen rows cost
                      nineteen attributes rather than nineteen media elements. A
@@ -1688,6 +1839,15 @@ defmodule PeoplemediaWeb.IndexLive do
                 class={
                   [
                     "scopes-item flex cursor-pointer whitespace-nowrap",
+                    # JUST ARRIVED. Sage, which on this surface reports rather
+                    # than asks — terracotta is for the one thing wanting
+                    # something from you, and somebody turning up wants nothing.
+                    # It fades on its own; a row that stayed marked would be
+                    # permanently new, which is the same as unmarked.
+                    # `item[:id]`, NOT `item.id`. The same scroller carries a
+                    # roll of COUNTRIES, and a country has a name and no id —
+                    # the dotted form raises on every one of them.
+                    item[:id] && item[:id] == @fresh && "is-fresh",
                     "text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100",
                     # A PLACE IS ONE LINE, so it gets a shorter row. --row-h is
                     # sized for a name with its age hung under it; a roll of
@@ -1962,7 +2122,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 rows="1"
                 maxlength={Rounds.doing_limit()}
                 placeholder="WHAT ARE YOU UP TO?"
-                class="doing-field max-h-(--doing-max) w-full resize-none overflow-y-auto bg-transparent py-4 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+                class="doing-field max-h-(--doing-max) w-full resize-none overflow-hidden bg-transparent py-4 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
               ></textarea>
             </div>
 

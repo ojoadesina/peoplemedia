@@ -56,8 +56,13 @@ defmodule Peoplemedia.Notifications do
   def subscribe_surface,
     do: Phoenix.PubSub.subscribe(Peoplemedia.PubSub, @surface)
 
+  # A DIFFERENT WORD FROM `:stir`, and the difference is who it is about.
+  # `:stir` says something happened to YOU — a handshake answered, a letter
+  # arrived — and a surface that sat on one of those would be withholding your
+  # own business from you. This says somebody ELSE moved, which is news the
+  # reader did not ask for and can be brought in gently, or held until they ask.
   def stir_all,
-    do: Phoenix.PubSub.broadcast(Peoplemedia.PubSub, @surface, :stir)
+    do: Phoenix.PubSub.broadcast(Peoplemedia.PubSub, @surface, :surface_stir)
 
   @doc """
   Tell `person_id` that `actor_id` did `kind`. UPSERTS onto an existing UNREAD

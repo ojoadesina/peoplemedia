@@ -1425,6 +1425,68 @@ html:not([data-theme]) .presence-row .stream-name {
   }
 }
 
+/* ── SOMEBODY ARRIVING ────────────────────────────────────────────────────────
+   THE SKELETON HOLDS THE PLACE for the couple of seconds between the news and
+   the list taking it in. A bar the width of a name, breathing — not a spinner,
+   which says "working" when nothing is working, and not nothing at all, which
+   would make the arrival a jolt with a delay in front of it. */
+.skeleton {
+  background-color: color-mix(in oklab, var(--color-neutral-400) 14%, transparent);
+  animation: skeleton-breathe 1.4s ease-in-out infinite;
+}
+[data-theme="dark"] .skeleton {
+  background-color: color-mix(in oklab, var(--color-neutral-300) 12%, transparent);
+}
+@keyframes skeleton-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.scopes-landing {
+  animation: landing-in 320ms ease-out;
+}
+@keyframes landing-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+
+/* AND THE ROW THAT ARRIVED WEARS SAGE, then stops. Sage on this surface REPORTS
+   — it is the colour of a receipt — and somebody turning up is a report:
+   terracotta is rationed to the one thing on a row asking anything of you, and
+   an arrival asks nothing.
+
+   IT DISSOLVES ON ITS OWN, and only ever one row has it. Two would be a page of
+   new rows, which is a feed refreshing rather than a person arriving. */
+.scopes-item.is-fresh {
+  animation: fresh-in 320ms ease-out;
+}
+.scopes-item.is-fresh .scopes-line {
+  color: var(--color-secondary-600);
+  transition: color 2200ms ease-out;
+}
+[data-theme="dark"] .scopes-item.is-fresh .scopes-line {
+  color: var(--color-secondary-300);
+}
+@keyframes fresh-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .scopes-landing,
+  .scopes-item.is-fresh {
+    animation: none;
+  }
+}
+
 /* ── THE AROUND BOXES ─────────────────────────────────────────────────────────
    THEY ARRIVE WITH THE SELECTION, exactly as the letter box does and by exactly
    the same mechanism — a sibling combinator off the scroller's own class. What
@@ -2377,10 +2439,12 @@ textarea {
      screen, where the form is a single row; on a phone the boxes wrap beneath
      the name bar, so the grid has to clear two. */
   --picker-top: calc(var(--band-h) + 0.75rem);
-  /* HOW FAR THE DOING GROWS. Three band-heights is a few lines of what somebody
-     is up to — past that it stops being a doing and starts being a letter, and
-     the box is sitting over a list of names. */
-  --doing-max: calc(var(--band-h) * 3);
+  /* HOW FAR THE DOING GROWS, and it grows the BOX with it rather than scrolling
+     inside a fixed one. A field that starts scrolling is a field you cannot see
+     what you have written in — and this one is three lines long at most, which
+     is nothing to be hiding. Half the viewport is the far bound, so it can never
+     take the screen; nothing sensible reaches it. */
+  --doing-max: 50vh;
   /* THE LIST'S CAPTION, and it wants AIR under it rather than a hairline. Held
      one line off the band it read as a label stuck to the box — the two crowded
      into one object instead of a caption standing over a thing. The panel's own

@@ -290,25 +290,32 @@ defmodule PeoplemediaWeb.RoundTest do
   describe "the list is live" do
     # THE BUG THIS CATCHES. The only broadcast was per-person, so somebody going
     # round told nobody — a stranger watching the list saw nothing at all until
-    # they reloaded the page. A round changes what is IN other people's lists,
-    # and none of that is addressed to anyone.
+    # they reloaded. A round changes what is IN other people's lists, and none of
+    # that is addressed to anyone.
+    #
+    # `:land` IS SENT BY HAND. News waits a beat before it joins, so the list
+    # never reorders under a finger already moving; the wait is a timer the
+    # surface owns and a test drives. Sent straight rather than broadcast, so the
+    # two messages are ordered — a pubsub round trip can arrive after the `:land`
+    # meant to answer it, and then the skeleton is still standing.
     test "somebody going round redraws a stranger's list without a refresh",
          %{conn: _conn} do
       watcher = passported("funmi", ~w(one two three), "1111")
       teller = person("TELLER")
 
       {:ok, live, html} = live(check_in(build_conn(), watcher), ~p"/")
-      # They are in the list already, with nothing on them.
       assert html =~ "TELLER"
-      refute render(live) =~ "SOUP AND A FILM"
+      refute leader(live) =~ "TELLER"
 
-      round(teller, %{name: "soup and a film", doing: "cooking", audience: "public"})
-      Peoplemedia.Notifications.stir_all()
+      round(teller, %{doing: "soup and a film", audience: "public"})
+      send(live.pid, :surface_stir)
+      send(live.pid, :land)
 
       # GOING ROUND PULLS THEM TO THE FRONT, and that is what a watcher sees
-      # change — the row itself carries no round text now, only a name and a
-      # count, so the ORDER is the visible half of a redraw.
+      # change — the row carries no round text, so the ORDER is the visible half.
       assert leader(live) =~ "TELLER", "the list did not redraw"
+      # AND IT ARRIVES WEARING IT. One row at a time, and it fades on its own.
+      assert render(live) =~ "is-fresh"
     end
 
     # AND A VISITOR TOO. They have no passport and therefore no topic of their
@@ -317,23 +324,60 @@ defmodule PeoplemediaWeb.RoundTest do
       teller = person("TELLER")
       {:ok, live, _} = live(build_conn(), ~p"/")
 
-      round(teller, %{name: "a book about rivers", audience: "public"})
-      Peoplemedia.Notifications.stir_all()
+      round(teller, %{doing: "a book about rivers", audience: "public"})
+      send(live.pid, :surface_stir)
+      send(live.pid, :land)
 
       assert leader(live) =~ "TELLER"
     end
 
+    # A SKELETON STANDS IN THE PLACE FIRST. The couple of seconds between the
+    # news and the list taking it in are announced rather than silent — an empty
+    # pause would be the same jolt with a delay in front of it.
+    test "and says somebody is arriving before they do", %{conn: _conn} do
+      {:ok, live, _} = live(build_conn(), ~p"/")
+      refute render(live) =~ "scopes-landing"
+
+      send(live.pid, :surface_stir)
+      assert render(live) =~ "scopes-landing"
+
+      send(live.pid, :land)
+      refute render(live) =~ "scopes-landing"
+    end
+
+    # TURNING IT OFF IS ASKING NOT TO BE MOVED. Nothing arrives until you say so,
+    # and the count is the offer to catch up rather than a notice.
+    test "paused, it counts instead of moving", %{conn: _conn} do
+      teller = person("TELLER")
+      {:ok, live, _} = live(build_conn(), ~p"/")
+
+      live |> element(~s(button[phx-click="toggle_live"])) |> render_click()
+      assert render(live) =~ "PAUSED"
+
+      round(teller, %{doing: "a book about rivers", audience: "public"})
+      send(live.pid, :surface_stir)
+
+      assert render(live) =~ "1 NEW"
+      refute leader(live) =~ "TELLER", "a paused list must not move"
+      refute render(live) =~ "scopes-landing"
+
+      live |> element(~s(button[phx-click="catch_up"])) |> render_click()
+      assert leader(live) =~ "TELLER"
+      refute render(live) =~ "1 NEW"
+    end
+
     # A REDRAW IS NOT A NOTICE. The stir goes to everybody because who may SEE
-    # the round is decided on the read; a private one still reaches nobody's
-    # list but its own audience.
+    # the round is decided on the read; a private one still reaches nobody's list
+    # but its own audience.
     test "a private round redraws nothing a stranger can see", %{conn: _conn} do
       watcher = passported("funmi", ~w(one two three), "1111")
       teller = person("TELLER")
 
       {:ok, live, _} = live(check_in(build_conn(), watcher), ~p"/")
 
-      round(teller, %{name: "soup and a film", doing: "cooking", audience: "private"})
-      Peoplemedia.Notifications.stir_all()
+      round(teller, %{doing: "soup and a film", audience: "private"})
+      send(live.pid, :surface_stir)
+      send(live.pid, :land)
 
       refute leader(live) =~ "TELLER", "a private round surfaced somebody to a stranger"
     end
@@ -385,7 +429,13 @@ defmodule PeoplemediaWeb.RoundTest do
     end
   end
 
+  # THE FIRST REAL ROW. A skeleton wears `scopes-item` too — it has to, or it
+  # would not hold the shape it is standing in for — so the leader is the first
+  # one that is not it.
   defp leader(live) do
-    render(live) |> String.split(~s(class="scopes-item)) |> Enum.at(1) || ""
+    render(live)
+    |> String.split(~s(class="scopes-item))
+    |> tl()
+    |> Enum.find(&(not (&1 =~ "scopes-landing"))) || ""
   end
 end
