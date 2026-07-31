@@ -2,6 +2,8 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   use PeoplemediaWeb.ConnCase
   import Phoenix.LiveViewTest
 
+  alias Peoplemedia.{Relationships, Rounds}
+
   # THE LIST BELONGS TO SOMEBODY NOW. It used to be nineteen module attributes
   # that every test got for free; a scope is a row joining two people, so a test
   # about the list has to say whose it is. `cast/0` drives the full three-round
@@ -25,44 +27,42 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~ "focus-box"
   end
 
-  test "a row says what the last letter was, when, and which way it went", %{conn: conn} do
+  # THE ROW SAYS WHO, AND HOW MUCH IS UNREAD, AND NOTHING ELSE.
+  #
+  # IT USED TO SAY A GREAT DEAL MORE — the kind of the last letter as a mark,
+  # their own name beside the one you gave them, and the age of the thread
+  # underneath. Every one of those is a headline, and a column of headlines with
+  # people's names attached is a FEED read top-down for content. This list is
+  # people-first: what somebody is round with lives in the boxes beside the band,
+  # which answer one person at a time because you chose them.
+  test "a row says who, and how much of their round is unread", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
-    # THE THREE KINDS all reach the surface, and the third is the reason this
-    # test exists: a letter is words by default, so "text" is the plain case and
-    # a list that only ever draws faces and voices is not showing letters at all.
-    # Each kind is one <rect>; only the struck-through one is turned.
-    assert html =~ ~s(<rect x="4" y="9" width="16" height="6"></rect>)
-    assert html =~ ~s(<rect x="4" y="9" width="6" height="6"></rect>)
-    # Not ~s(): the sigil's own delimiter closes on the paren inside rotate().
-    assert html =~ "rotate(-45 12 12)"
+    # No kind marks left in the list. The glyph is still the panel's, where a
+    # thread genuinely is a run of letters of different kinds.
+    rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+    refute rows =~ "letter-glyph"
 
-    # The age of the last letter hangs under the name.
-    assert html =~ "scopes-when"
+    # One word for a person, not two.
+    refute rows =~ "scopes-name"
 
-    # BOTH ARROWS, BOTH LIT AND FADED. Their labels are the assertion because
-    # they are what the states actually mean — and because an aria-label is the
-    # only place a mark drawn in <path> says anything at all.
-    assert html =~ "Unread letter from them"
-    assert html =~ "Their letter, read"
-    assert html =~ "Your letter has been read"
-    assert html =~ "Your letter is unread"
+    # And nothing under the name.
+    refute rows =~ "scopes-when"
+    refute rows =~ "scopes-round"
   end
 
-  test "a stranger keeps the mark's column but has no letters", %{conn: conn} do
+  # THE COLUMN IS A COUNT NOW, and it is on every people row for the same reason
+  # the mark used to be: the SCOPED and UNSCOPED lists share one scroller and one
+  # band, and a name that jumped sideways between them would make the two read as
+  # different columns.
+  test "a stranger keeps the count's column, and it says nothing", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
 
-    # A letter is written to a SCOPE, so someone you have not scoped has none —
-    # no age, no arrows.
-    assert unscoped =~ "AMINA"
-    refute unscoped =~ "scopes-when"
-    refute unscoped =~ "letter-flow"
-
-    # The column is still reserved, though, or every name in this list would sit
-    # a mark's width left of every name in the other one — and the two share a
-    # scroller and a band.
-    assert unscoped =~ "letter-glyph"
+    rows = unscoped |> String.split(~s(class="scopes-item)) |> tl()
+    refute rows == []
+    assert Enum.all?(rows, &(&1 =~ "tabular-nums")), "the column has to hold its width"
+    refute unscoped =~ "letter-glyph"
   end
 
   test "the rail is the only measure the page uses", %{conn: conn} do
@@ -325,20 +325,19 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute has_element?(live, ~s(button[phx-click="cancel_place"]))
   end
 
-  test "an unread mark keeps its full voice; the rest are held quiet", %{conn: conn} do
+  # TERRACOTTA ON A ROW MEANS ONE THING NOW: words between the two of you. It was
+  # the unread letter mark, which left with the glyph — and the rule is the same
+  # one, kept: colour here means "this is addressed to you", and a round going out
+  # to everybody somebody holds is not.
+  test "the count is lit only for a round between two people", %{conn: conn, me: me} do
+    [{_scope, them} | _] = Relationships.held_by(me.id)
+    {:ok, _} = Rounds.go(them.id, %{audience: "private", target_id: me.id})
+
     {:ok, _live, html} = live(conn, ~p"/")
+    rows = html |> String.split(~s(class="scopes-item)) |> tl()
 
-    # is-lit rides only on a mark whose row has an unopened letter, and it is
-    # what app.css exempts from the resting opacity. Dimming those too was the
-    # mistake in between: it flattened the one difference the marks are for.
-    lit = ~r/letter-glyph[^"]*is-lit[^"]*text-primary-600/
-    assert Regex.scan(lit, html) |> length() == 2
-
-    # And no mark is lit without being terracotta, or vice versa.
-    marks = Regex.scan(~r/class="(letter-glyph[^"]*)"/, html, capture: :all_but_first)
-
-    for [m] <- marks,
-        do: assert(String.contains?(m, "is-lit") == String.contains?(m, "text-primary-600"))
+    lit = Enum.count(rows, &(&1 =~ "tabular-nums text-primary-600"))
+    assert lit == 1, "only a direct round is addressed to you"
   end
 
   test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do

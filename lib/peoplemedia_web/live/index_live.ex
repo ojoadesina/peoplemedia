@@ -338,10 +338,14 @@ defmodule PeoplemediaWeb.IndexLive do
      # A FRESH FORM EVERY TIME. What you were part way through saying an hour ago
      # is not an answer to being asked again now.
      |> assign(going: true, picker: nil, round_pick: blank_round())
-     # THE LIST STAYS, but the SELECTION cannot: the form has taken the band's
-     # line, and a picked name would be claiming it at the same time.
-     |> assign(mode: :list)
-     |> put_subject()}
+     # THE LIST IS RESET, not merely left alone. The form has taken the band's
+     # line, so a picked name would be claiming it at the same time — and the
+     # list is re-read because anything that arrived while you were reading it
+     # should be there before you add to it, not after.
+     |> assign(mode: :list, selected: nil)
+     |> reread()
+     |> put_list()
+     |> put_current()}
   end
 
   # SEND AS IS. Everything on the form is optional, so there is nothing to refuse
@@ -358,7 +362,7 @@ defmodule PeoplemediaWeb.IndexLive do
     # submit trusts the form the way every other form here does.
     said =
       params
-      |> Map.take(~w(name mood activity about))
+      |> Map.take(~w(mood activity))
       |> Map.merge(audience_for_tab(socket.assigns.scope))
 
     case me && Rounds.go(me.id, said) do
@@ -455,11 +459,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # form with three controls that each re-render the thing it sits in. Holding it
   # in one place is what makes the form survive being used.
   def handle_event("round_change", params, socket) do
-    kept =
-      socket.assigns.round_pick
-      |> Map.put(:name, params["name"])
-      |> Map.put(:about, params["about"] || socket.assigns.round_pick.about)
-
+    kept = Map.put(socket.assigns.round_pick, :activity, params["activity"])
     {:noreply, assign(socket, round_pick: kept)}
   end
 
@@ -818,7 +818,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # AN EMPTY ROUND, and every field on it is optional on purpose: a round with
   # nothing filled in is "I am here and open to being joined", which is the
   # smallest true thing anybody can say here.
-  defp blank_round, do: %{name: nil, mood: nil, activity: nil, about: nil}
+  defp blank_round, do: %{mood: nil, activity: nil}
 
   # ── WHO A ROUND IS FOR IS THE TAB YOU ARE STANDING ON ───────────────────────
   # PEOPLE is everyone, so a round made there is public. RELATIONSHIPS is the
@@ -852,7 +852,7 @@ defmodule PeoplemediaWeb.IndexLive do
   defp round_receipt(_people, said), do: "ROUND, PUBLICLY#{round_words(said)}"
 
   defp round_words(said) do
-    ~w(name mood activity)
+    ~w(activity mood)
     |> Enum.map(&said[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> case do
@@ -1712,16 +1712,39 @@ defmodule PeoplemediaWeb.IndexLive do
                 <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
                   <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
                     <div class="flex min-w-0 flex-1 items-start">
-                      <.letter_glyph
+                      <%!-- ── WHAT IS IN THIS ROUND ─────────────────────────
+                           NUMBERS, NOT A MARK. The column held the kind of the
+                           last letter — a face, a voice, words — which is what
+                           the row was about when a row was a correspondence. It
+                           is about a ROUND now, and the two things worth knowing
+                           are which round it is and how much of it you have not
+                           read.
+
+                           THE ROUND'S NUMBER IS ITS NAME. Names repeat, names
+                           are optional, and no two people's are comparable; the
+                           number is per creator and increasing, so "their
+                           fourth" means something on its own.
+
+                           THE COUNT IS UNREAD WORDS, and it is zero everywhere
+                           until words exist — drawn now because the column has
+                           to be the same width on every row whether or not
+                           there is anything in it, and because a count that
+                           appeared later would move every name on the page.
+
+                           PRIMARY ONLY FOR A DIRECT ROUND. Terracotta means
+                           look here, and words between two people are the one
+                           thing on this list actually addressed to you. --%>
+                      <span
                         :if={@list_mode == :people}
-                        kind={item[:letter][:kind]}
-                        lit={!!item[:letter][:unread]}
                         class={[
-                          "mr-3 -mt-[0.125em] transition-colors duration-200",
-                          (item[:letter][:unread] && "text-primary-600 dark:text-primary-500") ||
-                            "text-neutral-400 dark:text-neutral-500"
+                          "mr-3 w-[3.2em] shrink-0 text-(length:--sub-type) tracking-(--sub-track)",
+                          "tabular-nums",
+                          (item[:round][:direct] && "text-primary-600 dark:text-primary-500") ||
+                            "text-neutral-300 dark:text-neutral-700"
                         ]}
-                      />
+                      >
+                        <span :if={item[:round]}>{item.round.number}·{item[:words] || 0}</span>
+                      </span>
                       <div class="min-w-0 flex-1 leading-tight">
                         <p class="scopes-line flex items-baseline">
                           {String.upcase(item[:label] || item[:name])}
@@ -1732,12 +1755,9 @@ defmodule PeoplemediaWeb.IndexLive do
                              as two labels shouting. Only a scoped person has both
                              a label and a name — a stranger or a country is one
                              word. --%>
-                          <span
-                            :if={item[:label]}
-                            class="scopes-name ml-3 text-neutral-400/70 opacity-0 transition-opacity duration-200 dark:text-neutral-500/70"
-                          >
-                            {item[:name]}
-                          </span>
+                          <%!-- AND NOT THEIR OTHER NAME EITHER. "MUM SARAH" is
+                               two labels for one person on one line, which reads
+                               as a headline over a byline. One name. --%>
                         </p>
                         <%!-- WHEN THE LAST LETTER CAME, and nothing else.
 
@@ -1753,39 +1773,14 @@ defmodule PeoplemediaWeb.IndexLive do
                            terracotta is about the NAME, and an age that lit with
                            it would make the band read as two things being
                            pointed at. --%>
-                        <%!-- WHAT THEY ARE ROUND WITH, and it takes the age's
-                             line. A person with a live round shows its NAME on
-                             the row — the boxes beside the band carry the mood
-                             and the doing, but those need the person settled,
-                             and a list where nothing about a round is visible
-                             until you scroll somebody into place is a list that
-                             does not surface anybody.
-
-                             IT DISPLACES THE AGE rather than joining it. Two
-                             subtexts under one name is two things asking to be
-                             read, and between "they went round about the bike"
-                             and "their last letter was 2d ago", the first is the
-                             one that is asking you to join in. The age comes
-                             back the moment the round runs out, which is exactly
-                             what expiry is for: the boxes and the name leave the
-                             row, and nothing else changes.
-
-                             IT IS NOT LOUD. Same grey as the age it replaces —
-                             terracotta on this surface means an unopened letter
-                             and nothing else, and a round is an invitation
-                             rather than a summons. --%>
-                        <p
-                          :if={item[:round][:name]}
-                          class="scopes-round mt-1 truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
-                        >
-                          {String.upcase(item.round.name)}
-                        </p>
-                        <p
-                          :if={item[:letter] && is_nil(item[:round][:name])}
-                          class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/75 dark:text-neutral-500/80"
-                        >
-                          {item.letter.when}
-                        </p>
+                        <%!-- NOTHING UNDER THE NAME. It carried the round's
+                             name, and before that the age of the last letter,
+                             and either one turns the list into a FEED — a column
+                             of headlines with people's names attached, read
+                             top-down for content. This list is people-first;
+                             what the round is about lives in the boxes beside
+                             the band, which answer one person at a time because
+                             you chose them. --%>
                       </div>
                       <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
                        the kind mark at top left — the row's two marks are one
@@ -1946,29 +1941,34 @@ defmodule PeoplemediaWeb.IndexLive do
             <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
                  exactly where the answers will be, so nothing moves between
                  filling the form in and reading it back. --%>
-            <button
+            <div
               :if={@going}
-              type="button"
-              phx-click="pick_open"
-              phx-value-which="activity"
               class={[
-                "around-box pointer-events-auto flex h-(--band-h) min-w-0 flex-1 cursor-pointer",
-                "flex-col items-start justify-center gap-1 overflow-hidden px-4 text-left",
-                "bg-neutral-400/10 outline-none transition-colors hover:bg-neutral-400/20",
-                "dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+                "around-box pointer-events-auto flex h-(--band-h) min-w-0 flex-1 flex-col",
+                "items-start justify-center gap-1 overflow-hidden px-4",
+                "bg-neutral-400/10 dark:bg-neutral-300/15"
               ]}
             >
               <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
                 DOING
               </span>
-              <span class={[
-                "w-full truncate text-(length:--sub-type) tracking-(--sub-track)",
-                (@round_pick.activity && "text-light-900 dark:text-dark-100") ||
-                  "text-neutral-300 dark:text-neutral-700"
-              ]}>
-                {String.upcase(@round_pick.activity || "—")}
-              </span>
-            </button>
+              <%!-- TYPED, NOT PICKED. It offered fourteen words with a free line
+                   underneath, which is a vocabulary competing with a sentence —
+                   either the list is redundant or it is the thing stopping you
+                   saying what you mean. `form=` because the form itself is the
+                   bar up at the band, and a control belongs to a form by id
+                   wherever it stands. --%>
+              <input
+                type="text"
+                form="round-form"
+                name="activity"
+                value={@round_pick.activity}
+                maxlength={Rounds.doing_limit()}
+                placeholder="WHAT ARE YOU UP TO?"
+                autocomplete="off"
+                class="w-full bg-transparent text-(length:--sub-type) tracking-(--sub-track) text-light-900 outline-none dark:text-dark-100"
+              />
+            </div>
 
             <button
               :if={@going}
@@ -2232,23 +2232,16 @@ defmodule PeoplemediaWeb.IndexLive do
             phx-submit="round_send"
             class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) items-center bg-primary-600/15 dark:bg-primary-500/20"
           >
-            <input
-              type="text"
-              name="name"
-              value={@round_pick.name}
-              maxlength={Rounds.name_limit()}
-              placeholder="WHAT IS GOING ON?"
-              autocomplete="off"
-              class="w-full bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-            />
+            <%!-- THE BAR SAYS WHO IS GOING ROUND, and it is not a field. It
+                 held the round's NAME, which was the same thought the doing box
+                 was asking for one step to the right — so the name has gone and
+                 the doing box is where you type. What is left in the band's
+                 place is the one thing a round always has: a person. It is the
+                 shape their row will take the moment it is sent. --%>
+            <span class="truncate text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100">
+              {String.upcase((@current_person && @current_person.name) || "")}
+            </span>
             <input type="hidden" name="mood" value={@round_pick.mood || ""} />
-            <input type="hidden" name="activity" value={@round_pick.activity || ""} />
-            <input
-              :if={@picker != "activity"}
-              type="hidden"
-              name="about"
-              value={@round_pick.about || ""}
-            />
           </form>
 
           <%!-- ── WHAT A BOX OPENS ONTO ──────────────────────────────────
@@ -2289,39 +2282,6 @@ defmodule PeoplemediaWeb.IndexLive do
                   </button>
                 </div>
               </div>
-            </div>
-
-            <%!-- DOINGS ARE A PLAIN GRID. They have no families worth colouring
-                 — "reading" is not warmer than "walking" — and what makes one
-                 specific is the line underneath, which is yours. --%>
-            <div :if={@picker == "activity"} class="flex flex-col gap-4">
-              <div class="flex flex-wrap gap-2 px-(--list-pad)">
-                <button
-                  :for={doing <- Rounds.activities()}
-                  type="button"
-                  phx-click="pick"
-                  phx-value-which="activity"
-                  phx-value-word={doing}
-                  class={[
-                    "cursor-pointer px-3 py-2 text-(length:--sub-type) tracking-(--sub-track)",
-                    "outline-none transition-colors",
-                    (@round_pick.activity == doing &&
-                       "bg-primary-600/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200") ||
-                      "bg-neutral-400/10 text-neutral-500 hover:bg-neutral-400/20 hover:text-neutral-700 dark:bg-neutral-300/10 dark:text-neutral-400 dark:hover:bg-neutral-300/20"
-                  ]}
-                >
-                  {String.upcase(doing)}
-                </button>
-              </div>
-              <input
-                type="text"
-                form="round-form"
-                name="about"
-                value={@round_pick.about}
-                maxlength="60"
-                placeholder="WHAT EXACTLY?"
-                class="w-full bg-transparent px-(--list-pad) text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-              />
             </div>
           </div>
 

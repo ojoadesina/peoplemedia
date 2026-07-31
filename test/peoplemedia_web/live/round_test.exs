@@ -20,6 +20,8 @@ defmodule PeoplemediaWeb.RoundTest do
     %{conn: check_in(conn, me), me: me}
   end
 
+  # THE ROW SHOWS ONE WORD FOR A PERSON — the label you gave them. Searching by
+  # their own name stopped finding anybody the day the second name came off.
   defp settle(live, name) do
     index =
       render(live)
@@ -109,8 +111,7 @@ defmodule PeoplemediaWeb.RoundTest do
       settle(live, "MUM")
 
       said = boxes(live)
-      assert said =~ "MOVIE"
-      assert said =~ "THE WITCHERS"
+      assert said =~ "THE WITCHERS, FINALLY"
       assert said =~ "HAPPY"
       assert said =~ ~s(data-family="joy")
     end
@@ -124,7 +125,7 @@ defmodule PeoplemediaWeb.RoundTest do
 
       said = boxes(live)
       refute said =~ "HAPPY"
-      refute said =~ "MOVIE"
+      refute said =~ "THE WITCHERS"
       assert said =~ "around-box", "an empty box keeps its slot or the letter box moves"
       refute said =~ ~s(data-family=")
     end
@@ -167,7 +168,7 @@ defmodule PeoplemediaWeb.RoundTest do
       assert has_element?(live, ".scopes-item")
 
       room = render(live)
-      assert room =~ "WHAT IS GOING ON?"
+      assert room =~ "WHAT ARE YOU UP TO?"
       assert room =~ "DOING"
       assert room =~ "MOOD"
 
@@ -185,17 +186,10 @@ defmodule PeoplemediaWeb.RoundTest do
       # THE WAY OUT OF AN OPEN BOX IS THE BOX. Pressing the one that is open
       # closes it, so the gesture that reveals a choice is the same one that
       # abandons it — and there is no second control to find.
-      live
-      |> element(~s(button[phx-click="pick_open"][phx-value-which="activity"]))
-      |> render_click()
-
-      assert render(live) =~ "TRAVELLING"
-
-      live
-      |> element(~s(button[phx-click="pick_open"][phx-value-which="activity"]))
-      |> render_click()
-
-      refute render(live) =~ "TRAVELLING"
+      live |> element(~s(button[phx-click="pick_open"][phx-value-which="mood"])) |> render_click()
+      assert render(live) =~ "HEARTBROKEN"
+      live |> element(~s(button[phx-click="pick_open"][phx-value-which="mood"])) |> render_click()
+      refute render(live) =~ "HEARTBROKEN"
 
       # A MOOD ON ITS OWN IS A COMPLETE THING TO SAY, and so is nothing at all.
       render_submit(live, :round_send, %{"mood" => "calm"})
@@ -212,7 +206,7 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
       render_submit(live, :round_send, %{})
 
-      assert %{name: nil, mood: nil, activity: nil} = Rounds.live(me.id)
+      assert %{mood: nil, activity: nil} = Rounds.live(me.id)
     end
 
     # MANUAL CANCEL, and it is the only way out that changes nothing.
@@ -225,18 +219,18 @@ defmodule PeoplemediaWeb.RoundTest do
       assert Rounds.live(me.id) == nil
     end
 
-    test "all of it at once, and the name is a title", %{conn: conn, me: me} do
+    test "a doing and a mood, and the round is numbered", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
       live |> element("#act") |> render_click()
 
       render_submit(live, :round_send, %{
-        "name" => "the witchers, finally",
-        "mood" => "happy",
-        "activity" => "movie",
-        "about" => "the witchers"
+        "activity" => "fixing the bike before it rains",
+        "mood" => "happy"
       })
 
-      assert %{name: "the witchers, finally", mood: "happy", activity: "movie"} =
+      # THE NUMBER IS WHAT IT IS KNOWN BY. Per creator, increasing — a name
+      # repeats and is optional, and no two people's are comparable.
+      assert %{activity: "fixing the bike before it rains", mood: "happy", number: 1} =
                Rounds.live(me.id)
     end
 
@@ -251,8 +245,8 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
       render_submit(live, :round_send, %{"mood" => "hopeful"})
 
-      assert %{mood: "hopeful"} = Rounds.live(me.id)
-      assert [%{mood: "hopeful"}, %{mood: "tired"}] = Rounds.history(me.id)
+      assert %{mood: "hopeful", number: 2} = Rounds.live(me.id)
+      assert [%{mood: "hopeful", number: 2}, %{mood: "tired", number: 1}] = Rounds.history(me.id)
     end
 
     # THE AUDIENCE IS THE TAB YOU ARE STANDING ON, never a question. PEOPLE is
@@ -308,7 +302,10 @@ defmodule PeoplemediaWeb.RoundTest do
       round(teller, %{name: "soup and a film", activity: "cooking", audience: "public"})
       Peoplemedia.Notifications.stir_all()
 
-      assert render(live) =~ "SOUP AND A FILM", "the list did not redraw"
+      # GOING ROUND PULLS THEM TO THE FRONT, and that is what a watcher sees
+      # change — the row itself carries no round text now, only a name and a
+      # count, so the ORDER is the visible half of a redraw.
+      assert leader(live) =~ "TELLER", "the list did not redraw"
     end
 
     # AND A VISITOR TOO. They have no passport and therefore no topic of their
@@ -320,7 +317,7 @@ defmodule PeoplemediaWeb.RoundTest do
       round(teller, %{name: "a book about rivers", audience: "public"})
       Peoplemedia.Notifications.stir_all()
 
-      assert render(live) =~ "A BOOK ABOUT RIVERS"
+      assert leader(live) =~ "TELLER"
     end
 
     # A REDRAW IS NOT A NOTICE. The stir goes to everybody because who may SEE
@@ -335,7 +332,7 @@ defmodule PeoplemediaWeb.RoundTest do
       round(teller, %{name: "soup and a film", activity: "cooking", audience: "private"})
       Peoplemedia.Notifications.stir_all()
 
-      refute render(live) =~ "SOUP AND A FILM"
+      refute leader(live) =~ "TELLER", "a private round surfaced somebody to a stranger"
     end
   end
 
@@ -344,31 +341,34 @@ defmodule PeoplemediaWeb.RoundTest do
     # where you were. Being overtaken is something somebody else did; fading is
     # not, so fading must not move you.
     test "the newest round leads, and expiry does not demote", %{conn: conn, me: me} do
-      [{_a, first}, {_b, second} | _] = Relationships.held_by(me.id)
+      [{_a, first}, {second_scope, second} | _] = Relationships.held_by(me.id)
 
       round(first, %{mood: "calm"})
       round(second, %{mood: "happy"})
 
       {:ok, live, _} = live(conn, ~p"/")
-      assert leader(live) =~ second.name
+      # THE LABEL, not the name. A row shows one word for a person now — the one
+      # you gave them — because two on a line read as a headline over a byline.
+      assert leader(live) =~ second_scope.name
 
       # It runs out — and stays exactly where it was.
       Rounds.stop(second.id)
       send(live.pid, :stir)
-      assert leader(live) =~ second.name, "an expired round must not demote anybody"
+      assert leader(live) =~ second_scope.name, "an expired round must not demote anybody"
     end
   end
 
   describe "refusing to appear" do
     test "hidden removes the round while leaving them in the list", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
+      [{scope, _} | _] = Relationships.held_by(me.id)
       round(them, %{mood: "happy", activity: "reading"})
       {:ok, _} = People.set_around_hidden(them, true)
 
       {:ok, live, html} = live(conn, ~p"/")
-      assert html =~ them.name
+      assert html =~ scope.name
 
-      settle(live, them.name)
+      settle(live, scope.name)
       said = boxes(live)
       refute said =~ "HAPPY"
       refute said =~ "READING"

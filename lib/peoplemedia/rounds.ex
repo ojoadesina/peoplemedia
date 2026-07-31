@@ -55,9 +55,22 @@ defmodule Peoplemedia.Rounds do
       attrs
       |> Map.new(fn {k, v} -> {to_string(k), blank_to_nil(v)} end)
       |> Map.put_new("audience", "public")
-      |> Map.merge(%{"person_id" => person_id, "expires_at" => horizon()})
+      |> Map.merge(%{
+        "person_id" => person_id,
+        "expires_at" => horizon(),
+        "number" => next_number(person_id)
+      })
 
     %Round{} |> Round.changeset(attrs) |> Repo.insert()
+  end
+
+  # THEIR NEXT ONE. Counted off the highest number they have rather than off how
+  # many rows exist, so nothing before it can shift the answer — and a unique
+  # index on the pair means a race loses loudly rather than quietly handing two
+  # rounds the same number.
+  defp next_number(person_id) do
+    Repo.one(from(r in Round, where: r.person_id == ^person_id, select: max(r.number)))
+    |> then(&((&1 || 0) + 1))
   end
 
   @doc """
@@ -173,12 +186,25 @@ defmodule Peoplemedia.Rounds do
   the list rearranging itself for reasons nobody can see. The id is monotonic and
   cannot tie. Nothing reads this as a date; it exists to be compared.
   """
-  def last_round_for([]), do: %{}
+  def last_round_for(person_ids, viewer_id \\ nil)
 
-  def last_round_for(person_ids) do
+  def last_round_for([], _viewer_id), do: %{}
+
+  def last_round_for(person_ids, viewer_id) do
+    # THE ORDER IS A READ LIKE ANY OTHER, and forgetting that leaked exactly what
+    # hiding the row's text had just stopped leaking: a private round pulled its
+    # creator to the top of a STRANGER'S list. They could not see what it said
+    # and did not need to — being at the front is the claim, and the claim was
+    # visible. Position is content.
+    holders = viewer_id |> Relationships.holders_of() |> MapSet.to_list()
+    me = to_id(viewer_id)
+
     Repo.all(
       from(r in Round,
         where: r.person_id in ^person_ids,
+        where:
+          r.audience == "public" or r.person_id == ^me or r.target_id == ^me or
+            (r.audience == "private" and is_nil(r.target_id) and r.person_id in ^holders),
         group_by: r.person_id,
         select: {r.person_id, max(r.id)}
       )
@@ -216,9 +242,8 @@ defmodule Peoplemedia.Rounds do
   def minutes, do: @minutes
 
   def moods, do: Round.moods()
-  def activities, do: Round.activities()
   def audiences, do: Round.audiences()
-  def name_limit, do: Round.name_limit()
+  def doing_limit, do: Round.doing_limit()
   def mood_families, do: Round.mood_families()
   def family_of(mood), do: Round.family_of(mood)
 
@@ -229,14 +254,17 @@ defmodule Peoplemedia.Rounds do
   defp read(%Round{} = r) do
     %{
       id: r.id,
+      number: r.number,
       person_id: r.person_id,
       target_id: r.target_id,
-      name: r.name,
       mood: r.mood,
       family: Round.family_of(r.mood),
       activity: r.activity,
-      about: r.about,
       audience: r.audience,
+      # A ROUND BETWEEN TWO PEOPLE IS A DIFFERENT KIND OF THING from one going
+      # out to everybody you hold, and the row marks it. Derived, because it is
+      # simply what having a target MEANS.
+      direct: not is_nil(r.target_id),
       expires_at: r.expires_at,
       at: r.inserted_at,
       live: DateTime.compare(r.expires_at, DateTime.utc_now()) == :gt

@@ -99,12 +99,7 @@ defmodule Peoplemedia.Fixtures do
     # SARAH IS THE ONE WHO WENT ROUND, and she is the only one, because the boxes
     # beside the band show one person at a time and a test that finds a mood
     # needs to know whose it is.
-    round(by_name("SARAH"), %{
-      name: "the witchers, finally",
-      mood: "happy",
-      activity: "movie",
-      about: "the witchers"
-    })
+    round(by_name("SARAH"), %{activity: "the witchers, finally", mood: "happy"})
 
     here(by_name("MICHAEL"))
     here(by_name("AMINA"))

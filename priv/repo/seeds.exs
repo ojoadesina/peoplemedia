@@ -240,10 +240,10 @@ IO.puts(
 alias Peoplemedia.{Presence, Rounds}
 
 rounds = [
-  {"SARAH", %{name: "the witchers, finally", mood: "happy", activity: "movie", about: "the witchers"}},
-  {"KEMI", %{name: "walking it off", mood: "sad", activity: "walking"}},
-  {"IBRAHIM", %{mood: "restless", activity: "training", about: "hill sprints"}},
-  {"ELENA", %{name: "borscht, third attempt", mood: "content", activity: "cooking", about: "borscht"}},
+  {"SARAH", %{activity: "the witchers, finally", mood: "happy"}},
+  {"KEMI", %{activity: "walking it off", mood: "sad"}},
+  {"IBRAHIM", %{activity: "hill sprints before the rain", mood: "restless"}},
+  {"ELENA", %{activity: "borscht, third attempt", mood: "content"}},
   {"MICHAEL", :here_only},
   {"ROSE", :here_only}
 ]

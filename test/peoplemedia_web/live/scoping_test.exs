@@ -260,9 +260,12 @@ defmodule PeoplemediaWeb.ScopingTest do
 
       render_click(live, :scope_accept, %{"id" => them.id})
 
-      # And once it lands they leave the unscoped list entirely.
+      # And once it lands they leave the unscoped list entirely — and arrive in
+      # the other one under the word YOU gave them. A row shows one name now, and
+      # for somebody you hold that is the label, not their own: two on a line
+      # read as a headline over a byline.
       assert act_for(render(live), "NEWCOMER") == :absent
-      assert act_for(unscoped(live), "NEWCOMER") == "UNSCOPE"
+      assert act_for(unscoped(live), "COUSIN") == "UNSCOPE"
       assert Relationships.related?(me.id, them.id)
     end
 

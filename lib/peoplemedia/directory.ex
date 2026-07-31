@@ -185,7 +185,7 @@ defmodule Peoplemedia.Directory do
     # reading it — and the viewer has to be carried this far down for that to be
     # true anywhere.
     rounds = Rounds.live_for(ids, viewer_id)
-    last = Rounds.last_round_for(ids)
+    last = Rounds.last_round_for(ids, viewer_id)
 
     Map.new(ids, fn id ->
       {id,

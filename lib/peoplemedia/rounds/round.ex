@@ -9,24 +9,23 @@ defmodule Peoplemedia.Rounds.Round do
 
   ## EVERYTHING ON IT IS OPTIONAL
 
-  Name, mood, doing, and the thing the doing is about. All four nullable, and
-  that is the design rather than laxness: a round with nothing on it is somebody
-  saying "I am here and open to being joined", which is the smallest true thing
-  this app exists to let anybody say. Filling it in is how you say more.
+  A doing and a mood, both nullable, and that is the design rather than laxness:
+  a round with nothing on it is somebody saying "I am here and open to being
+  joined", which is the smallest true thing this app exists to let anybody say.
+  Filling it in is how you say more.
 
-  ## THE NAME IS A TITLE, NOT A LETTER
+  ## IT HAS A NUMBER, AND THAT IS WHAT IT IS KNOWN BY
 
-  It behaves the way a forum topic does — short, capped, and the thing the words
-  underneath are about. What used to be written here was a LETTERHEAD, which was
-  a letter addressed to nobody; the round's own name does that job now and does
-  it better, because a topic that surfaces a person is a different object from a
-  letter with no recipient.
+  Per creator, increasing. It carried a NAME once — a forum title over the words
+  beneath it — and a name is optional, repeatable, and no use to anything trying
+  to point at one round. The number is none of those, so it is what a word hangs
+  off and what a page lists by. The doing says what it is about.
 
   ## A ROUND SURFACES A PERSON. IT DOES NOT CONTAIN THE CONVERSATION.
 
   Which is why nothing here is a body and nothing here is a thread. The words are
-  their own thing and they outlive this: expiry takes the name and the boxes off
-  the row and touches nothing else.
+  their own thing and they outlive this: expiry takes the boxes off the row and
+  touches nothing else.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -58,27 +57,31 @@ defmodule Peoplemedia.Rounds.Round do
              |> Enum.flat_map(fn {family, words} -> Enum.map(words, &{&1, family}) end)
              |> Map.new()
 
-  # WHAT KIND OF THING, not what thing. A simple category, deliberately small —
-  # `out` is the honest catch-all and `about` carries the rest.
-  @activities ~w(food travelling rest movie reading listening cooking walking
-                 working studying training playing making out)
+  # WHAT YOU ARE DOING IS WHAT YOU TYPE. It was a closed set of fourteen with a
+  # free line beneath it, and the two overlapped so badly that "the witchers,
+  # finally" / `movie` / "the witchers" was one thought said three times. A
+  # vocabulary of doings is either redundant beside a sentence somebody wrote or
+  # it is the thing stopping them writing it.
+  #
+  # MOOD KEEPS ITS SET, and the difference is the whole reason. A mood is drawn
+  # as a COLOUR and a colour needs a family to belong to; a doing is drawn as
+  # itself. Closing a set is worth it when something has to be looked up, and a
+  # cost when nothing does.
+  @doing_limit 80
 
   # PUBLIC IS EVERYONE. PRIVATE IS THE PEOPLE YOU HOLD — or one of them, when a
   # target is set. Which of the two you get is decided by the tab you were
   # standing on, so nobody is asked a question the surface already knows.
   @audiences ~w(public private)
 
-  # A TITLE, NOT A PAGE. Long enough for "trying to fix the bike before it rains"
-  # and short enough to sit on a row without truncating into nonsense.
-  @name_limit 80
-
   schema "rounds" do
     belongs_to(:person, Person)
     belongs_to(:target, Person)
-    field(:name, :string)
     field(:mood, :string)
     field(:activity, :string)
-    field(:about, :string)
+    # PER CREATOR, INCREASING. Names repeat and names are optional; a number is
+    # neither, so it is what a word hangs off and what a page lists by.
+    field(:number, :integer)
     field(:audience, :string, default: "public")
     field(:expires_at, :utc_datetime)
 
@@ -87,27 +90,14 @@ defmodule Peoplemedia.Rounds.Round do
 
   def changeset(round, attrs) do
     round
-    |> cast(attrs, [
-      :person_id,
-      :target_id,
-      :name,
-      :mood,
-      :activity,
-      :about,
-      :audience,
-      :expires_at
-    ])
-    |> validate_required([:person_id, :audience, :expires_at])
+    |> cast(attrs, [:person_id, :target_id, :mood, :activity, :audience, :expires_at, :number])
+    |> validate_required([:person_id, :audience, :expires_at, :number])
     |> validate_inclusion(:audience, @audiences)
     |> validate_inclusion(:mood, @moods)
-    |> validate_inclusion(:activity, @activities)
-    |> validate_length(:name, max: @name_limit)
-    # SHORT BY CONSTRUCTION. It rides in a box beside the band; a sentence set
-    # there would either overrun the rail or truncate into nonsense.
-    |> validate_length(:about, max: 60)
-    # A THING WITH NO KIND OF THING IS NOT AN ANSWER. "The witchers" alone does
-    # not say whether you are watching it, reading it or arguing about it.
-    |> require_activity_for_about()
+    # SHORT BY CONSTRUCTION. It rides in a box beside the band, so a paragraph
+    # set there would either overrun the rail or truncate into nonsense.
+    |> validate_length(:activity, max: @doing_limit)
+    |> unique_constraint([:person_id, :number], name: :rounds_person_id_number_index)
     # AIMING A PUBLIC ROUND IS NOT A STRICTER PUBLIC ROUND, it is two different
     # answers to one question. The database says the same; naming it here is what
     # turns its refusal into a changeset error rather than an exception.
@@ -116,16 +106,6 @@ defmodule Peoplemedia.Rounds.Round do
       name: :public_rounds_have_no_target,
       message: "a public round is for everyone and cannot be aimed at one person"
     )
-  end
-
-  defp require_activity_for_about(changeset) do
-    case {get_field(changeset, :about), get_field(changeset, :activity)} do
-      {about, nil} when is_binary(about) and about != "" ->
-        add_error(changeset, :activity, "say what you are doing with it")
-
-      _otherwise ->
-        changeset
-    end
   end
 
   defp forbid_public_target(changeset) do
@@ -139,9 +119,8 @@ defmodule Peoplemedia.Rounds.Round do
   end
 
   def moods, do: @moods
-  def activities, do: @activities
   def audiences, do: @audiences
-  def name_limit, do: @name_limit
+  def doing_limit, do: @doing_limit
 
   @doc """
   The moods, in their families and in order — `[{family, words}]`.
