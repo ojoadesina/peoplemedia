@@ -47,7 +47,7 @@ defmodule Peoplemedia.Directory do
 
   def scopes(%Person{id: owner_id}) do
     held = Relationships.held_by(owner_id)
-    standing = standing_for(Enum.map(held, fn {_scope, person} -> person.id end))
+    standing = standing_for(Enum.map(held, fn {_scope, person} -> person.id end), owner_id)
 
     Enum.map(held, fn {scope, person} ->
       letters = Letters.thread_of(scope.relationship_id, owner_id)
@@ -101,7 +101,7 @@ defmodule Peoplemedia.Directory do
     # what you are telling everybody else. It goes through the same filter as
     # theirs, so hiding hides you from yourself too — which is right: the page is
     # showing you what other people see, and what they see is nothing.
-    |> Map.merge(standing_for([person.id])[person.id])
+    |> Map.merge(standing_for([person.id], person.id)[person.id])
   end
 
   @doc """
@@ -110,7 +110,7 @@ defmodule Peoplemedia.Directory do
   """
   def unscopes(nil) do
     everyone = Relationships.everyone()
-    standing = standing_for(Enum.map(everyone, & &1.id))
+    standing = standing_for(Enum.map(everyone, & &1.id), nil)
 
     everyone |> Enum.map(&stranger(&1, standing)) |> by_round()
   end
@@ -129,7 +129,7 @@ defmodule Peoplemedia.Directory do
     # One query for the lot, not one per row — this list is the whole country.
     phases = phases_for(owner_id)
     strangers = Relationships.not_held_by(owner_id)
-    standing = standing_for(Enum.map(strangers, & &1.id))
+    standing = standing_for(Enum.map(strangers, & &1.id), owner_id)
 
     strangers
     |> Enum.map(&Map.put(stranger(&1, standing), :phase, Map.get(phases, &1.id)))
@@ -178,9 +178,13 @@ defmodule Peoplemedia.Directory do
   #
   # `live` IS NOT OURS TO SET. It means a face or a voice actually running, which
   # is ONE thing somebody might be doing inside a round, not what being here IS.
-  defp standing_for(ids) do
+  defp standing_for(ids, viewer_id) do
     here = Presence.live_for(ids)
-    rounds = Rounds.live_for(ids)
+    # WHO IS LOOKING DECIDES WHAT THEY SEE. A private round goes to the people
+    # its creator holds, so the same list is a different list depending on who is
+    # reading it — and the viewer has to be carried this far down for that to be
+    # true anywhere.
+    rounds = Rounds.live_for(ids, viewer_id)
     last = Rounds.last_round_for(ids)
 
     Map.new(ids, fn id ->

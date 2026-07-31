@@ -96,6 +96,12 @@ defmodule PeoplemediaWeb.IndexLive do
     # plainly still here. The same beat re-reads the lists, because arounds die
     # QUIETLY: nothing is broadcast when somebody's runs out, so a screen that
     # only redrew on a notification would keep showing people who left.
+    # EVERY OPEN LIST LISTENS TO THE SURFACE, passport or not. A visitor watching
+    # the People list is watching the same rows as anybody else, and the thing
+    # they were missing — somebody going round — is not addressed to them and so
+    # never reached their own topic.
+    if connected?(socket), do: Notifications.subscribe_surface()
+
     if connected?(socket) && me do
       Notifications.subscribe(me.id)
       Presence.touch(me.id)
@@ -359,7 +365,13 @@ defmodule PeoplemediaWeb.IndexLive do
       nil ->
         {:noreply, assign(socket, going: false)}
 
-      {:ok, _} ->
+      {:ok, round} ->
+        # EVERY OPEN LIST REDRAWS. Going round changes the boxes on your row and
+        # the order the names come in, for everybody who can see it — and who
+        # that is gets decided on the READ, so the nudge can be sent to all.
+        Notifications.stir_all()
+        tell_the_audience(me, round)
+
         {:noreply,
          socket
          |> assign(going: false, picker: nil, round_pick: blank_round())
@@ -813,6 +825,26 @@ defmodule PeoplemediaWeb.IndexLive do
   # people you hold, so a round made there is private to them. Nobody is asked,
   # because the answer is already on screen and a control offering it again would
   # be asking somebody to restate where they are standing.
+  # ── WHO IS TOLD ─────────────────────────────────────────────────────────────
+  # A PRIVATE ROUND NOTIFIES ITS AUDIENCE and a public one never notifies anyone.
+  # That is the guide's own rule, and it follows from Law 3: going round with the
+  # people you hold is something you did TOWARD them, and going round publicly is
+  # something you did in a room they happen to be in.
+  #
+  # THE STIR IS SEPARATE AND GOES TO EVERYONE. A redraw is not a notice; this is
+  # the notice.
+  defp tell_the_audience(_me, %{audience: "public"}), do: :ok
+
+  defp tell_the_audience(me, %{audience: "private", target_id: target}) when not is_nil(target),
+    do: Notifications.notify(target, "round", me.id)
+
+  defp tell_the_audience(me, %{audience: "private"}) do
+    for {_scope, them} <- Relationships.held_by(me.id),
+        do: Notifications.notify(them.id, "round", me.id)
+
+    :ok
+  end
+
   defp audience_for_tab("SCOPED"), do: %{"audience" => "private"}
   defp audience_for_tab(_people), do: %{"audience" => "public"}
 
@@ -1250,7 +1282,7 @@ defmodule PeoplemediaWeb.IndexLive do
                A VISITOR HAS NO PAGE, so there is no button. A page is the
                letters you have written, and they cannot have written any. --%>
           <button
-            :if={@current_person}
+            :if={@current_person && !@going}
             id="self"
             type="button"
             aria-label="Your own page"
@@ -1265,21 +1297,53 @@ defmodule PeoplemediaWeb.IndexLive do
           >
           </button>
 
-          <%!-- THE ACT. Two halves of one press, the same pair the row's own
-               buttons use: `phx-click` tells the server WHO it is for, and
-               `data-open-room` opens the room — the launcher's registry catches
-               that attribute anywhere on the page, so this button needed no new
-               JavaScript at all. --%>
-          <%!-- ONE BUTTON, BOTH DIRECTIONS. A plus that stays a plus while the
-               form it opened is already open is a control offering something you
-               already have — press it again and you get another request for the
-               same thing. It turns, and the turn IS the way out, which also
-               takes a control off a foot that has to fit a phone. --%>
+          <%!-- ── THE FOOT IS THE FORM'S CONTROLS WHILE THERE IS A FORM ─────
+               Cancel, send, and the launcher — three positions doing the three
+               jobs the moment asks for. It buys the boxes the whole rail back on
+               a phone, and it keeps every control this surface has in the one
+               place a thumb already knows to reach.
+
+               THE CROSS TAKES YOUR OWN PAGE'S PLACE, on the left, where nothing
+               destructive ever was — and the act keeps the centre it has always
+               had. A form whose way out and way on were the same button was
+               briefly the shape here, and it made the one press you make most
+               the one you had to look at first. --%>
+          <button
+            :if={@going}
+            type="button"
+            aria-label="Leave without going round"
+            phx-click="round_cancel"
+            class={[
+              "pointer-events-auto relative flex size-(--act-h) cursor-pointer items-center justify-center",
+              "bg-neutral-100 text-neutral-600 transition-colors outline-none",
+              "hover:bg-neutral-200 hover:text-neutral-800",
+              "focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2",
+              "focus-visible:ring-offset-light-50 dark:focus-visible:ring-offset-dark-950",
+              "dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+            ]}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              class="absolute h-1/2 w-1/2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="butt"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+
+          <%!-- THE ACT, and open it finishes what it started. `form=` because a
+               control belongs to a form by id wherever it stands — the form
+               itself is the bar up at the band, and this is its submit. --%>
           <button
             id="act"
-            type="button"
-            aria-label={(@going && "Leave without going round") || "Go round"}
-            phx-click={(@going && "round_cancel") || "go_round"}
+            type={(@going && "submit") || "button"}
+            form={(@going && "round-form") || nil}
+            aria-label={(@going && "Go round") || "Start a round"}
+            phx-click={(!@going && "go_round") || nil}
             class={[
               "pointer-events-auto relative flex size-(--act-h) cursor-pointer items-center justify-center",
               "bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600",
@@ -1292,20 +1356,33 @@ defmodule PeoplemediaWeb.IndexLive do
                  degrees into a cross and then crossfade to an arrow, three
                  jobs on one button — which read well and put the way out of a
                  form a screen away from the form. --%>
-            <%!-- THE SAME TWO BARS, TURNED. Not a second drawing: one plus
-                 rotated is one object with two states, and a cross cut fresh
-                 would be free to drift from the plus it is supposed to be. --%>
+            <%!-- ONE MARK, ONE MEANING: start something. It briefly turned into
+                 a cross, which was right while it was the form's only control —
+                 the way out has a button of its own beside it now, so the act
+                 goes back to meaning the one thing it has always meant. Open, it
+                 finishes what it started. --%>
             <svg
+              :if={!@going}
               viewBox="0 0 24 24"
-              class={[
-                "act-mark absolute h-1/2 w-1/2 transition-transform duration-200",
-                @going && "rotate-45"
-              ]}
+              class="act-mark absolute h-1/2 w-1/2"
               fill="currentColor"
               aria-hidden="true"
             >
               <rect x="4" y="10.25" width="16" height="3.5" />
               <rect x="10.25" y="4" width="3.5" height="16" />
+            </svg>
+            <svg
+              :if={@going}
+              viewBox="0 0 24 24"
+              class="absolute h-1/2 w-1/2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="butt"
+              stroke-linejoin="miter"
+              aria-hidden="true"
+            >
+              <path d="M5 13l4 4L19 7" />
             </svg>
           </button>
 
@@ -1676,8 +1753,35 @@ defmodule PeoplemediaWeb.IndexLive do
                            terracotta is about the NAME, and an age that lit with
                            it would make the band read as two things being
                            pointed at. --%>
+                        <%!-- WHAT THEY ARE ROUND WITH, and it takes the age's
+                             line. A person with a live round shows its NAME on
+                             the row — the boxes beside the band carry the mood
+                             and the doing, but those need the person settled,
+                             and a list where nothing about a round is visible
+                             until you scroll somebody into place is a list that
+                             does not surface anybody.
+
+                             IT DISPLACES THE AGE rather than joining it. Two
+                             subtexts under one name is two things asking to be
+                             read, and between "they went round about the bike"
+                             and "their last letter was 2d ago", the first is the
+                             one that is asking you to join in. The age comes
+                             back the moment the round runs out, which is exactly
+                             what expiry is for: the boxes and the name leave the
+                             row, and nothing else changes.
+
+                             IT IS NOT LOUD. Same grey as the age it replaces —
+                             terracotta on this surface means an unopened letter
+                             and nothing else, and a round is an invitation
+                             rather than a summons. --%>
                         <p
-                          :if={item[:letter]}
+                          :if={item[:round][:name]}
+                          class="scopes-round mt-1 truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
+                        >
+                          {String.upcase(item.round.name)}
+                        </p>
+                        <p
+                          :if={item[:letter] && is_nil(item[:round][:name])}
                           class="scopes-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/75 dark:text-neutral-500/80"
                         >
                           {item.letter.when}
@@ -1838,10 +1942,72 @@ defmodule PeoplemediaWeb.IndexLive do
                one carrying somebody's own words — truncated inside ten rems. The
                two short answers keep their slots; the one with no fixed length
                takes the rest. --%>
-          <div class={[
-            "scope-boxes pointer-events-none z-20 flex items-center gap-3",
-            @going && "invisible"
-          ]}>
+          <div class="scope-boxes pointer-events-none z-20 flex items-center gap-3">
+            <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
+                 exactly where the answers will be, so nothing moves between
+                 filling the form in and reading it back. --%>
+            <button
+              :if={@going}
+              type="button"
+              phx-click="pick_open"
+              phx-value-which="activity"
+              class={[
+                "around-box pointer-events-auto flex h-(--band-h) min-w-0 flex-1 cursor-pointer",
+                "flex-col items-start justify-center gap-1 overflow-hidden px-4 text-left",
+                "bg-neutral-400/10 outline-none transition-colors hover:bg-neutral-400/20",
+                "dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+              ]}
+            >
+              <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+                DOING
+              </span>
+              <span class={[
+                "w-full truncate text-(length:--sub-type) tracking-(--sub-track)",
+                (@round_pick.activity && "text-light-900 dark:text-dark-100") ||
+                  "text-neutral-300 dark:text-neutral-700"
+              ]}>
+                {String.upcase(@round_pick.activity || "—")}
+              </span>
+            </button>
+
+            <button
+              :if={@going}
+              type="button"
+              phx-click="pick_open"
+              phx-value-which="mood"
+              data-family={Rounds.family_of(@round_pick.mood)}
+              class={[
+                "around-box mood-box pointer-events-auto flex h-(--band-h) w-(--mood-w) shrink-0",
+                "cursor-pointer flex-col items-start justify-center gap-1 overflow-hidden px-4",
+                "text-left outline-none transition-colors",
+                !Rounds.family_of(@round_pick.mood) &&
+                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+              ]}
+            >
+              <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
+                MOOD
+              </span>
+              <span class={[
+                "w-full truncate text-(length:--sub-type) tracking-(--sub-track)",
+                (@round_pick.mood && "text-light-900 dark:text-dark-100") ||
+                  "text-neutral-300 dark:text-neutral-700"
+              ]}>
+                {String.upcase(@round_pick.mood || "—")}
+              </span>
+            </button>
+
+            <%!-- THE FRAME'S PLACE, and it is empty because a frame is CAPTURED
+                 and there is nothing to capture with yet. It pulses rather than
+                 sitting blank: an unfilled round frame is somebody here with
+                 nothing to show, which is a real state and the commonest one. --%>
+            <div
+              :if={@going}
+              aria-label="A frame, when there is one"
+              class="around-box presence-box pointer-events-auto relative flex size-(--band-h) shrink-0 items-center justify-center bg-primary-600/15 dark:bg-primary-500/20"
+            >
+              <span class="presence-pulse block size-3 bg-primary-600 dark:bg-primary-500"></span>
+            </div>
+
             <%!-- ONE: WHAT THEY ARE DOING. The kind of thing above, quiet, in
                  the same small tracked voice the age under a name uses; the
                  THING itself below, at the count's size. That order is the way
@@ -1849,6 +2015,7 @@ defmodule PeoplemediaWeb.IndexLive do
                  and "the witchers" is the answer — and it is the only place on
                  this surface where somebody's own typing is set large. --%>
             <div
+              :if={!@going}
               phx-mounted={JS.ignore_attributes(["class"])}
               role="button"
               tabindex="0"
@@ -1914,6 +2081,7 @@ defmodule PeoplemediaWeb.IndexLive do
                  the hue never reaches full strength, because the moment a mood is
                  as loud as terracotta, terracotta stops meaning "look here". --%>
             <div
+              :if={!@going}
               phx-mounted={JS.ignore_attributes(["class"])}
               role="button"
               tabindex="0"
@@ -1979,7 +2147,7 @@ defmodule PeoplemediaWeb.IndexLive do
                  (see the Media hook) because an attribute exemption cannot help
                  a playing clip. --%>
             <div
-              :if={@list_mode == :people}
+              :if={@list_mode == :people && !@going}
               id="letterbox"
               phx-mounted={JS.ignore_attributes(["class"])}
               role="button"
@@ -2042,56 +2210,37 @@ defmodule PeoplemediaWeb.IndexLive do
                The band answers "which one", the frame answers "and what are they
                sending". Both appear only on a settled selection. --%>
           <%!-- ── GOING ROUND, IN PLACE ──────────────────────────────────
-               IT TAKES THE BAND'S LINE, and the list goes on underneath. That
-               is the whole reason it is not a panel: a room over the page would
+               IT TAKES THE BAND'S LINE, and the list goes on underneath. That is
+               the whole reason it is not a panel: a room over the page would
                hide the people the round exists to reach, and it would cost a
                full screen to ask four short questions.
 
-               IT IS THE SHAPE OF WHAT IT MAKES. The bar is where the round's
-               NAME goes and it wears the band's own wash and width; the three
-               boxes to its right are the same three that will carry the answer
-               once it is sent. Nothing here has to be learned, because it is
-               already on screen.
+               IT IS THE SHAPE OF WHAT IT MAKES, and now it is the SAME OBJECTS
+               IN THE SAME PLACES. The bar replaces the band; the three boxes on
+               the rail become the three that ask. They were in a row of their
+               own beneath the bar, which meant the form and the thing it
+               produces sat in different places and the page reflowed on every
+               press. One position, two states.
 
-               THE NAME IS A TITLE, NOT A LETTER. Words are their own thing and
-               they come later; this is what the words will be under.
-
-               IT HAS A GROUND, at the page's own colour. On a wide screen it is
-               one row exactly as tall as the band it replaced, so the list never
-               showed through; wrapped onto two on a phone, the gaps between its
-               boxes had names scrolling behind them. A form you can read the
-               list through is a form and a list arguing over the same pixels.
-
-               IT GROWS DOWN FROM THE BAND'S TOP EDGE, not out from its centre.
-               Centred, it was fine on a wide screen where it is one line — and
-               on a phone, where the name bar takes the full width and the boxes
-               wrap beneath it, half of that second line grew UPWARD through the
-               caption above. A form that reaches backwards over the thing that
-               says who it is for is a form arguing with its own answer.
-
-               `pointer-events-auto` ON THE ROW ITSELF, because it sits over a
-               list that is still scrolling beneath it — anything that is not a
-               control here would be a strip swallowing presses meant for the
-               names below. --%>
+               THE FORM IS THE BAR ALONE. Its controls live in the cluster and in
+               the foot, which HTML allows through `form=` — a control belongs to
+               a form by id, wherever it stands. --%>
           <form
             :if={@going}
             id="round-form"
             phx-change="round_change"
             phx-submit="round_send"
-            class="round-form pointer-events-none absolute inset-x-0 top-(--list-top) z-30 flex flex-wrap items-start gap-3 bg-light-50 pb-3 dark:bg-dark-950"
+            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) items-center bg-primary-600/15 dark:bg-primary-500/20"
           >
-            <div class="list-box pointer-events-auto flex min-h-(--band-h) shrink-0 items-center bg-primary-600/15 dark:bg-primary-500/20">
-              <input
-                type="text"
-                name="name"
-                value={@round_pick.name}
-                maxlength={Rounds.name_limit()}
-                placeholder="WHAT IS GOING ON?"
-                autocomplete="off"
-                class="w-full bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-              />
-            </div>
-
+            <input
+              type="text"
+              name="name"
+              value={@round_pick.name}
+              maxlength={Rounds.name_limit()}
+              placeholder="WHAT IS GOING ON?"
+              autocomplete="off"
+              class="w-full bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+            />
             <input type="hidden" name="mood" value={@round_pick.mood || ""} />
             <input type="hidden" name="activity" value={@round_pick.activity || ""} />
             <input
@@ -2100,90 +2249,6 @@ defmodule PeoplemediaWeb.IndexLive do
               name="about"
               value={@round_pick.about || ""}
             />
-
-            <%!-- THE SAME THREE BOXES, asking instead of answering. --%>
-            <%!-- THE BOXES TAKE THE REST OF THE RAIL, and the doing box takes
-                 whatever the other two leave. It is the only one holding
-                 somebody's own words, so it is the only one whose content has no
-                 fixed length — a doing pinned to ten rems truncated while the
-                 space beside it sat empty. WRAPPING, because on a phone the name
-                 bar is already the full width and these belong on their own
-                 line rather than off the edge of it. --%>
-            <div class="pointer-events-auto flex min-w-0 flex-1 items-center gap-3">
-              <button
-                type="button"
-                phx-click="pick_open"
-                phx-value-which="activity"
-                class={[
-                  "around-box flex h-(--band-h) min-w-0 flex-1 cursor-pointer flex-col",
-                  "items-start justify-center gap-1 overflow-hidden px-4 text-left outline-none",
-                  "bg-neutral-400/10 transition-colors hover:bg-neutral-400/20",
-                  "dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-                ]}
-              >
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-                  DOING
-                </span>
-                <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
-                  {String.upcase(@round_pick.activity || "—")}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                phx-click="pick_open"
-                phx-value-which="mood"
-                data-family={Rounds.family_of(@round_pick.mood)}
-                class={[
-                  "around-box mood-box flex h-(--band-h) w-(--mood-w) shrink-0 cursor-pointer",
-                  "flex-col items-start justify-center gap-1 overflow-hidden px-4 text-left",
-                  "outline-none transition-colors",
-                  !Rounds.family_of(@round_pick.mood) &&
-                    "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-                ]}
-              >
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
-                  MOOD
-                </span>
-                <span class="w-full truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100">
-                  {String.upcase(@round_pick.mood || "—")}
-                </span>
-              </button>
-
-              <%!-- THE FRAME'S PLACE, and it is empty because a frame is
-                   CAPTURED and there is nothing here to capture with yet. It
-                   pulses rather than sitting blank: an unfilled round frame is
-                   somebody here with nothing to show, which is a real state and
-                   the commonest one. --%>
-              <div
-                aria-label="A frame, when there is one"
-                class="around-box presence-box relative flex size-(--band-h) shrink-0 items-center justify-center bg-primary-600/15 dark:bg-primary-500/20"
-              >
-                <span class="presence-pulse block size-3 bg-primary-600 dark:bg-primary-500"></span>
-              </div>
-
-              <%!-- SEND AS IS, OR CANCEL. Two doors, and only one of them acts —
-                   a form whose single exit was the send would make every escape
-                   from it an act nobody chose. --%>
-              <button
-                type="submit"
-                aria-label="Go round"
-                class="flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center bg-primary-500 text-primary-50 transition-colors outline-none hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  class="size-6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="butt"
-                  stroke-linejoin="miter"
-                  aria-hidden="true"
-                >
-                  <path d="M5 13l4 4L19 7" />
-                </svg>
-              </button>
-            </div>
           </form>
 
           <%!-- ── WHAT A BOX OPENS ONTO ──────────────────────────────────

@@ -2470,6 +2470,11 @@ textarea {
   position: absolute;
   top: var(--band-top);
   right: 0;
+  /* IT SPANS FROM THE BAND TO THE RAIL'S EDGE. Shrink-to-fit, it was as wide as
+     its contents and `flex-1` on the doing box had nothing to divide — so the
+     box holding somebody's own words truncated while the rail beside it sat
+     empty. Given both edges it becomes a row with room to share out. */
+  left: calc(var(--list-w) + 1.5rem);
   transform: translateY(-50%);
 }
 
@@ -2544,6 +2549,18 @@ textarea {
      belongs to the band either way — it says what the list under it holds — so
      anchoring it there is what it always meant, and the wide screen simply had
      enough room to hide that. */
+  /* AN UNANSWERED BOX GETS OUT OF THE WAY, and harder on a small screen. The
+     three sit above the band here rather than beside it, so on a phone they are
+     directly over the list — and a row of grey rectangles saying "—" is a great
+     deal of furniture for three answers nobody has given yet. Held this far
+     back they read as slots waiting rather than as boxes shouting. */
+  .scope-boxes .around-box:not([data-family]):not(.is-expanded) {
+    opacity: 0.45;
+  }
+  .scope-boxes .around-box:not([data-family]):hover,
+  .scope-boxes .around-box:not([data-family]):focus-visible {
+    opacity: 1;
+  }
   .app-root {
     --tags-gap: 1.05rem;
     --picker-top: calc(var(--band-h) * 2 + 1.5rem);

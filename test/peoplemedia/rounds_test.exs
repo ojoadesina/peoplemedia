@@ -9,7 +9,7 @@ defmodule Peoplemedia.RoundsTest do
   """
   use Peoplemedia.DataCase, async: true
 
-  alias Peoplemedia.{Repo, Rounds}
+  alias Peoplemedia.{Relationships, Repo, Rounds}
   alias Peoplemedia.Rounds.Round
 
   import Ecto.Query
@@ -223,6 +223,69 @@ defmodule Peoplemedia.RoundsTest do
     test "nobody asked about is nobody queried" do
       assert Rounds.live_for([]) == %{}
       assert Rounds.last_round_for([]) == %{}
+    end
+  end
+
+  describe "who may see it" do
+    # THE ONE THAT WAS MISSING, and it was invisible from the surface: a private
+    # round rendered exactly like a public one, so it looked right while being
+    # shown to strangers.
+    test "a private round is not visible to a stranger" do
+      me = cast()
+      stranger = person("NOBODY")
+      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+
+      assert Rounds.live_for([me.id], stranger.id) == %{}
+      assert Rounds.live_for([me.id], nil) == %{}, "a visitor least of all"
+    end
+
+    test "but it is visible to the people you hold" do
+      me = cast()
+      [{_scope, them} | _] = Relationships.held_by(me.id)
+      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+
+      assert %{mood: "calm"} = Rounds.live_for([me.id], them.id)[me.id]
+    end
+
+    # HOLDING SOMEBODY IS NOT BEING HELD BY THEM. The audience of a private round
+    # is the creator's scopes, so it is their list that decides — not yours.
+    test "and not to somebody who merely holds you back the other way" do
+      me = cast()
+      onlooker = person("ONLOOKER")
+      {:ok, _} = Relationships.request_scope(onlooker.id, me.id, "OJO")
+      {:ok, _} = Relationships.scope_back(me.id, onlooker.id, "THEM")
+      {:ok, _} = Relationships.accept(onlooker.id, me.id)
+
+      {:ok, _} = Rounds.go(onlooker.id, %{audience: "private", mood: "calm"})
+
+      # The onlooker holds me, so I am in THEIR audience.
+      assert Rounds.live_for([onlooker.id], me.id)[onlooker.id]
+      # A third party is in nobody's.
+      assert Rounds.live_for([onlooker.id], person("THIRD").id) == %{}
+    end
+
+    test "a private round aimed at one person reaches only them" do
+      me = cast()
+      [{_a, them}, {_b, other} | _] = Relationships.held_by(me.id)
+      {:ok, _} = Rounds.go(me.id, %{audience: "private", target_id: them.id, mood: "calm"})
+
+      assert Rounds.live_for([me.id], them.id)[me.id]
+      assert Rounds.live_for([me.id], other.id) == %{}
+    end
+
+    test "a public round reaches everybody, passport or not" do
+      me = cast()
+      {:ok, _} = Rounds.go(me.id, %{audience: "public", mood: "calm"})
+
+      assert Rounds.live_for([me.id], person("ANYONE").id)[me.id]
+      assert Rounds.live_for([me.id], nil)[me.id]
+    end
+
+    test "and your own is always yours to see, whoever it is for" do
+      me = cast()
+      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+
+      assert %{mood: "calm"} = Rounds.live(me.id)
     end
   end
 

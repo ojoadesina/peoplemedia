@@ -38,6 +38,27 @@ defmodule Peoplemedia.Notifications do
   def stir(person_id),
     do: Phoenix.PubSub.broadcast(Peoplemedia.PubSub, topic(person_id), :stir)
 
+  # ── THE WHOLE SURFACE ───────────────────────────────────────────────────────
+  # ONE TOPIC EVERY OPEN LIST LISTENS ON, and it is not a notification. Going
+  # round changes what is IN somebody else's list — the row's boxes, and the
+  # order the names come in — and none of that is addressed to anybody. There
+  # was no way to say so: the only broadcast was per-person, so a stranger
+  # watching the list saw nothing until they reloaded.
+  #
+  # A STIR IS NOT A PUSH. Law 3 asks that everything PUSHED be something a human
+  # did toward a person; this carries no payload and lands on nobody's badge. It
+  # says "go and read again", and what the reader may see when they do is the
+  # read's business — which is where the audience filter lives.
+  @surface "surface"
+
+  def surface_topic, do: @surface
+
+  def subscribe_surface,
+    do: Phoenix.PubSub.subscribe(Peoplemedia.PubSub, @surface)
+
+  def stir_all,
+    do: Phoenix.PubSub.broadcast(Peoplemedia.PubSub, @surface, :stir)
+
   @doc """
   Tell `person_id` that `actor_id` did `kind`. UPSERTS onto an existing UNREAD
   row of the same (person, kind, actor) — a repeated scope request bumps the

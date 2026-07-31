@@ -32,6 +32,7 @@ defmodule Peoplemedia.Rounds do
   import Ecto.Query, warn: false
 
   alias Peoplemedia.People.Person
+  alias Peoplemedia.Relationships
   alias Peoplemedia.Repo
   alias Peoplemedia.Rounds.Round
 
@@ -96,7 +97,9 @@ defmodule Peoplemedia.Rounds do
   def live(nil), do: nil
 
   def live(person_id) do
-    person_id |> List.wrap() |> live_for() |> Map.get(person_id)
+    # READ AS THEMSELVES. Your own round is always yours to see, whoever it is
+    # for — this is the call `Directory.me/1` makes for your own page.
+    person_id |> List.wrap() |> live_for(person_id) |> Map.get(person_id)
   end
 
   @doc """
@@ -114,16 +117,33 @@ defmodule Peoplemedia.Rounds do
   it: there is no path from a hidden person to a surface because there is no
   other way in.
   """
-  def live_for([]), do: %{}
+  def live_for(person_ids, viewer_id \\ nil)
 
-  def live_for(person_ids) do
+  def live_for([], _viewer_id), do: %{}
+
+  def live_for(person_ids, viewer_id) do
     at = now()
+    # WHO HAS SCOPED THE VIEWER. A private round with no target goes to the
+    # people its creator holds, so whether you may see one is a fact about THEIR
+    # scopes: they scoped you, so you are in the audience. One small query rather
+    # than a correlated subquery per row.
+    holders = viewer_id |> Relationships.holders_of() |> MapSet.to_list()
 
     Repo.all(
       from(r in Round,
         join: p in Person,
         on: p.id == r.person_id,
         where: r.person_id in ^person_ids and r.expires_at > ^at and p.around_hidden == false,
+        # ── WHO MAY SEE IT ────────────────────────────────────────────────────
+        # THIS WAS MISSING ENTIRELY, and the surface was the wrong place to
+        # notice: a private round rendered exactly like a public one, so it
+        # looked correct while being shown to strangers. Audience is a fact
+        # about the ROW and it belongs in the read, where no caller can skip it.
+        where:
+          r.audience == "public" or
+            r.person_id == ^to_id(viewer_id) or
+            r.target_id == ^to_id(viewer_id) or
+            (r.audience == "private" and is_nil(r.target_id) and r.person_id in ^holders),
         order_by: [asc: r.person_id, desc: r.inserted_at, desc: r.id],
         distinct: r.person_id,
         select: r
@@ -131,6 +151,13 @@ defmodule Peoplemedia.Rounds do
     )
     |> Map.new(&{&1.person_id, read(&1)})
   end
+
+  # A VISITOR HAS NO ID, and comparing a column to nil in SQL is never true —
+  # which is the honest answer here: somebody with no passport is in nobody's
+  # private audience and is not the target of anything. -1 makes that explicit
+  # rather than relying on nil's behaviour in a pinned comparison.
+  defp to_id(nil), do: -1
+  defp to_id(id), do: id
 
   @doc """
   How recently each of these people last went round — `%{person_id => round id}`.

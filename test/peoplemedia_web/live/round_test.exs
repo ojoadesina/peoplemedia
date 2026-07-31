@@ -290,6 +290,55 @@ defmodule PeoplemediaWeb.RoundTest do
     end
   end
 
+  describe "the list is live" do
+    # THE BUG THIS CATCHES. The only broadcast was per-person, so somebody going
+    # round told nobody — a stranger watching the list saw nothing at all until
+    # they reloaded the page. A round changes what is IN other people's lists,
+    # and none of that is addressed to anyone.
+    test "somebody going round redraws a stranger's list without a refresh",
+         %{conn: _conn} do
+      watcher = passported("funmi", ~w(one two three), "1111")
+      teller = person("TELLER")
+
+      {:ok, live, html} = live(check_in(build_conn(), watcher), ~p"/")
+      # They are in the list already, with nothing on them.
+      assert html =~ "TELLER"
+      refute render(live) =~ "SOUP AND A FILM"
+
+      round(teller, %{name: "soup and a film", activity: "cooking", audience: "public"})
+      Peoplemedia.Notifications.stir_all()
+
+      assert render(live) =~ "SOUP AND A FILM", "the list did not redraw"
+    end
+
+    # AND A VISITOR TOO. They have no passport and therefore no topic of their
+    # own, which is exactly why the per-person broadcast could never reach them.
+    test "and a visitor's", %{conn: _conn} do
+      teller = person("TELLER")
+      {:ok, live, _} = live(build_conn(), ~p"/")
+
+      round(teller, %{name: "a book about rivers", audience: "public"})
+      Peoplemedia.Notifications.stir_all()
+
+      assert render(live) =~ "A BOOK ABOUT RIVERS"
+    end
+
+    # A REDRAW IS NOT A NOTICE. The stir goes to everybody because who may SEE
+    # the round is decided on the read; a private one still reaches nobody's
+    # list but its own audience.
+    test "a private round redraws nothing a stranger can see", %{conn: _conn} do
+      watcher = passported("funmi", ~w(one two three), "1111")
+      teller = person("TELLER")
+
+      {:ok, live, _} = live(check_in(build_conn(), watcher), ~p"/")
+
+      round(teller, %{name: "soup and a film", activity: "cooking", audience: "private"})
+      Peoplemedia.Notifications.stir_all()
+
+      refute render(live) =~ "SOUP AND A FILM"
+    end
+  end
+
   describe "the order of the list" do
     # GOING ROUND PULLS YOU TO THE FRONT, and running out leaves you exactly
     # where you were. Being overtaken is something somebody else did; fading is

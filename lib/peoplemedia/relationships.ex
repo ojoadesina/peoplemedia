@@ -256,6 +256,28 @@ defmodule Peoplemedia.Relationships do
   @doc "Everyone, for a visitor with no passport — they hold nobody and are held by nobody."
   def everyone, do: Repo.all(from(p in Person, order_by: [asc: p.id]))
 
+  @doc """
+  Who holds THIS person — the other direction of `held_by/1`.
+
+  IT ANSWERS "WHOSE PRIVATE ROUND MAY I SEE". A round made on the Relationships
+  tab goes to the people its creator holds, so being able to see one is a fact
+  about THEIR scopes, not yours: they scoped you, so you are in their audience.
+  Ids only, because the caller is a filter rather than a list.
+  """
+  def holders_of(nil), do: MapSet.new()
+
+  def holders_of(person_id) do
+    Repo.all(
+      from(s in Scope,
+        join: r in Relationship,
+        on: s.relationship_id == r.id,
+        where: r.state == "scoped" and s.type == "related" and s.target_id == ^person_id,
+        select: s.owner_id
+      )
+    )
+    |> MapSet.new()
+  end
+
   @doc "All of a viewer's own scopes, whatever their state."
   def scopes_owned_by(viewer_id), do: Repo.all(from(s in Scope, where: s.owner_id == ^viewer_id))
 

@@ -390,6 +390,11 @@ export const Scopes = {
     scroll.addEventListener(
       "scroll",
       () => {
+        // AND SO DOES THE ROUND FORM. Moving the list is looking away from
+        // whatever was standing over it, the same as pressing outside — and the
+        // form covers the rows you have just started reading.
+        if (document.getElementById("round-form")) push("round_cancel", {});
+
         // A SWIPED ROW CLOSES WHEN THE LIST MOVES. The uncovered action belongs
         // to one row at rest; once the list is travelling it is an offer made
         // about a row that is no longer where you left it, and it would still
@@ -410,6 +415,25 @@ export const Scopes = {
       },
       { passive: true },
     );
+
+    // ── A FORM CLOSES WHEN YOU LOOK AWAY ────────────────────────────────────
+    // ANYTHING OUTSIDE IT IS A CHANGE OF MIND. Pressing a name, a tag, a box
+    // that is not one of its own — all of them are somebody having gone back to
+    // the list, and a form left standing over it is a form the next press has to
+    // get rid of first.
+    //
+    // THE FOOT IS INSIDE IT. While a round is being made those three buttons ARE
+    // the form's controls, so a press there is a press on the form.
+    //
+    // CAPTURE, so the decision is made before the press reaches whatever it
+    // landed on — the same phase, and for the same reason, as the confirm hook.
+    const INSIDE = "#round-form, .round-picker, .app-foot, .scope-boxes";
+    const onOutside = (e: Event) => {
+      if (!document.getElementById("round-form")) return;
+      if ((e.target as HTMLElement).closest?.(INSIDE)) return;
+      push("round_cancel", {});
+    };
+    document.addEventListener("click", onOutside, true);
 
     // Tapping a row is the same act as scrolling it in — it travels to the band
     // and the band decides, rather than being selected behind the band's back.
@@ -501,6 +525,7 @@ export const Scopes = {
 
     this.cleanup = () => {
       cluster?.removeEventListener("click", onBoxPress);
+      document.removeEventListener("click", onOutside, true);
       cancelAnimationFrame(pending);
       watchPanel.disconnect();
       scroll.removeEventListener("click", onRowClick);
