@@ -1911,14 +1911,33 @@ defmodule PeoplemediaWeb.IndexLive do
                            terracotta is about the NAME, and an age that lit with
                            it would make the band read as two things being
                            pointed at. --%>
-                        <%!-- NOTHING UNDER THE NAME. It carried the round's
-                             name, and before that the age of the last letter,
-                             and either one turns the list into a FEED — a column
-                             of headlines with people's names attached, read
-                             top-down for content. This list is people-first;
-                             what the round is about lives in the boxes beside
-                             the band, which answer one person at a time because
-                             you chose them. --%>
+                        <%!-- WHAT THEY ARE DOING, UNDER THEIR NAME.
+
+                             IT WAS TAKEN OFF because a subtitle on every row
+                             turns a list into a feed — a column of headlines
+                             with people's names attached. That was right about
+                             the shape and wrong about the cost: with it gone,
+                             the only way to learn anything was to scroll each
+                             person into the band one at a time, and a list you
+                             have to interrogate is a list nobody scrolls twice.
+
+                             SO IT IS BACK, AND HELD DOWN. Grey, at the small
+                             tracked size every subtext here uses, under a name
+                             that keeps the row's own type. The NAME is what you
+                             scan for and the doing is what makes it worth
+                             stopping — the order of loudness says which is
+                             which, and that is the difference between a list of
+                             people and a feed of posts.
+
+                             IT LEAVES WHEN THE ROUND DOES. Expiry takes this
+                             line and the boxes off the row and touches nothing
+                             else; the person stays exactly where they were. --%>
+                        <p
+                          :if={item[:round][:doing]}
+                          class="scopes-doing mt-1 truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500"
+                        >
+                          {String.upcase(item.round.doing)}
+                        </p>
                       </div>
                       <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
                        the kind mark at top left — the row's two marks are one
@@ -2084,48 +2103,6 @@ defmodule PeoplemediaWeb.IndexLive do
             <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
                  exactly where the answers will be, so nothing moves between
                  filling the form in and reading it back. --%>
-            <%!-- THE BOX IS THE FIELD. It had a DOING label over a one-line
-                 input tucked underneath, which is a caption and a control where
-                 there should be one thing you can write in — and the label named
-                 what the box obviously was. The placeholder does that job and
-                 leaves when you answer it.
-
-                 A TEXTAREA, NOT AN INPUT, and that is not a detail. Return in a
-                 single-line input SUBMITS THE FORM, so trying to break a line
-                 sent the round and shut the form — the one keystroke somebody
-                 reaches for while writing was the one that ended it. A textarea
-                 takes the newline and grows into it; the check at the foot is
-                 the only thing that sends. --%>
-            <div
-              :if={@going}
-              class={[
-                "around-box pointer-events-auto flex min-h-(--band-h) min-w-0 flex-1 items-center",
-                "overflow-hidden px-4 bg-neutral-400/10 dark:bg-neutral-300/15"
-              ]}
-            >
-              <%!-- `phx-update="ignore"`, AND WITHOUT IT THE FIELD FOUGHT BACK.
-                   The server held what was typed and rendered it into the
-                   textarea's CONTENT, so every keystroke's patch rewrote the
-                   node somebody was typing into — newlines were normalised away
-                   and spaces went missing mid-word. The letter composer has the
-                   same note for the same reason.
-
-                   SO THE FIELD IS THE BROWSER'S until it is sent. It survives
-                   the picker opening because an ignored node is not re-rendered,
-                   and the submit posts whatever is in it. Nothing else needs to
-                   read it while it is being written. --%>
-              <textarea
-                id="doing-field"
-                phx-update="ignore"
-                form="round-form"
-                name="doing"
-                rows="1"
-                maxlength={Rounds.doing_limit()}
-                placeholder="WHAT ARE YOU UP TO?"
-                class="doing-field max-h-(--doing-max) w-full resize-none overflow-hidden bg-transparent py-4 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-              ></textarea>
-            </div>
-
             <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
                  answer replaces it, the same way the doing box works one step to
                  the left. A label reading MOOD over a dash was two lines to say
@@ -2171,60 +2148,12 @@ defmodule PeoplemediaWeb.IndexLive do
             >
             </div>
 
-            <%!-- ONE: WHAT THEY ARE DOING. The kind of thing above, quiet, in
-                 the same small tracked voice the age under a name uses; the
-                 THING itself below, at the count's size. That order is the way
-                 it is read — "watching" tells you what sort of answer is coming
-                 and "the witchers" is the answer — and it is the only place on
-                 this surface where somebody's own typing is set large. --%>
-            <div
-              :if={!@going}
-              phx-mounted={JS.ignore_attributes(["class"])}
-              role="button"
-              tabindex="0"
-              data-opens="what they are doing"
-              aria-label="Expand what they are doing"
-              class={[
-                "around-box doing-box pointer-events-auto relative flex h-(--band-h) min-w-0",
-                "flex-1 cursor-pointer flex-col justify-center gap-1 overflow-hidden px-4",
-                "bg-neutral-400/10 dark:bg-neutral-300/15"
-              ]}
-            >
-              <%!-- TWO READINGS OF ONE FACT. Closed it truncates, because the
-                   box is ten rems wide and a doing is somebody's own typing;
-                   open it wraps and has the whole rail. The class that switches
-                   between them is the CLIENT'S — opening a box is a gesture in
-                   one browser, which is the same reason the letter box's is. --%>
-              <div class="around-brief flex flex-col gap-1 overflow-hidden">
-                <span
-                  :if={@current[:round][:doing]}
-                  class="truncate text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
-                >
-                  {String.upcase(@current.round.doing)}
-                </span>
-                <span
-                  :if={@current[:round][:about]}
-                  class="truncate text-(length:--row-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100"
-                >
-                  {String.upcase(@current.round.about)}
-                </span>
-              </div>
-              <div class="around-full flex-col justify-center gap-3 overflow-y-auto text-left">
-                <span
-                  :if={@current[:round][:doing]}
-                  class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400"
-                >
-                  {String.upcase(@current.round.doing)}
-                </span>
-                <span
-                  :if={@current[:round][:about]}
-                  class="text-(length:--row-type) leading-tight tracking-(--row-track) text-light-900 dark:text-dark-100"
-                >
-                  {String.upcase(@current.round.about)}
-                </span>
-              </div>
-            </div>
-
+            <%!-- ONLY TWO BOXES ON THE RAIL NOW. The doing moved on to the ROW,
+                 where it is legible without being chosen — so a third box
+                 repeating it beside the band would be the same fact twice, and
+                 the one that only appears once somebody has been settled would
+                 be the redundant one. What is left is what a row cannot hold: a
+                 colour, and a frame. --%>
             <%!-- TWO: HOW THEY ARE, and the one place on this surface that
                  carries a colour of its own.
 
@@ -2393,7 +2322,7 @@ defmodule PeoplemediaWeb.IndexLive do
             id="round-form"
             phx-change="round_change"
             phx-submit="round_send"
-            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) items-center"
+            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) flex-col justify-center"
           >
             <%!-- OPAQUE, AND THAT IS THE WHOLE OF THE FIX. It wore the band's
                  own wash — `bg-primary-600/15` — and the band is TRANSLUCENT on
@@ -2403,18 +2332,43 @@ defmodule PeoplemediaWeb.IndexLive do
                  IBRAHIM, two names in one line of text. Clearing the selection
                  server-side did not help, because where the list is SCROLLED to
                  is the browser's and the row is still physically there. Same
-                 colour, composited once — see .self-box for the same trick and
-                 the same reason.
+                 colour, composited once — see .self-box for the same trick.
 
-                 THE BAR SAYS WHO IS GOING ROUND, and it is not a field. It
-                 held the round's NAME, which was the same thought the doing box
-                 was asking for one step to the right — so the name has gone and
-                 the doing box is where you type. What is left in the band's
-                 place is the one thing a round always has: a person. It is the
-                 shape their row will take the moment it is sent. --%>
-            <span class="truncate text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100">
+                 ── AND IT IS THE ROW YOU ARE ABOUT TO BECOME ─────────────────
+                 YOUR NAME SMALL, THE DOING BELOW IT AT FULL SIZE. That is the
+                 row's own shape with the loudness swapped, and the swap is the
+                 point: on the LIST you are scanning for a person, so the name
+                 leads; in the FORM the person is settled — it is you — and the
+                 only open question is what you are up to. The name stays at all
+                 because the bar sits in the band's place, where a name is what
+                 normally appears, and a form with nobody in it would read as
+                 belonging to whoever was there before.
+
+                 THE FIELD MOVED HERE FROM A BOX ON THE RAIL. It was one of
+                 three, which put what you are writing beside two things you
+                 merely pick — and left the widest thing on the surface holding
+                 a name nobody was editing. --%>
+            <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 dark:text-neutral-500">
               {String.upcase((@current_person && @current_person.name) || "")}
             </span>
+            <%!-- `phx-update="ignore"`, AND WITHOUT IT THE FIELD FOUGHT BACK.
+                 The server held what was typed and rendered it into the
+                 textarea's CONTENT, so every keystroke's patch rewrote the node
+                 somebody was typing into — newlines were normalised away and
+                 spaces went missing mid-word.
+
+                 A TEXTAREA, NOT AN INPUT. Return in a single-line input SUBMITS,
+                 so reaching for a line break sent the round and shut the form. --%>
+            <textarea
+              id="doing-field"
+              phx-update="ignore"
+              form="round-form"
+              name="doing"
+              rows="1"
+              maxlength={Rounds.doing_limit()}
+              placeholder="WHAT ARE YOU UP TO?"
+              class="doing-field mt-1 max-h-(--doing-max) w-full resize-none overflow-hidden bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
+            ></textarea>
             <input type="hidden" name="mood" value={@round_pick.mood || ""} />
           </form>
 

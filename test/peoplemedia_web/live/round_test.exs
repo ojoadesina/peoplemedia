@@ -106,14 +106,29 @@ defmodule PeoplemediaWeb.RoundTest do
   end
 
   describe "the boxes beside the band" do
-    test "hold what the settled person is round with", %{conn: conn} do
+    # TWO BOXES, NOT THREE. The doing lives on the ROW now, where it is legible
+    # without anybody having to be settled first — so a box repeating it here
+    # would be the same fact twice, and this would be the copy you have to work
+    # for. What is left is what a row cannot hold: a colour, and a frame.
+    test "hold what a row cannot: a colour and a frame", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "MUM")
 
       said = boxes(live)
-      assert said =~ "THE WITCHERS, FINALLY"
       assert said =~ "HAPPY"
       assert said =~ ~s(data-family="joy")
+      refute said =~ "THE WITCHERS, FINALLY"
+    end
+
+    # AND THE DOING IS ON THE ROW, unchosen. Taking it off made the only way to
+    # learn anything a scroll into the band one person at a time, and a list you
+    # have to interrogate is a list nobody scrolls twice.
+    test "and the doing is on the row itself", %{conn: conn} do
+      {:ok, _live, html} = live(conn, ~p"/")
+
+      rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+      assert rows =~ "THE WITCHERS, FINALLY"
+      assert rows =~ "scopes-doing"
     end
 
     # THE SLOTS STAY so the letter box, which is anchored to the app's right

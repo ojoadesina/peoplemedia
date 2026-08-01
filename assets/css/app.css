@@ -2543,11 +2543,10 @@ textarea {
   position: absolute;
   top: var(--band-top);
   right: 0;
-  /* IT SPANS FROM THE BAND TO THE RAIL'S EDGE. Shrink-to-fit, it was as wide as
-     its contents and `flex-1` on the doing box had nothing to divide — so the
-     box holding somebody's own words truncated while the rail beside it sat
-     empty. Given both edges it becomes a row with room to share out. */
-  left: calc(var(--list-w) + 1.5rem);
+  /* SHRINK TO FIT, AT THE RIGHT EDGE. It was given both edges so the doing box
+     had slack to take — that box has gone to the ROW, and what is left is a mood
+     word and a square frame, neither of which has any use for a spare twenty
+     rems. Stretched to fill, a one-word box read as a banner. */
   transform: translateY(-50%);
 }
 

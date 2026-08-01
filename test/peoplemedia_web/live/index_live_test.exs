@@ -30,9 +30,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # IT USED TO SAY A GREAT DEAL MORE — the kind of the last letter as a mark,
   # their own name beside the one you gave them, and the age of the thread
   # underneath. Every one of those is a headline, and a column of headlines with
-  # people's names attached is a FEED read top-down for content. This list is
-  # people-first: what somebody is round with lives in the boxes beside the band,
-  # which answer one person at a time because you chose them.
+  # people's names attached is a FEED read top-down for content.
+  #
+  # ONE THING SURVIVED THAT CUT, and it is the doing. The difference is that it
+  # is not a record of what they did — it is what they are doing NOW, and it
+  # leaves with the round. A person is on this list whether or not they have one;
+  # the line under their name is the reason to stop, not the reason they are
+  # there. Mood and frame stay in the boxes, which answer one person at a time
+  # because you chose them.
   test "a row says who, and how much of their round is unread", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
@@ -44,9 +49,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # One word for a person, not two.
     refute rows =~ "scopes-name"
 
-    # And nothing under the name.
+    # And under the name, only a live doing — never the age of the thread, and
+    # never a round's number.
     refute rows =~ "scopes-when"
     refute rows =~ "scopes-round"
+    assert rows =~ "scopes-doing"
   end
 
   # NOTHING ON THE LEFT OF A ROW. It held the last letter's kind as a mark, then
@@ -58,7 +65,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     refute rows =~ "letter-glyph"
     refute rows =~ "tabular-nums"
-    # One word for a person, and nothing under it.
+    # One word for a person, and under it only what they are doing right now.
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
 

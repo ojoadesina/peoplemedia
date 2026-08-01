@@ -85,6 +85,16 @@ Deliberately created. A captured ongoing or recent moment — not a stream.
 4. Expiry is about visibility, never deletion.
 5. Frames are captured. Words are made.
 
+# Notes — built differently from the guide above
+
+- **The doing is on the row, not in a box.** The guide puts name, frame, mood
+  and activity all in the boxes beside the band. Three of them stayed there; the
+  doing came out, because boxes answer one person at a time and you have to
+  settle somebody to read them. A list you must interrogate person by person is
+  a list nobody scrolls twice. So the doing sits under the name, grey and small
+  — the name is what you scan for, the doing is what makes you stop — and the
+  boxes are two: **mood** and **frame**.
+
 # Notes — decided, not yet built
 
 - **Plus while you are on someone's page.** Do not close their page and do not
