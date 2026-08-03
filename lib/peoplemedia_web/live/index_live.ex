@@ -2096,65 +2096,100 @@ defmodule PeoplemediaWeb.IndexLive do
                takes the rest. --%>
           <%!-- A GROUND WHILE THE FORM IS IN IT, because the doing box grows
                downward as you write and the names are directly underneath. --%>
+          <%!-- ── AND ON A PHONE THEY SIT BESIDE IT ANYWAY, ON A TRACK ────────
+               THEY USED TO STACK ABOVE THE BAND when the rail ran out, which is
+               the honest thing to do with boxes that will not fit — and it made
+               a row of grey rectangles float over the top of the list with
+               nothing under them, answering a band they were no longer next to.
+               Noise, and the wrong kind: furniture you cannot dismiss.
+
+               SO THE CLUSTER IS A SCROLL TRACK AT EVERY WIDTH. A lead spacer
+               holds the band's own column and GROWS to fill whatever rail is
+               left, so on a wide screen the boxes end up flush right exactly
+               where they always were and nothing scrolls, because nothing has
+               to. On a phone the spacer cannot grow — the band already has the
+               width — so the track overflows and the first box shows at the
+               edge. Pull it and the rest come in.
+
+               ONE MECHANISM, NO BREAKPOINT. The old layout needed a second set
+               of rules for the phone, a band pushed down 2.75rem to make room
+               above it, and a picker offset that knew the boxes had wrapped.
+               All three are gone: the boxes are beside the band on every screen
+               and the only thing that changes is how much of them you can see
+               without asking. --%>
           <div class={[
-            "scope-boxes pointer-events-none z-20 flex items-start gap-3",
+            "scope-boxes pointer-events-none z-20 flex items-start",
             @going && "bg-light-50 dark:bg-dark-950"
           ]}>
-            <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
+            <%!-- THE BAND'S OWN COLUMN, HELD OPEN AND EMPTY. It is what puts the
+                 boxes after the band rather than on top of it, and it takes no
+                 presses — the band underneath is still the thing you are
+                 pressing when you press here. --%>
+            <div class="boxes-lead" aria-hidden="true"></div>
+            <%!-- THE BOXES TRAVEL AS ONE SHEET, and the sheet is why it has a
+                 ground. Pulled in on a phone they cross the band's tail, and
+                 half of what is in them is a WASH — a mood at 18%, a frame at
+                 15% — which was mixed against the page on the argument that
+                 these "sit on the page rather than over the list". That stopped
+                 being true the moment they could be dragged over it. An opaque
+                 sheet under them makes it true again, and costs nothing on a
+                 wide screen where it is the page colour on the page. --%>
+            <div class="boxes-run flex items-start gap-3">
+              <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
                  exactly where the answers will be, so nothing moves between
                  filling the form in and reading it back. --%>
-            <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
+              <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
                  answer replaces it, the same way the doing box works one step to
                  the left. A label reading MOOD over a dash was two lines to say
                  nothing. --%>
-            <button
-              :if={@going}
-              type="button"
-              phx-click="pick_open"
-              phx-value-which="mood"
-              data-family={Rounds.family_of(@round_pick.mood)}
-              aria-label="How are you"
-              class={[
-                "around-box mood-box pointer-events-auto flex min-h-(--band-h) w-(--mood-w)",
-                "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-4",
-                "outline-none transition-colors",
-                !Rounds.family_of(@round_pick.mood) &&
-                  "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-              ]}
-            >
-              <span class={[
-                "w-full truncate text-center text-(length:--row-type) tracking-(--row-track)",
-                (@round_pick.mood && "text-light-900 dark:text-dark-100") ||
-                  "text-neutral-300 dark:text-neutral-700"
-              ]}>
-                {String.upcase(@round_pick.mood || "—")}
-              </span>
-            </button>
+              <button
+                :if={@going}
+                type="button"
+                phx-click="pick_open"
+                phx-value-which="mood"
+                data-family={Rounds.family_of(@round_pick.mood)}
+                aria-label="How are you"
+                class={[
+                  "around-box mood-box pointer-events-auto flex min-h-(--band-h) w-(--mood-w)",
+                  "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-4",
+                  "outline-none transition-colors",
+                  !Rounds.family_of(@round_pick.mood) &&
+                    "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
+                ]}
+              >
+                <span class={[
+                  "w-full truncate text-center text-(length:--row-type) tracking-(--row-track)",
+                  (@round_pick.mood && "text-light-900 dark:text-dark-100") ||
+                    "text-neutral-300 dark:text-neutral-700"
+                ]}>
+                  {String.upcase(@round_pick.mood || "—")}
+                </span>
+              </button>
 
-            <%!-- THE FRAME'S PLACE, and it is empty because a frame is CAPTURED
+              <%!-- THE FRAME'S PLACE, and it is empty because a frame is CAPTURED
                  and there is nothing to capture with yet. It pulses rather than
                  sitting blank: an unfilled round frame is somebody here with
                  nothing to show, which is a real state and the commonest one. --%>
-            <%!-- THE WHOLE BOX BREATHES, not a dot inside it. A small mark
+              <%!-- THE WHOLE BOX BREATHES, not a dot inside it. A small mark
                  pulsing in the middle of a still square reads as a status light
                  bolted to a container; the frame IS the thing that is empty, so
                  the frame is what should say so. It is also what a captured one
                  will fill, and a box that changed shape when it got contents
                  would be two objects. --%>
-            <div
-              :if={@going}
-              aria-label="A frame, when there is one"
-              class="around-box presence-box pointer-events-auto relative size-(--band-h) shrink-0 bg-primary-600/15 dark:bg-primary-500/20"
-            >
-            </div>
+              <div
+                :if={@going}
+                aria-label="A frame, when there is one"
+                class="around-box presence-box pointer-events-auto relative size-(--band-h) shrink-0 bg-primary-600/15 dark:bg-primary-500/20"
+              >
+              </div>
 
-            <%!-- ONLY TWO BOXES ON THE RAIL NOW. The doing moved on to the ROW,
+              <%!-- ONLY TWO BOXES ON THE RAIL NOW. The doing moved on to the ROW,
                  where it is legible without being chosen — so a third box
                  repeating it beside the band would be the same fact twice, and
                  the one that only appears once somebody has been settled would
                  be the redundant one. What is left is what a row cannot hold: a
                  colour, and a frame. --%>
-            <%!-- TWO: HOW THEY ARE, and the one place on this surface that
+              <%!-- TWO: HOW THEY ARE, and the one place on this surface that
                  carries a colour of its own.
 
                  THE BAND COULD NOT HAVE IT. Tinting the selection by mood was
@@ -2172,41 +2207,41 @@ defmodule PeoplemediaWeb.IndexLive do
                  THE WORD KEEPS THE ORDINARY INK. The wash carries the hue and
                  the hue never reaches full strength, because the moment a mood is
                  as loud as terracotta, terracotta stops meaning "look here". --%>
-            <div
-              :if={!@going}
-              phx-mounted={JS.ignore_attributes(["class"])}
-              role="button"
-              tabindex="0"
-              data-opens="how they are"
-              aria-label="Expand how they are"
-              class={[
-                "around-box mood-box pointer-events-auto relative flex h-(--band-h) w-(--mood-w)",
-                "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-3",
-                !@current[:round][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
-              ]}
-              data-family={@current[:round][:family]}
-            >
-              <span
-                :if={@current[:round][:mood]}
-                class="around-brief truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100"
+              <div
+                :if={!@going}
+                phx-mounted={JS.ignore_attributes(["class"])}
+                role="button"
+                tabindex="0"
+                data-opens="how they are"
+                aria-label="Expand how they are"
+                class={[
+                  "around-box mood-box pointer-events-auto relative flex h-(--band-h) w-(--mood-w)",
+                  "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-3",
+                  !@current[:round][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
+                ]}
+                data-family={@current[:round][:family]}
               >
-                {String.upcase(@current.round.mood)}
-              </span>
-              <%!-- OPEN, IT NAMES THE FAMILY TOO. The colour belongs to the
+                <span
+                  :if={@current[:round][:mood]}
+                  class="around-brief truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100"
+                >
+                  {String.upcase(@current.round.mood)}
+                </span>
+                <%!-- OPEN, IT NAMES THE FAMILY TOO. The colour belongs to the
                    family and the word to the feeling, so a box that only ever
                    showed the word left its own hue unexplained — you would
                    learn it eventually and never once be told. --%>
-              <div class="around-full flex-col items-center justify-center gap-3 text-center">
-                <span class="text-(length:--count-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100">
-                  {String.upcase(@current[:round][:mood] || "")}
-                </span>
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400">
-                  {String.upcase(@current[:round][:family] || "")}
-                </span>
+                <div class="around-full flex-col items-center justify-center gap-3 text-center">
+                  <span class="text-(length:--count-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100">
+                    {String.upcase(@current[:round][:mood] || "")}
+                  </span>
+                  <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400">
+                    {String.upcase(@current[:round][:family] || "")}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <%!-- THREE: THE LETTER BOX — the last letter the settled person
+              <%!-- THREE: THE LETTER BOX — the last letter the settled person
                  sent YOU, and the reason this surface exists. It is the only
                  box here that is an ANSWER rather than a control, which is why
                  it is the only one that comes and goes and the only one wearing
@@ -2238,20 +2273,20 @@ defmodule PeoplemediaWeb.IndexLive do
                  The two MEDIA elements inside carry their own state separately
                  (see the Media hook) because an attribute exemption cannot help
                  a playing clip. --%>
-            <div
-              :if={@list_mode == :people && !@going}
-              id="letterbox"
-              phx-mounted={JS.ignore_attributes(["class"])}
-              role="button"
-              tabindex="0"
-              aria-label="Expand the letter"
-              class="letterbox is-empty pointer-events-auto relative flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
-            >
-              <%!-- The screen is inset from the frame so the brackets bracket the
+              <div
+                :if={@list_mode == :people && !@going}
+                id="letterbox"
+                phx-mounted={JS.ignore_attributes(["class"])}
+                role="button"
+                tabindex="0"
+                aria-label="Expand the letter"
+                class="letterbox is-empty pointer-events-auto relative flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
+              >
+                <%!-- The screen is inset from the frame so the brackets bracket the
                    picture rather than cropping it, and square on every corner —
                    a screen has corners, and rounding them makes it a widget. --%>
-              <div class="letterbox-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
-                <%!-- THE WORDS, and the one thing on this surface set in the
+                <div class="letterbox-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
+                  <%!-- THE WORDS, and the one thing on this surface set in the
                      case it was written in. Everything else is the app talking
                      and is therefore in capitals; a letter is a person talking,
                      and putting somebody's own sentence in capitals is the app
@@ -2260,41 +2295,42 @@ defmodule PeoplemediaWeb.IndexLive do
                      Clipped rather than shortened: at 56px there is room for a
                      few words, and the box is a glimpse — pressing it is what
                      asks for the rest. --%>
-                <span class="letterbox-words"></span>
-                <video
-                  id="letterbox-video"
-                  phx-hook="Media"
-                  class="letterbox-video h-full w-full object-cover"
-                  playsinline
-                  preload="metadata"
-                >
-                </video>
-                <%!-- Sits ON the screen, covering it: after a clip ends the
+                  <span class="letterbox-words"></span>
+                  <video
+                    id="letterbox-video"
+                    phx-hook="Media"
+                    class="letterbox-video h-full w-full object-cover"
+                    playsinline
+                    preload="metadata"
+                  >
+                  </video>
+                  <%!-- Sits ON the screen, covering it: after a clip ends the
                      screen is the only thing there, and a control tucked into
                      the corner of a 45px square is a target nobody can hit. --%>
-                <button
-                  type="button"
-                  class="letterbox-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
-                  aria-label="Play again"
-                >
-                  <%!-- A three-quarter arc with an arrowhead, which reads as
-                       "again"; heroicons' closed two-arrow loop says "sync". --%>
-                  <svg
-                    viewBox="0 0 1024 1024"
-                    fill="currentColor"
-                    stroke="currentColor"
-                    stroke-width="0"
-                    aria-hidden="true"
-                    class="size-4"
+                  <button
+                    type="button"
+                    class="letterbox-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
+                    aria-label="Play again"
                   >
-                    <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
-                  </svg>
-                </button>
-              </div>
-              <%!-- No controls, so the UA never renders any — the screen is the
+                    <%!-- A three-quarter arc with an arrowhead, which reads as
+                       "again"; heroicons' closed two-arrow loop says "sync". --%>
+                    <svg
+                      viewBox="0 0 1024 1024"
+                      fill="currentColor"
+                      stroke="currentColor"
+                      stroke-width="0"
+                      aria-hidden="true"
+                      class="size-4"
+                    >
+                      <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
+                    </svg>
+                  </button>
+                </div>
+                <%!-- No controls, so the UA never renders any — the screen is the
                    only thing a voice is allowed to look like. --%>
-              <audio id="letterbox-audio" phx-hook="Media" class="letterbox-audio" preload="none">
-              </audio>
+                <audio id="letterbox-audio" phx-hook="Media" class="letterbox-audio" preload="none">
+                </audio>
+              </div>
             </div>
           </div>
 

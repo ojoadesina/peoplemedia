@@ -131,6 +131,36 @@ defmodule PeoplemediaWeb.RoundTest do
       assert rows =~ "scopes-doing"
     end
 
+    # THEY SIT ON A TRACK, AND THE TRACK IS WHAT MAKES THEM FIT ANYWHERE. Below
+    # about 66rem the rail cannot hold the band and both boxes, and the answer
+    # used to be a second layout that stacked them ABOVE the band — a row of grey
+    # rectangles over the top of the list, answering a band they were no longer
+    # beside. Now the cluster overflows instead of moving: `.boxes-lead` holds the
+    # band's column and grows into whatever rail is spare, so a wide screen has
+    # nothing to scroll and a phone shows the first box at its edge.
+    #
+    # THE NESTING IS THE LOAD-BEARING PART, which is why it is asserted rather
+    # than left to the stylesheet. Two rules — the fade when a panel opens, and
+    # the one that clears the rail for an expanded box — were written as DIRECT
+    # children of the cluster, and both broke silently when the run went in
+    # between: the second hid the run itself, and a box opening inside a hidden
+    # parent measured zero and drew nothing.
+    test "on a track, with the band's column held open in front of them", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "MUM")
+
+      said = boxes(live)
+      assert said =~ "boxes-lead", "without the lead the boxes sit on top of the band"
+      assert said =~ "boxes-run"
+
+      # The lead comes first, and every box is inside the run behind it.
+      [_before, after_lead] = String.split(said, "boxes-lead", parts: 2)
+      assert after_lead =~ "boxes-run"
+      [_outside, inside_run] = String.split(said, "boxes-run", parts: 2)
+      assert inside_run =~ "around-box"
+      assert inside_run =~ "letterbox"
+    end
+
     # THE SLOTS STAY so the letter box, which is anchored to the app's right
     # edge, does not slide sideways every time somebody with no round passes
     # under the band.

@@ -928,8 +928,22 @@ html[data-theme="dark"] {
    was truncated, a mood among forty-seven others — so the rule is about
    EXPANSION rather than about which box did it, and a fourth box would inherit
    it without anybody remembering to come back here. */
-.scope-boxes:has(.is-expanded) > :not(.is-expanded) {
+.boxes-run:has(.is-expanded) > :not(.is-expanded) {
   display: none;
+}
+/* WRITTEN AT TWO LEVELS, and it has to be. As `.scope-boxes > :not(.is-expanded)`
+   — which is what it was, back when the boxes were direct children — it hides
+   the RUN the moment anything inside it opens, and an open box inside a
+   `display: none` parent measures zero and draws nothing.
+
+   THE LEAD DOES NOT HIDE, IT YIELDS. Its whole job is to hold the band's column
+   so the boxes land after it; an open box does not land anywhere, it takes what
+   it needs. Dropped to a basis of nothing it still GROWS, so it hands the run
+   whatever is spare and the open box stays on the rail's right edge where it
+   was pressed — hidden outright, the run would spring to the left of the track
+   and an 18rem box would open over the middle of the list. */
+.scope-boxes:has(.is-expanded) > .boxes-lead {
+  flex-basis: 0;
 }
 /* Sized like the letter box, because they are the same object at the same
    moment: one thing on the rail, opened. */
@@ -950,6 +964,14 @@ html[data-theme="dark"] {
   .around-box.is-expanded {
     width: 100%;
     height: 9.5rem;
+  }
+  /* AND HERE THE RUN TAKES THE WHOLE TRACK, because `width: 100%` on the box
+     inside it needs something definite to be a percentage OF. A run that hugs
+     its contents makes that circular — the box asks the run, the run asks the
+     box — and a circular measurement resolves to zero. On a wide screen the box
+     opens at a stated 18rem and the question never arises. */
+  .scope-boxes:has(.is-expanded) .boxes-run {
+    flex-basis: 100%;
   }
 }
 @media (max-width: 66rem) {
@@ -1143,7 +1165,7 @@ html[data-theme="dark"] {
 #scopes.is-open .mark-slot,
 #scopes.is-open .lede,
 #scopes.is-open .list-tags,
-#scopes.is-open .scope-boxes > button,
+#scopes.is-open .boxes-run > button,
 .list-away .scopes-scroll {
   opacity: 0;
   visibility: hidden;
@@ -1154,7 +1176,7 @@ html[data-theme="dark"] {
 .mark-slot,
 .lede,
 .list-tags,
-.scope-boxes > button {
+.boxes-run > button {
   transition:
     opacity 220ms ease-out,
     visibility 0s;
@@ -2541,91 +2563,102 @@ textarea {
    rail, which is the app's right bound and the edge every trailing thing holds. */
 .scope-boxes {
   position: absolute;
-  top: var(--band-top);
+  /* THE BAND'S TOP EDGE, NOT ITS CENTRE, and the boxes stand on it. Centred and
+     pulled back half its height it resolves to the same resting line — but the
+     boxes EXPAND, and a centred cluster grows in both directions at once: up
+     through the caption and down through the names in one movement. Stood on the
+     band's own top edge it grows one way, downward, over the list it is an answer
+     about. Same place at rest, one direction under pressure. */
+  top: var(--list-top);
   right: 0;
-  /* SHRINK TO FIT, AT THE RIGHT EDGE. It was given both edges so the doing box
-     had slack to take — that box has gone to the ROW, and what is left is a mood
-     word and a square frame, neither of which has any use for a spare twenty
-     rems. Stretched to fill, a one-word box read as a banner. */
-  transform: translateY(-50%);
+  left: 0;
+  /* ── A TRACK, AT EVERY WIDTH ────────────────────────────────────────────────
+     THE RAIL IS NOT ALWAYS LONG ENOUGH FOR BOTH, and the answer used to be to
+     move the boxes above the band on a narrow screen. That put a row of grey
+     rectangles over the top of the list, answering a band they were no longer
+     beside — and on a phone, where every pixel above the names is already
+     spoken for, it read as noise.
+
+     SO THEY OVERFLOW INSTEAD OF MOVING. The cluster is a horizontal scroller
+     with `.boxes-lead` holding the band's column; the lead GROWS, so wherever
+     there is spare rail it takes it and the boxes end flush right exactly where
+     they always sat, with nothing to scroll because nothing has to. Where there
+     is none the track overflows and the first box shows at the edge, and you
+     pull the rest in the way you pull a row's actions in.
+
+     ONE MECHANISM AND NO BREAKPOINT, which is the point. The old arrangement
+     needed a second layout, a band pushed down to clear it, and a picker offset
+     that knew the boxes had wrapped. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.scope-boxes::-webkit-scrollbar {
+  display: none;
+}
+/* SPARE RAIL BELONGS TO THE LEAD. `flex: 1` on the spacer and `0 0 auto` on the
+   run is what makes one rule serve both screens: the wide one has slack and the
+   spacer eats it, the narrow one has none and the run hangs off the end. Growing
+   the RUN instead would have stretched a one-word box into a banner, which is
+   what a `right: 0` cluster was there to prevent. */
+.boxes-lead {
+  flex: 1 0 calc(var(--list-w) + 0.75rem);
+  scroll-snap-align: start;
+}
+.boxes-run {
+  flex: 0 0 auto;
+  scroll-snap-align: end;
+  /* THE SHEET, AND IT IS OPAQUE ON PURPOSE — see the note in the template. */
+  background-color: var(--color-light-50);
+}
+[data-theme="dark"] .boxes-run {
+  background-color: var(--color-dark-950);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .boxes-run {
+    background-color: var(--color-dark-950);
+  }
+}
+/* AN OPEN BOX IS NOT ON THE TRACK ANY MORE. `overflow-x` cannot be scrolled
+   without `overflow-y` becoming a scroller too, so an 18rem box growing out of a
+   band-high strip would be clipped to the strip. Everything but the open one is
+   `display: none` by then — there is nothing left to scroll — so the track
+   simply stops being one. */
+.scope-boxes:has(.is-expanded) {
+  overflow: visible;
 }
 
 /* ── WHEN THE RAIL RUNS OUT ────────────────────────────────────────────────────
-   ABOVE THE LIST, NOT BESIDE IT, and the threshold is arithmetic rather than a
-   device: the list column is a fixed 32rem and this cluster is roughly 27rem of
-   boxes, so the two need about 59rem of rail between them. Below 66rem of
-   viewport they would overlap — the band's own words first, which is the one
-   collision this page cannot afford.
+   NOTHING MOVES ANY MORE — the cluster is a track and it simply overflows, so
+   the layout below 66rem is the layout above it. What is left here is the two
+   things that are genuinely about having less room rather than about where the
+   boxes go.
 
-   THIS IS NOT THE PHONE BREAKPOINT and must not be folded into it. The phone
-   query at 40rem moves TOKENS; this one moves a box, and it has to fire a good
-   deal earlier because what runs out here is horizontal room, not screen size.
-   A narrow desktop window hits this long before anything else on the page
-   notices. The old layout had the same cliff and simply fell off it: the two
-   counts overlapped the list from 40rem to about 52rem with nothing to catch
-   them.
+   THE THRESHOLD IS ARITHMETIC, not a device: a 32rem list column and two boxes
+   that come to about 12rem need roughly 45rem of rail between them, and the tags
+   above want their own air. 66rem is where the page starts feeling narrow rather
+   than where anything breaks — which is the right place for tokens to change and
+   the wrong place for a second layout, and it used to carry both.
 
-   THEY COME DOWN TO THE BAND rather than climbing out above the list. Parked
-   over the top of the page they read as a masthead — a second set of furniture
-   under the real one — and stopped answering the band at all, which is their
-   whole job. Stacked above it they are still the band's answer.
+   THE CAPTION COMES BACK UP INTO THE STRIP THE BOXES LEFT. It was held one line
+   off the band — pinned there because the boxes used to stack in that strip and
+   the two could not both have it. With them gone the pin left a dead 100px
+   between the strapline and the caption, which is the shape of a thing that has
+   been removed rather than of a page.
 
-   THE GAP IS 3rem, NOT 1. Beside the band on a wide screen the boxes are
-   plainly separate things that happen to be level; stacked, a rem of air read
-   as one four-storey object with a line through it, and the band stopped being
-   the thing you are looking at. Two boxes on one axis need much more space
-   between them than two boxes on different ones.
-
-   THE BAND MOVES DOWN TO LET THEM IN, by exactly the 2.75rem the arithmetic is
-   short: the cluster needs half a band plus a box plus the gap above the band's
-   centre, which with a box that IS a band comes to 1.5 bands and 3rem, leaving
-   half a rem of margin at the top. scopes.ts measures the bar rather than
-   recomputing this, so the list follows without being told.
-
-   THE ROOM ONLY EXISTS BECAUSE NOTHING IS DRAWN UP THERE ANY MORE — see the
-   scroller's mask, which now stops dead at the band's top edge. These two
-   changes are one change. Put the faded rows back and the boxes will be sitting
-   on top of them. */
+   2.2rem AND NOT THE DESKTOP'S 3.2. Split evenly it would read as a line
+   floating between two others with no allegiance to either; held nearer the band
+   than the strapline it is plainly the band's caption, which is what it is. The
+   wide screen has enough page for the full measure and does not need the
+   argument. */
 @media (max-width: 66rem) {
-  .app-root {
-    --band-top: calc(var(--row-h) * 1.5 + 2.75rem);
-  }
-  /* THEY READ LEFT TO RIGHT, from the rail's left edge. On a wide screen the
-     cluster hangs off the RIGHT rail because it is a trailing box beside the
-     list — that edge is the app's right bound and the one every trailing thing
-     holds. Stacked above the band there is no list beside it to trail, so it is
-     just a row of boxes over a column of names, and a row of boxes that starts
-     on the left starts where every name below it starts.
-
-     left:0 AND right:0, so the cluster is the rail's width rather than its
-     content's. "PHILIPPINES" beside "33256 RELATIONSHIPS" is wider than a phone,
-     and
-     shrink-to-fit would have pushed one end off the screen with nothing to stop
-     it. Made the full width, the place box (min-w-0, truncating) is the one
-     that yields and the count keeps its digits, which is the right way round: a
-     clipped place is still readable, a clipped number is a different number. */
-  /* ANCHORED BY ITS BOTTOM, not its top, and that is what lets the frame expand
-     without touching the list. Both give the same resting position — a box of
-     --band-h with its bottom 3rem above the band — but a top-anchored cluster
-     grows DOWNWARD, straight over the names, and a bottom-anchored one grows
-     UPWARD into the empty page above it. The gap to the band is then a constant
-     rather than a leftover. */
-  /* THE CAPTION HUGS THE BAND HERE, and it has to. On a wide screen the boxes
-     sit BESIDE the band and the caption has the whole strip above it to itself;
-     below 66rem the boxes have no rail to sit on, so they stack above the band —
-     straight through where the caption was. Two things claiming one strip, and
-     the caption lost because it is drawn second.
-
-     SO IT IS PINNED TO THE BAND rather than laid out among them: one line of
-     margin off the top edge, with the boxes clearing it from above. The caption
-     belongs to the band either way — it says what the list under it holds — so
-     anchoring it there is what it always meant, and the wide screen simply had
-     enough room to hide that. */
-  /* AN UNANSWERED BOX GETS OUT OF THE WAY, and harder on a small screen. The
-     three sit above the band here rather than beside it, so on a phone they are
-     directly over the list — and a row of grey rectangles saying "—" is a great
-     deal of furniture for three answers nobody has given yet. Held this far
-     back they read as slots waiting rather than as boxes shouting. */
+  /* AN UNANSWERED BOX GETS OUT OF THE WAY, and harder on a small screen. Here
+     the cluster is level with the band and therefore directly over the list, and
+     a grey rectangle saying "—" is a great deal of furniture for an answer
+     nobody has given yet. Held this far back it reads as a slot waiting rather
+     than as a box shouting — and on a phone, where all you see at rest is its
+     leading edge, faint is the difference between an invitation and a smudge. */
   .scope-boxes .around-box:not([data-family]):not(.is-expanded) {
     opacity: 0.45;
   }
@@ -2634,16 +2667,7 @@ textarea {
     opacity: 1;
   }
   .app-root {
-    --tags-gap: 1.05rem;
-    --picker-top: calc(var(--band-h) * 2 + 1.5rem);
-  }
-  .scope-boxes {
-    top: auto;
-    bottom: calc(100% - var(--band-top) + var(--band-h) / 2 + 3.3rem);
-    right: 0;
-    left: 0;
-    justify-content: flex-start;
-    transform: none;
+    --tags-gap: 2.2rem;
   }
 }
 
@@ -2670,10 +2694,18 @@ textarea {
        stage sits in a column that is itself --list-w wide, and rendered at
        118px instead of 238px. A length measured off the viewport cannot nest
        wrongly, because it does not depend on its parent at all. */
-    /* NOTHING SITS BESIDE THE BAND on a phone any more, so it takes the whole
-       rail. That is the point of moving the trailing box: the selection box is
-       the thing you are actually reading, and it was the one being shortened. */
-    --list-w: calc(100vw - 2rem);
+    /* AND IT GIVES UP A STRIP SO THE FIRST BOX HAS SOMEWHERE TO STAND. It took
+       the whole rail while the boxes lived above the band — that was the point
+       of moving them, the band being the thing you are actually reading. The
+       boxes are beside it again, and a track whose first item is entirely off
+       the edge is a track nobody knows is there: what makes a scroller
+       discoverable is seeing part of the next thing.
+
+       A LEADING EDGE, NOT A WHOLE BOX. 3.5rem is enough to show the mood's
+       colour and the start of its word — enough to say "there is more here and
+       it is about them" — and it is the most the band can spare on the screen
+       where its own name has the least room. */
+    --list-w: calc(100vw - 2rem - 3.5rem - 0.75rem);
     /* THE ROW CLOSES UP WITH THE TYPE. A row is air around a two-line block,
        and the block shrinks here — the type clamp bottoms out at its smallest
        — so a row held at the desktop's 5rem would be mostly empty, and a phone

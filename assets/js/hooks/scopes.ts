@@ -210,7 +210,7 @@ export const Scopes = {
     // 18rem boxes fighting over a rail that fits one, so taking a box closes
     // whichever was already taken.
     const boxes = () =>
-      Array.from(document.querySelectorAll<HTMLElement>(".scope-boxes > .around-box, #letterbox"));
+      Array.from(document.querySelectorAll<HTMLElement>(".scope-boxes .around-box, #letterbox"));
 
     const label = (el: HTMLElement, open: boolean) => {
       const what = el.id === "letterbox" ? "the letter" : el.dataset.opens || "it";
