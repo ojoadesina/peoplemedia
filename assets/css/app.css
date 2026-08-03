@@ -1075,8 +1075,142 @@ html[data-theme="dark"] {
 
    The distance is measured in the hook, because it is a fact about the viewport.
    What lives here is only what a class can say. */
+/* ── THE BAND HAS TWO FACES, AND THE BAR IS THE TRACK THEY RIDE ────────────────
+   The list's own settings — place, population, live — used to stand on a line of
+   their own above the band. That line cost a caption's height plus its air on
+   every screen, and put a second thing to read between the strapline and the
+   names. They are behind the band now: two pages of exactly --list-w, one box
+   wide, and the bar is what slides between them.
+
+   IT RESTS ON THE FACE, NOT AT SCROLL ZERO, which is the one thing CSS cannot
+   say. A scroller opens at its start edge and the start edge here is the TAGS,
+   so the Bar hook parks it on the face at mount and after a resize — and only
+   then, because forcing it on every patch would shut the settings under the hand
+   of anybody reading them.
+
+   `overflow-x` COSTS THE VERTICAL AXIS: `overflow-y` cannot stay `visible`
+   beside it, so a child taller than the bar would gain a second scrollbar rather
+   than overhang. Nothing in here is taller than --band-h. The FORM is the
+   exception and it is not in here — it is the bar's sibling, positioned on the
+   same line, which is why it can grow downward as you write. */
 .bar {
   transition: transform 640ms cubic-bezier(0.22, 0.61, 0.24, 1);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.bar::-webkit-scrollbar {
+  display: none;
+}
+.bar > * {
+  scroll-snap-align: start;
+}
+/* THE SETTINGS WEAR THE BAND'S OWN WASH, because they are not a second object
+   beside it — they are its back. Mid-swipe the two pages read as one box turning
+   over; drawn on the page colour instead, the band would appear to leave and
+   something else to arrive, and the rows passing underneath would show straight
+   through the settings while it happened. */
+.bar > .bar-tags {
+  position: static;
+  /* A TIGHTER INSET THAN THE NAME'S, and it is arithmetic rather than taste.
+     Three controls and their gaps come to about 245px; --list-pad on both sides
+     of a 290px band leaves 250, so a phone was one long country name away from
+     rendering FINLAND as FINLA…. The face has one word in it and all the room in
+     the world; the back has three things that must all be legible, and a place
+     you cannot read is the one failure this box cannot afford — it is the
+     control that changes what the whole list is showing.
+
+     `.bar >` AND NOT THE BARE CLASS, because `.list-box` states the same
+     property at the same specificity and is written further down the file, so a
+     one-class selector here loses on source order alone. */
+  padding-inline: 0.75rem;
+}
+
+/* ── WHETHER THE GROUND IS MOVING ──────────────────────────────────────────────
+   ONE MARK, TWO STATES, AND IT IS DRAWN IN TWO PLACES. The LAMP on the settings
+   face is the control; the DOTS in the band are the same fact where you are
+   already looking. Neither is a second indicator: the lamp is where you go to
+   change it, the dots are where you notice it.
+
+   SAGE AND NOT TERRACOTTA — see the note in the template. A live list reports,
+   it does not ask, and terracotta is spent on asking. */
+.live-lamp {
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--color-neutral-300);
+  transition: background-color 200ms ease-out;
+}
+.list-live:hover .live-lamp {
+  background-color: var(--color-neutral-400);
+}
+.list-live.is-live .live-lamp {
+  background-color: var(--color-secondary-600);
+  animation: lamp-breathe 2400ms ease-in-out infinite;
+}
+[data-theme="dark"] .live-lamp {
+  background-color: var(--color-neutral-700);
+}
+[data-theme="dark"] .list-live.is-live .live-lamp {
+  background-color: var(--color-secondary-400);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .live-lamp {
+    background-color: var(--color-neutral-700);
+  }
+  html:not([data-theme]) .list-live.is-live .live-lamp {
+    background-color: var(--color-secondary-400);
+  }
+}
+/* NOT A FLASH. A blink says ALARM and this is the resting state of a page
+   somebody may sit on for an hour; it has to be legible at a glance and
+   invisible the rest of the time. Never fully out either — a mark that vanishes
+   reads as a rendering fault rather than as a rhythm. */
+@keyframes lamp-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* THE EMPTY BAND'S DOTS, IN TURN. Left to right, each a third of a cycle behind
+   the last — the motion of a cursor waiting, which is what an empty band IS: the
+   list is running and nothing has reached the middle of it yet.
+
+   HELD STILL WHEN THE LIST IS PAUSED, and that is the whole signal. Same three
+   dots either way, so nothing appears or disappears when you toggle it; what
+   changes is whether they are moving, which is the one property that can carry
+   "this is live" without adding a single mark to the band. */
+.focus-dot {
+  opacity: 1;
+}
+.bar.is-live .focus-dot {
+  animation: dot-wait 1400ms ease-in-out infinite;
+}
+.bar.is-live .focus-dot:nth-child(2) {
+  animation-delay: 160ms;
+}
+.bar.is-live .focus-dot:nth-child(3) {
+  animation-delay: 320ms;
+}
+@keyframes dot-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar.is-live .focus-dot,
+  .list-live.is-live .live-lamp {
+    animation: none;
+  }
 }
 .bar.is-picked {
   /* Over the rows it passes, and over the mark at 30 — which is the whole point
@@ -2435,21 +2569,27 @@ textarea {
      instead of as another row. */
   --count-type: clamp(var(--text-2xl), 0.9rem + 0.5vw, var(--text-6xl));
 
-  /* WHERE THE BAND SITS in the list, measured from the scroller's top. A row
-     and a half, which is the panel's own figure — one row peeks above the
-     selection and no more.
+  /* WHERE THE BAND SITS in the list, measured from the scroller's top.
 
-     It used to be 34% of the list, and that is what put the tags in an
+     IT USED TO BE 34% OF THE LIST, and that is what put the tags in an
      impossible spot: a label belongs against the box it names, but at 34% the
-     whole region above the band is live scrolling list, so anything parked
-     there gets rows sliding through it. Near the top there is only the one
-     peeking row, so the tags clear the scroller entirely and still read as
-     sitting on the band — exactly the relationship LETTERS has to the stage.
+     whole region above the band is live scrolling list, so anything parked there
+     gets rows sliding through it. It came up to a row and a half — near the top
+     there is only the one peeking row, so the tags cleared the scroller entirely
+     and still read as sitting on the band.
+
+     AND NOW THE TAGS ARE BEHIND THE BAND, so the half-row of clearance they were
+     given is a strip of nothing: a hundred pixels of page between the strapline
+     and the band, which is the shape of a thing that has been removed rather
+     than of a page. What is left to clear is the strapline alone, and 0.9 of a
+     row is the step that leaves. Still measured in ROWS rather than in rems,
+     because the row is what shrinks between screens and this gap has to shrink
+     with it.
 
      The BAR is placed by this, and scopes.ts finds the band by MEASURING that
      bar rather than recomputing the fraction, so this is the only place the
      answer exists. */
-  --band-top: calc(var(--row-h) * 1.5);
+  --band-top: calc(var(--row-h) * 0.9);
   /* THE BAND'S TOP EDGE. It lived on `.scopes-scroll`, which is where its first
      reader was — but a custom property is INHERITED, not global, and the form
      that opens over the band is the scroller's SIBLING. It read nothing, the
@@ -2467,13 +2607,10 @@ textarea {
      is nothing to be hiding. Half the viewport is the far bound, so it can never
      take the screen; nothing sensible reaches it. */
   --doing-max: 50vh;
-  /* THE LIST'S CAPTION, and it wants AIR under it rather than a hairline. Held
-     one line off the band it read as a label stuck to the box — the two crowded
-     into one object instead of a caption standing over a thing. The panel's own
-     LETTERS label keeps roughly this distance from the stage beneath it, and
-     that is the relationship worth matching. */
-  --tags-gap: 3.2rem;
-  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - var(--tags-gap) - 1.05rem);
+  /* THE LIST'S CAPTION HAD TWO NUMBERS HERE — how far it stood off the band,
+     and where that put it. It does not stand anywhere any more: it is BEHIND the
+     band, one swipe right, sharing the band's own box and therefore the band's
+     own line. Both are gone, and so is the strip of page they reserved. */
 
   /* THE LIST'S OWN INSET — and the second of the two levels this page has.
      They are NOT the same thing, and collapsing them is the mistake that put
@@ -2630,28 +2767,10 @@ textarea {
 }
 
 /* ── WHEN THE RAIL RUNS OUT ────────────────────────────────────────────────────
-   NOTHING MOVES ANY MORE — the cluster is a track and it simply overflows, so
-   the layout below 66rem is the layout above it. What is left here is the two
-   things that are genuinely about having less room rather than about where the
-   boxes go.
-
-   THE THRESHOLD IS ARITHMETIC, not a device: a 32rem list column and two boxes
-   that come to about 12rem need roughly 45rem of rail between them, and the tags
-   above want their own air. 66rem is where the page starts feeling narrow rather
-   than where anything breaks — which is the right place for tokens to change and
-   the wrong place for a second layout, and it used to carry both.
-
-   THE CAPTION COMES BACK UP INTO THE STRIP THE BOXES LEFT. It was held one line
-   off the band — pinned there because the boxes used to stack in that strip and
-   the two could not both have it. With them gone the pin left a dead 100px
-   between the strapline and the caption, which is the shape of a thing that has
-   been removed rather than of a page.
-
-   2.2rem AND NOT THE DESKTOP'S 3.2. Split evenly it would read as a line
-   floating between two others with no allegiance to either; held nearer the band
-   than the strapline it is plainly the band's caption, which is what it is. The
-   wide screen has enough page for the full measure and does not need the
-   argument. */
+   NOTHING MOVES ANY MORE. The cluster is a track and it simply overflows, so the
+   layout below 66rem is the layout above it, and the caption is behind the band
+   on both. What is left here is the one thing that is genuinely about having
+   less room rather than about where anything goes. */
 @media (max-width: 66rem) {
   /* AN UNANSWERED BOX GETS OUT OF THE WAY, and harder on a small screen. Here
      the cluster is level with the band and therefore directly over the list, and
@@ -2665,9 +2784,6 @@ textarea {
   .scope-boxes .around-box:not([data-family]):hover,
   .scope-boxes .around-box:not([data-family]):focus-visible {
     opacity: 1;
-  }
-  .app-root {
-    --tags-gap: 2.2rem;
   }
 }
 

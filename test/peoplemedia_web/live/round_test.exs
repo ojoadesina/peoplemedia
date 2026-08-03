@@ -106,10 +106,11 @@ defmodule PeoplemediaWeb.RoundTest do
   end
 
   describe "the boxes beside the band" do
-    # TWO BOXES, NOT THREE. The doing lives on the ROW now, where it is legible
-    # without anybody having to be settled first — so a box repeating it here
-    # would be the same fact twice, and this would be the copy you have to work
-    # for. What is left is what a row cannot hold: a colour, and a frame.
+    # TWO BOXES, NOT THREE, and the doing is not one of them. A sentence set in a
+    # ten-rem box beside the band is a sentence you have to work to read; it is
+    # carried on the person's PAGE instead, beside LETTERS, at a size that suits
+    # it. What is left on the rail is what neither a line nor a page-heading does
+    # well: a colour, and a frame.
     test "hold what a row cannot: a colour and a frame", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "MUM")
@@ -120,15 +121,29 @@ defmodule PeoplemediaWeb.RoundTest do
       refute said =~ "THE WITCHERS, FINALLY"
     end
 
-    # AND THE DOING IS ON THE ROW, unchosen. Taking it off made the only way to
-    # learn anything a scroll into the band one person at a time, and a list you
-    # have to interrogate is a list nobody scrolls twice.
-    test "and the doing is on the row itself", %{conn: conn} do
-      {:ok, _live, html} = live(conn, ~p"/")
+    # AND THE DOING IS ON NEITHER — NOT THE ROW, NOT THE RAIL.
+    #
+    # It spent a while on the ROW, on the argument that boxes answer one person
+    # at a time and nobody should have to settle somebody to learn anything.
+    # That argument is true and it lost anyway: a sentence under every name is a
+    # FEED however fresh the sentence is, and this list is people-first or it is
+    # nothing. The row keeps two GLYPHS, which are marks rather than words.
+    #
+    # SO IT IS ONE STEP FURTHER IN THAN IT WAS. Not settled — OPENED. The panel
+    # carries it beside LETTERS and always has, which is also the only place your
+    # own round is visible to you, since you have no row in your own list.
+    test "and the doing is on their page, not on the row or the rail", %{conn: conn} do
+      {:ok, live, html} = live(conn, ~p"/")
 
       rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      assert rows =~ "THE WITCHERS, FINALLY"
-      assert rows =~ "scopes-doing"
+      refute rows =~ "THE WITCHERS, FINALLY"
+      refute rows =~ "scopes-doing"
+
+      settle(live, "MUM")
+      refute boxes(live) =~ "THE WITCHERS, FINALLY"
+
+      # Opened, it is there — with the mood it was made in.
+      assert render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
     end
 
     # THEY SIT ON A TRACK, AND THE TRACK IS WHAT MAKES THEM FIT ANYWHERE. Below
@@ -397,7 +412,8 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, _} = live(build_conn(), ~p"/")
 
       live |> element(~s(button[phx-click="toggle_live"])) |> render_click()
-      assert render(live) =~ "PAUSED"
+      # The word PAUSED used to be the whole of it; the lamp stops breathing now.
+      refute has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
 
       round(teller, %{doing: "a book about rivers", audience: "public"})
       send(live.pid, :surface_stir)

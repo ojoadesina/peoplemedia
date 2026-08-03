@@ -7,7 +7,27 @@
 // The server owns WHETHER it is picked (the `is-picked` class arrives with a
 // patch); this hook owns HOW FAR, because that is a question about the viewport
 // that only the client can answer.
+//
+// ── AND THE BAND'S TWO FACES ─────────────────────────────────────────────────
+// The bar is also a two-page track: the list's settings on the first page, the
+// band itself on the second. Everything about that is CSS except the two things
+// CSS has no way to say — WHICH PAGE IT OPENS ON, and that pressing an empty
+// band should turn it over.
 const HEADER_TOP = 32; // 2rem of air above the header, per the design
+
+// A scroller opens at its start edge, and the start edge here is the settings.
+// Parking it on the face is therefore a write rather than a declaration, and it
+// happens at mount and after a resize ONLY: doing it on every patch would shut
+// the settings under the hand of somebody reading them, and a patch arrives on
+// this surface for reasons that have nothing to do with the band.
+const face = (el: HTMLElement, smooth = false) =>
+  el.scrollTo({ left: el.scrollWidth, behavior: smooth ? "smooth" : "auto" });
+
+const settings = (el: HTMLElement) => el.scrollTo({ left: 0, behavior: "smooth" });
+
+// Half a page is the line between them, so a track left mid-swipe by a resize
+// returns to whichever page it was nearer rather than always to the face.
+const showingSettings = (el: HTMLElement) => el.scrollLeft < el.scrollWidth / 4;
 
 export const Bar = {
   mounted(this: { el: HTMLElement }) {
@@ -35,19 +55,60 @@ export const Bar = {
 
     this.sync = () => (this.el.classList.contains("is-picked") ? fly() : land());
     this.sync();
+    face(this.el);
 
-    // A resize moves the band, and with it the distance left to travel.
-    this.onResize = () => this.sync();
+    // ── PRESSING AN EMPTY BAND TURNS IT OVER ─────────────────────────────────
+    // With somebody in it, a press picks them up — that is `toggle_open`, and it
+    // stays. With nobody in it the same press does nothing at all, which leaves
+    // the largest target on the page inert; the settings are what it should have
+    // been doing, and reaching them by press rather than by swipe is what makes
+    // them findable at all.
+    //
+    // WHETHER THE BAND IS EMPTY IS THE CLIENT'S ANSWER, not the server's. It is
+    // a fact about where the LIST is scrolled to, which lives in this browser —
+    // the same `has-selection` the dots are drawn from, so the band opens the
+    // settings exactly when it is showing dots.
+    //
+    // CAPTURE, AND IT HAS TO BE. LiveView listens for clicks on the document, so
+    // stopping this one anywhere below that is what keeps `toggle_open` from
+    // also firing. Bubbling from the box would be too late for a listener bound
+    // above it; capturing on the bar is early enough to be sure.
+    this.onPress = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest?.(".focus-box")) return; // a setting, not the band
+      if (showingSettings(this.el)) return;
+      const list = this.el.parentElement?.querySelector<HTMLElement>(".scopes-scroll");
+      if (list?.classList.contains("has-selection")) return; // filled: pick it up
+      e.stopPropagation();
+      e.preventDefault();
+      settings(this.el);
+    };
+    this.el.addEventListener("click", this.onPress, true);
+
+    // A resize moves the band, and with it the distance left to travel — and it
+    // resizes the pages under the scroll offset, which would otherwise leave the
+    // track parked between the two.
+    this.onResize = () => {
+      this.sync();
+      if (!showingSettings(this.el)) face(this.el);
+    };
     window.addEventListener("resize", this.onResize);
   },
 
   // The class flips on the server, so the move has to be re-derived after every
   // patch. Cheap: one measurement and one style write.
-  updated(this: { sync: () => void }) {
+  //
+  // A PICKED BAND SHOWS ITS FACE. It is flying up to become the header of a room
+  // that is opening under it, and arriving there turned over — showing a place
+  // and a population instead of the name of whoever was picked — would make the
+  // header the label of the wrong thing.
+  updated(this: { el: HTMLElement; sync: () => void }) {
     this.sync();
+    if (this.el.classList.contains("is-picked")) face(this.el, true);
   },
 
-  destroyed(this: { onResize: () => void }) {
+  destroyed(this: { el: HTMLElement; onResize: () => void; onPress: (e: MouseEvent) => void }) {
     window.removeEventListener("resize", this.onResize);
+    this.el.removeEventListener("click", this.onPress, true);
   },
 };

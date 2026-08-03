@@ -25,56 +25,57 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~ "focus-box"
   end
 
-  # THE ROW SAYS WHO, AND HOW MUCH IS UNREAD, AND NOTHING ELSE.
+  # ONE NAME AND TWO MARKS, AND THE MARKS ARE NOT WORDS.
   #
-  # IT USED TO SAY A GREAT DEAL MORE — the kind of the last letter as a mark,
-  # their own name beside the one you gave them, and the age of the thread
-  # underneath. Every one of those is a headline, and a column of headlines with
-  # people's names attached is a FEED read top-down for content.
+  # IT USED TO SAY A GREAT DEAL MORE IN WORDS — their own name beside the one you
+  # gave them, the age of the thread underneath, and for a while what they are
+  # doing right now. Every one of those is a HEADLINE, and a column of headlines
+  # with people's names attached is a feed read top-down for content.
   #
-  # ONE THING SURVIVED THAT CUT, and it is the doing. The difference is that it
-  # is not a record of what they did — it is what they are doing NOW, and it
-  # leaves with the round. A person is on this list whether or not they have one;
-  # the line under their name is the reason to stop, not the reason they are
-  # there. Mood and frame stay in the boxes, which answer one person at a time
-  # because you chose them.
-  test "a row says who, and how much of their round is unread", %{conn: conn} do
+  # THE DOING WAS THE HARDEST TO GIVE UP and it went the same way, because the
+  # objection to it was never that it was stale — it is the freshest thing on the
+  # surface — but that it is a SENTENCE, and a sentence under every name is a
+  # feed however new it is. It lives in the band, one person at a time, because
+  # you chose them.
+  #
+  # THE MARKS ARE A DIFFERENT KIND OF THING. Two glyphs, no words: what the last
+  # letter WAS on the left, which way it WENT on the right. Neither competes with
+  # a name for reading, which is exactly why they are allowed to stay.
+  test "a row says who, and what passed, and nothing in words", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
-    # No kind marks left in the list. The glyph is still the panel's, where a
-    # thread genuinely is a run of letters of different kinds.
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-    refute rows =~ "letter-glyph"
 
     # One word for a person, not two.
     refute rows =~ "scopes-name"
 
-    # And under the name, only a live doing — never the age of the thread, and
-    # never a round's number.
+    # And nothing under it: not the age of the thread, not a round's number, and
+    # not what they are up to.
     refute rows =~ "scopes-when"
     refute rows =~ "scopes-round"
-    assert rows =~ "scopes-doing"
+    refute rows =~ "scopes-doing"
   end
 
-  # NOTHING ON THE LEFT OF A ROW. It held the last letter's kind as a mark, then
-  # briefly a round number and an unread count — `2·0`, which is a database row
-  # wearing a serif. Neither is what anybody scans a list of PEOPLE for.
-  test "a row carries no marks but the flow", %{conn: conn} do
+  # BOTH MARKS, OR NEITHER. They are one fact split across the row's two ends —
+  # the kind of the last letter, and which way it went — and the left half spent
+  # a while missing after it was swept out alongside `2·0`, a round number beside
+  # an unread count, which really is a database row wearing a serif.
+  test "a row carries the kind mark and the flow", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    refute rows =~ "letter-glyph"
+    assert rows =~ "letter-glyph"
+    assert rows =~ "letter-flow"
     refute rows =~ "tabular-nums"
-    # One word for a person, and under it only what they are doing right now.
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
 
-    # THE FLOW STAYS. It is the row's one mark and it answers the only thing a
-    # glance needs: is anything waiting, and did the last word go out or come in.
-    assert rows =~ "letter-flow"
-
+    # EVERY ROW CARRIES THE COLUMN, filled or not. A letter is written to a SCOPE,
+    # so a stranger has none at all — and without the empty slot their name would
+    # start a mark's width left of everybody else's.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    refute unscoped =~ "letter-glyph"
+    assert unscoped =~ "letter-glyph"
+    refute unscoped =~ "letter-flow", "a stranger has no correspondence to have a direction"
   end
 
   test "the rail is the only measure the page uses", %{conn: conn} do
@@ -343,8 +344,37 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # AN ELLIPSIS, NOT "--". The app's mark is a pair of dashes and the voice
     # glyph is one bar, so two dashes in terracotta at the head of the list read
     # as the logo turning up in the middle of the page.
-    assert html =~ "..."
+    #
+    # THREE ELEMENTS RATHER THAN THREE CHARACTERS, which is what lets them run in
+    # turn when the list is live — the same drawing either way, so nothing
+    # appears or disappears when the list is paused, it only stops moving.
+    assert html =~ "focus-empty"
+
+    dots = html |> String.split(~s(class="focus-empty)) |> tl() |> hd()
+    assert length(String.split(dots, "focus-dot")) - 1 == 3
+    assert html |> String.replace(~r/<[^>]*>/, "") =~ "..."
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
+  end
+
+  # WHETHER THE LIST MOVES IS DRAWN, NOT SPELLED. It was the word LIVE beside the
+  # word PAUSED — same length, same weight, same place, so you had to read the
+  # letters to know which state you were in. A lamp that breathes or does not is
+  # the same answer without the reading.
+  test "live is a lamp, and it is the only thing that says so", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+
+    assert html =~ "live-lamp"
+    refute tags_say(live) =~ "PAUSED"
+    refute tags_say(live) =~ "LIVE"
+
+    # THE BAND CARRIES IT TOO, on the dots — the lamp is where you change it, the
+    # band is where you are already looking.
+    assert has_element?(live, ~s(#bar.is-live))
+    assert has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
+
+    live |> element(~s(button[phx-click="toggle_live"])) |> render_click()
+    refute has_element?(live, ~s(#bar.is-live))
+    refute has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
   end
 
   test "only the place lights, and only while the world is open", %{conn: conn} do
