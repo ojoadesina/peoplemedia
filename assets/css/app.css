@@ -1184,26 +1184,50 @@ html[data-theme="dark"] {
    dots either way, so nothing appears or disappears when you toggle it; what
    changes is whether they are moving, which is the one property that can carry
    "this is live" without adding a single mark to the band. */
+/* DRAWN, NOT TYPED, and that is what let them grow. They were three period
+   characters, which put their size at the mercy of the font — about four pixels
+   of ink at the band's own type, held still, and unreadable as a signal even
+   when they were moving. A drawn dot takes whatever size it is given.
+
+   SIZED IN em SO THEY TRACK THE BAND'S TYPE, like every other mark on this
+   surface. Half the type size is where three of them read as one object rather
+   than as three specks.
+
+   STILL ROUND, and that is not a lapse. Every corner here is square; this is the
+   one shape in the vocabulary that is neither a rectangle nor made of them, so
+   it can never be mistaken for a face, a voice, a letter or the mark — which is
+   exactly what an empty band needs to say. */
 .focus-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background-color: currentColor;
   opacity: 1;
 }
+/* AND THEY MOVE, not merely dim. A fade between two greys of terracotta is a
+   change you have to be staring at to notice; the eye is built to catch
+   POSITION. Each rises, in turn, a third of its own size — small enough to stay
+   a rhythm rather than a bounce, large enough to be caught from the corner of
+   the eye while you are reading the names underneath. */
 .bar.is-live .focus-dot {
-  animation: dot-wait 1400ms ease-in-out infinite;
+  animation: dot-wait 1200ms ease-in-out infinite;
 }
 .bar.is-live .focus-dot:nth-child(2) {
-  animation-delay: 160ms;
+  animation-delay: 150ms;
 }
 .bar.is-live .focus-dot:nth-child(3) {
-  animation-delay: 320ms;
+  animation-delay: 300ms;
 }
 @keyframes dot-wait {
   0%,
-  60%,
+  65%,
   100% {
-    opacity: 0.35;
+    opacity: 0.3;
+    transform: translateY(0);
   }
-  30% {
+  32% {
     opacity: 1;
+    transform: translateY(-0.34em);
   }
 }
 @media (prefers-reduced-motion: reduce) {

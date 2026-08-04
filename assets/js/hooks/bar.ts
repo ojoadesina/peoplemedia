@@ -15,13 +15,18 @@
 // band should turn it over.
 const HEADER_TOP = 32; // 2rem of air above the header, per the design
 
-// A scroller opens at its start edge, and the start edge here is the settings.
-// Parking it on the face is therefore a write rather than a declaration, and it
-// happens at mount and after a resize ONLY: doing it on every patch would shut
-// the settings under the hand of somebody reading them, and a patch arrives on
-// this surface for reasons that have nothing to do with the band.
-const face = (el: HTMLElement, smooth = false) =>
-  el.scrollTo({ left: el.scrollWidth, behavior: smooth ? "smooth" : "auto" });
+// A scroller opens at its start edge, and the start edge here is the settings, so
+// parking it on the face is a write rather than a declaration.
+//
+// TWICE, AND THE SECOND TIME IS THE ONE THAT WORKS. On a fresh node the two pages
+// may not be laid out yet, which makes `scrollWidth` equal to the visible width;
+// asking to scroll there is asking to scroll to zero, and the clamp is silent. A
+// frame later the pages exist and the same call means what it says.
+const face = (el: HTMLElement, smooth = false) => {
+  const go = () => el.scrollTo({ left: el.scrollWidth, behavior: smooth ? "smooth" : "auto" });
+  go();
+  if (!smooth) requestAnimationFrame(go);
+};
 
 const settings = (el: HTMLElement) => el.scrollTo({ left: 0, behavior: "smooth" });
 
@@ -55,6 +60,18 @@ export const Bar = {
 
     this.sync = () => (this.el.classList.contains("is-picked") ? fly() : land());
     this.sync();
+
+    // WHICH PAGE IT IS ON IS REMEMBERED, and it has to be. A patch that changes
+    // any sibling's id makes morphdom take this node out and put it back — the
+    // element survives, the hook is not re-mounted, and NOTHING says anything has
+    // happened, but re-inserting a scroll container resets its offset to zero. So
+    // the drawer flew open by itself every time the list changed mode.
+    //
+    // Restoring the REMEMBERED page rather than always the face is what keeps
+    // that repair from becoming its own bug: a patch arrives on this surface for
+    // reasons that have nothing to do with the band, and slamming the settings
+    // shut under the hand of somebody reading them would be no better.
+    this.page = "face";
     face(this.el);
 
     // ── PRESSING AN EMPTY BAND TURNS IT OVER ─────────────────────────────────
@@ -81,16 +98,45 @@ export const Bar = {
       if (list?.classList.contains("has-selection")) return; // filled: pick it up
       e.stopPropagation();
       e.preventDefault();
+      this.page = "settings";
       settings(this.el);
     };
     this.el.addEventListener("click", this.onPress, true);
+
+    // ── CLOSING THE SETTINGS LEAVES THE PLACE PICKER ─────────────────────────
+    // Pressing the place turns the LIST into a roll of countries, which is the
+    // whole point of it — you scroll to one and press again to commit. The way
+    // out without choosing is a cancel that stands beside the place itself, and
+    // that used to be fine because both were on a line of their own above the
+    // band, always in view.
+    //
+    // BEHIND THE BAND, THE WAY OUT GOES WITH THEM. Swipe back to the face and
+    // the list is still a roll of countries with its cancel now hidden — a mode
+    // you are in, with no visible way out of, and no name on screen to tell you
+    // what happened to your people. So the swipe IS the cancel: shutting the
+    // drawer puts back whatever the roll replaced.
+    //
+    // IT ASKS THE DOM RATHER THAN KEEPING A FLAG, because the server owns
+    // whether the picker is open and the cancel is rendered exactly when it is.
+    // A flag here would be a second copy of that answer, free to drift.
+    let idle: number;
+    this.onSettle = () => {
+      clearTimeout(idle);
+      idle = setTimeout(() => {
+        this.page = showingSettings(this.el) ? "settings" : "face";
+        if (this.page === "settings") return;
+        if (!this.el.querySelector('[phx-click="cancel_place"]')) return;
+        this.pushEvent("cancel_place", {});
+      }, 140) as unknown as number;
+    };
+    this.el.addEventListener("scroll", this.onSettle, { passive: true });
 
     // A resize moves the band, and with it the distance left to travel — and it
     // resizes the pages under the scroll offset, which would otherwise leave the
     // track parked between the two.
     this.onResize = () => {
       this.sync();
-      if (!showingSettings(this.el)) face(this.el);
+      if (this.page === "face") face(this.el);
     };
     window.addEventListener("resize", this.onResize);
   },
@@ -102,13 +148,30 @@ export const Bar = {
   // that is opening under it, and arriving there turned over — showing a place
   // and a population instead of the name of whoever was picked — would make the
   // header the label of the wrong thing.
-  updated(this: { el: HTMLElement; sync: () => void }) {
+  updated(this: { el: HTMLElement; page: string; sync: () => void }) {
     this.sync();
-    if (this.el.classList.contains("is-picked")) face(this.el, true);
+
+    // A PICKED BAND ALWAYS SHOWS ITS FACE, whatever page it was on — it is flying
+    // up to become the header of a room opening under it, and arriving there
+    // turned over would make the header the label of the wrong thing.
+    if (this.el.classList.contains("is-picked")) {
+      this.page = "face";
+      face(this.el, true);
+    } else if (this.page === "face") {
+      // Otherwise: put it back where the reader left it. See the note at mount —
+      // a patch can move this node, and a moved scroller loses its offset.
+      face(this.el);
+    }
   },
 
-  destroyed(this: { el: HTMLElement; onResize: () => void; onPress: (e: MouseEvent) => void }) {
+  destroyed(this: {
+    el: HTMLElement;
+    onResize: () => void;
+    onPress: (e: MouseEvent) => void;
+    onSettle: () => void;
+  }) {
     window.removeEventListener("resize", this.onResize);
     this.el.removeEventListener("click", this.onPress, true);
+    this.el.removeEventListener("scroll", this.onSettle);
   },
 };

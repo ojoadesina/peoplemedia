@@ -986,9 +986,13 @@ defmodule PeoplemediaWeb.IndexLive do
   # it depends on and change tracking holds.
   defp tag_ink(true), do: "text-primary-600 dark:text-primary-500"
 
+  # AT REST IT TAKES THE NAME'S INK, because it is now set like a name. It was a
+  # grey caption while it stood in a line of captions ABOVE the band, where it had
+  # to stay out of the list's way. In the band it IS the band's subject — the
+  # place this whole list is of — and a heading whispered in the colour of a
+  # timestamp reads as a box somebody forgot to fill in.
   defp tag_ink(false),
-    do:
-      "text-neutral-400 hover:text-neutral-500 dark:text-neutral-500 dark:hover:text-neutral-400"
+    do: "text-light-900 hover:text-primary-600 dark:text-dark-100 dark:hover:text-primary-500"
 
   # AN ID OFF THE WIRE IS A STRING, and an id from anywhere else is not. The
   # browser only ever sends the first kind, so this looks redundant until
@@ -1033,7 +1037,23 @@ defmodule PeoplemediaWeb.IndexLive do
 
   # Stored rather than read through a function in the markup, which would switch
   # LiveView's change tracking off for the whole block.
-  defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
+  # THE MARK COLUMN IS THE LIST'S, NOT THE ROW'S — and this is the assign that
+  # decides whether there is one at all.
+  #
+  # EVERY ROW HOLDS THE SLOT so that a name with a mark and a name without start
+  # in the same place. That is right within a list and wrong ACROSS lists: a
+  # visitor holds nobody, a letter is written to a SCOPE, so not one row on their
+  # surface can ever have a mark — and they were being shown twenty-six empty
+  # boxes indenting twenty-six names for a fact none of them has. The same is
+  # true of the PEOPLE tab for anybody: strangers, no correspondence, no marks.
+  #
+  # An invisible thing that still takes room is the worst of both. Asked once per
+  # list rather than once per row, the column appears exactly when something can
+  # go in it, and the alignment it exists to protect is protected either way.
+  defp put_list(socket) do
+    list = current_list(socket.assigns)
+    assign(socket, list: list, marks: Enum.any?(list, & &1[:letter]))
+  end
 
   # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
   # places the place box is showing the band's own answer — it follows the
@@ -1792,6 +1812,7 @@ defmodule PeoplemediaWeb.IndexLive do
                            SCOPE, so they have none — starting a mark's width
                            left of everybody else's. --%>
                       <.letter_glyph
+                        :if={@marks}
                         kind={item[:letter] && item.letter.kind}
                         lit={!!item[:letter] && item.letter.unread}
                         class="mr-3 -mt-[0.125em]"
@@ -2409,50 +2430,66 @@ defmodule PeoplemediaWeb.IndexLive do
                  under this page worth reaching: when it is closed the bar's own
                  overflow has clipped it away entirely. --%>
             <div class="list-tags bar-tags list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <button
-                type="button"
-                phx-click="place_box"
-                aria-pressed={to_string(@list_mode == :location)}
-                class={[
-                  "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
-                  "transition-colors",
-                  "text-(length:--sub-type) tracking-(--sub-track) focus-visible:underline",
-                  tag_ink(@list_mode == :location)
-                ]}
-              >
-                {String.upcase(@box_place)}
-              </button>
+              <%!-- ── IT IS SET LIKE A ROW, BECAUSE IT IS ONE OF THE BAND'S TWO
+                   FACES ────────────────────────────────────────────────────────
+                   A NAME AND A QUIET WORD BESIDE IT — exactly the shape the band
+                   shows on the other side, where a label is set at the row's own
+                   type and the person's own name hangs off it in grey. Two
+                   captions at --sub-type was the arrangement they had while they
+                   stood ABOVE the band, where they were furniture over a list and
+                   had to stay out of its way. In the band they are not over
+                   anything: they are what the band is currently about, and
+                   whispering it makes the box look empty.
 
-              <%!-- THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
-                   inside one button for a reason beyond tidiness: this is what a
-                   reader parses as a single fact — "four relationships" — and
-                   splitting it across two controls would offer two answers to a
-                   question with one. --%>
-              <button
-                type="button"
-                phx-click="scope_box"
-                aria-pressed={to_string(@list_mode == :people)}
-                class={
-                  [
-                    "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-1.5",
-                    "outline-none",
-                    "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                    "focus-visible:underline",
-                    # QUIETER THAN THE PLACE, and deliberately the quietest thing on
-                    # the page. Two captions at one weight are two things asking to be
-                    # read before the list under them; the place is the one that
-                    # changes what you are looking at, so it is the one that keeps a
-                    # voice. This is a fact you glance at, not a control you hunt for.
-                    "text-neutral-300 hover:text-neutral-400",
-                    "dark:text-neutral-700 dark:hover:text-neutral-500"
-                  ]
-                }
-              >
-                <span class="font-bold">
-                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
-                </span>
-                <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
-              </button>
+                   THE PLACE TAKES THE NAME'S VOICE because it is the one that
+                   changes what you are looking at. The population stays quiet and
+                   stays small — it is a fact you glance at, and at the name's
+                   size two things would be asking to be read at once, which is
+                   the failure the whole caption line was moved to fix. --%>
+              <div class="flex min-w-0 items-baseline gap-3">
+                <button
+                  type="button"
+                  phx-click="place_box"
+                  aria-pressed={to_string(@list_mode == :location)}
+                  class={[
+                    "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
+                    "transition-colors",
+                    "text-(length:--row-type) tracking-(--row-track) focus-visible:underline",
+                    tag_ink(@list_mode == :location)
+                  ]}
+                >
+                  {String.upcase(@box_place)}
+                </button>
+
+                <%!-- THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
+                     inside one button for a reason beyond tidiness: this is what a
+                     reader parses as a single fact — "four relationships" — and
+                     splitting it across two controls would offer two answers to a
+                     question with one. --%>
+                <button
+                  type="button"
+                  phx-click="scope_box"
+                  aria-pressed={to_string(@list_mode == :people)}
+                  class={
+                    [
+                      "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-1.5",
+                      "outline-none",
+                      "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
+                      "focus-visible:underline",
+                      # THE SAME GREY THE BAND GIVES A PERSON'S OWN NAME, for the
+                      # same reason: it is the second thing on the line and it must
+                      # not read as a second heading.
+                      "text-neutral-400/70 hover:text-neutral-500",
+                      "dark:text-neutral-500/70 dark:hover:text-neutral-400"
+                    ]
+                  }
+                >
+                  <span class="font-bold">
+                    {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
+                  </span>
+                  <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
+                </button>
+              </div>
 
               <%!-- ── WHETHER THE LIST MOVES ON ITS OWN ──────────────────────
                  LIVE IS A CHOICE, and it belongs beside the other two facts about
@@ -2603,10 +2640,10 @@ defmodule PeoplemediaWeb.IndexLive do
                    glyph that already earned its place; nothing was added to the
                    band to carry this. --%>
               <span
-                class="focus-empty absolute flex items-baseline text-(length:--row-type) tracking-(--row-track) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500"
+                class="focus-empty absolute flex items-center gap-[0.3em] text-(length:--row-type) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500"
                 aria-hidden="true"
               >
-                <span class="focus-dot">.</span><span class="focus-dot">.</span><span class="focus-dot">.</span>
+                <span class="focus-dot"></span><span class="focus-dot"></span><span class="focus-dot"></span>
               </span>
               <%!-- The bar takes over the words only at the moment of the pick.
                    In the list what you read is the ROW's label showing through a
@@ -2641,7 +2678,7 @@ defmodule PeoplemediaWeb.IndexLive do
                    slot exists to prevent. The name beside it sets the same size
                    on itself; the empty box has no text to inherit it from. --%>
               <.letter_glyph
-                :if={@subject}
+                :if={@subject && @marks}
                 kind={nil}
                 class="mr-3 text-(length:--row-type)"
               />
@@ -2758,8 +2795,11 @@ defmodule PeoplemediaWeb.IndexLive do
                 <div class="stage-progress absolute inset-y-0 left-0"></div>
                 <%!-- The list's own empty mark, for the same reason and in the
                      same shape — see the band above. --%>
-                <span class="focus-empty text-(length:--row-type) tracking-(--row-track) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500">
-                  ...
+                <span
+                  class="focus-empty flex items-center gap-[0.3em] text-(length:--row-type) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500"
+                  aria-hidden="true"
+                >
+                  <span class="focus-dot"></span><span class="focus-dot"></span><span class="focus-dot"></span>
                 </span>
                 <audio
                   id={"stage-audio-#{@panel_key}"}

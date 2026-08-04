@@ -70,12 +70,16 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
 
-    # EVERY ROW CARRIES THE COLUMN, filled or not. A letter is written to a SCOPE,
-    # so a stranger has none at all — and without the empty slot their name would
-    # start a mark's width left of everybody else's.
+    # EVERY ROW IN A LIST CARRIES THE COLUMN, filled or not, so a name with a mark
+    # and a name without start in the same place.
+    #
+    # AND NO LIST CARRIES IT FOR NOTHING. A letter is written to a SCOPE, so not
+    # one row on the PEOPLE tab can ever have a mark — twenty-six empty boxes
+    # indenting twenty-six names for a fact none of them has. It is asked once per
+    # list, so the column appears exactly when something can go in it.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert unscoped =~ "letter-glyph"
-    refute unscoped =~ "letter-flow", "a stranger has no correspondence to have a direction"
+    refute unscoped =~ "letter-glyph", "strangers have no correspondence, so no column"
+    refute unscoped =~ "letter-flow"
   end
 
   test "the rail is the only measure the page uses", %{conn: conn} do
@@ -196,7 +200,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute opened =~ "PresencePanel"
 
     # The panel's own empty band is the same ellipsis the list's is.
-    assert opened =~ "..."
+    assert opened =~ "focus-dot"
     assert opened =~ "rotate(-45 12 12)"
 
     # THE FRAME IS HIDDEN BUT NOT REMOVED, and that is load-bearing rather than
@@ -345,14 +349,15 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # glyph is one bar, so two dashes in terracotta at the head of the list read
     # as the logo turning up in the middle of the page.
     #
-    # THREE ELEMENTS RATHER THAN THREE CHARACTERS, which is what lets them run in
-    # turn when the list is live — the same drawing either way, so nothing
-    # appears or disappears when the list is paused, it only stops moving.
+    # THREE ELEMENTS RATHER THAN THREE CHARACTERS — first so they can run in turn
+    # when the list is live, and then because a typed period is whatever size the
+    # font says it is: about four pixels of ink at the band's own type, which is
+    # too small to be a signal even while it is moving. A drawn dot takes the size
+    # it is given.
     assert html =~ "focus-empty"
 
     dots = html |> String.split(~s(class="focus-empty)) |> tl() |> hd()
     assert length(String.split(dots, "focus-dot")) - 1 == 3
-    assert html |> String.replace(~r/<[^>]*>/, "") =~ "..."
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
   end
 
@@ -379,7 +384,10 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
   test "only the place lights, and only while the world is open", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
-    lit = ~r/(list-place|list-scope)[^"]*text-primary-600/
+    # `(?<!:)` OR IT MATCHES THE HOVER. The place is set like a name now and takes
+    # a name's ink at rest, with terracotta as its HOVER — so a bare search for
+    # the colour finds `hover:text-primary-600` and reports every tag as lit.
+    lit = ~r/(list-place|list-scope)[^"]*(?<!:)text-primary-600/
     tags = fn -> live |> element(".list-tags") |> render() end
 
     # NOTHING IS LIT OVER PEOPLE. Both tags were washed boxes and exactly one was
