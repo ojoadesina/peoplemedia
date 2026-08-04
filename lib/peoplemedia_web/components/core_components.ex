@@ -671,10 +671,22 @@ defmodule PeoplemediaWeb.CoreComponents do
         <rect x="4" y="9" width="16" height="6" />
       </svg>
       <%!-- The voice bar and nothing else, turned about the box's centre. Not a
-           second drawing: same x, same y, same 16x6, so the two kinds cannot
-           drift apart when either is retuned. --%>
+           second drawing: same x, same y, same 16x6, so the kinds cannot drift
+           apart when any of them is retuned. --%>
       <svg :if={@kind == "text"} viewBox="0 0 24 24" class="h-full w-full" fill="currentColor">
         <rect x="4" y="9" width="16" height="6" transform="rotate(-45 12 12)" />
+      </svg>
+      <%!-- AND THE SAME BAR STOOD UPRIGHT: NOT AROUND. The quarter turn is the
+           whole argument. Level, the bar is a mouth and it means somebody is
+           here saying something; struck through at 45° it is a mouth with a line
+           across it; stood at 90° it is a mouth CLOSED — the same object, shut.
+           Nothing new had to be invented for the commonest state on the list.
+
+           It is drawn at all, rather than left blank, because "not around" is an
+           ANSWER and a blank space is the absence of one. A column that is empty
+           for most rows reads as a column that failed to load. --%>
+      <svg :if={@kind == "away"} viewBox="0 0 24 24" class="h-full w-full" fill="currentColor">
+        <rect x="4" y="9" width="16" height="6" transform="rotate(-90 12 12)" />
       </svg>
     </span>
     """

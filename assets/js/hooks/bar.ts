@@ -8,31 +8,43 @@
 // patch); this hook owns HOW FAR, because that is a question about the viewport
 // that only the client can answer.
 //
-// ── AND THE BAND'S TWO FACES ─────────────────────────────────────────────────
-// The bar is also a two-page track: the list's settings on the first page, the
-// band itself on the second. Everything about that is CSS except the two things
-// CSS has no way to say — WHICH PAGE IT OPENS ON, and that pressing an empty
-// band should turn it over.
+// ── AND THE BAND'S OTHER FACES ───────────────────────────────────────────────
+// The bar is also a three-page track: the PLACE picker, the POPULATION toggle,
+// and the band itself. The geometry is all CSS; what is here is only what CSS
+// cannot say — which page it opens on, that pressing an empty band turns it
+// over, that a press inside a drawer hands the list back, and that being on the
+// place page IS being in the place picker.
 const HEADER_TOP = 32; // 2rem of air above the header, per the design
 
-// A scroller opens at its start edge, and the start edge here is the settings, so
+// THREE PAGES, LEFT TO RIGHT: the PLACE picker, the POPULATION toggle, and the
+// band itself. The band rests on the last of them, so one swipe right reaches
+// the population and two reach the place — the rarer decision is the further
+// gesture.
+const PLACE = 0;
+const SCOPE = 1;
+const FACE = 2;
+
+const pageOf = (el: HTMLElement) =>
+  el.clientWidth ? Math.round(el.scrollLeft / el.clientWidth) : FACE;
+
+// A scroller opens at its start edge, and the start edge here is the place, so
 // parking it on the face is a write rather than a declaration.
 //
-// TWICE, AND THE SECOND TIME IS THE ONE THAT WORKS. On a fresh node the two pages
-// may not be laid out yet, which makes `scrollWidth` equal to the visible width;
+// TWICE, AND THE SECOND TIME IS THE ONE THAT WORKS. On a fresh node the pages may
+// not be laid out yet, which makes `scrollWidth` equal to the visible width;
 // asking to scroll there is asking to scroll to zero, and the clamp is silent. A
 // frame later the pages exist and the same call means what it says.
-const face = (el: HTMLElement, smooth = false) => {
-  const go = () => el.scrollTo({ left: el.scrollWidth, behavior: smooth ? "smooth" : "auto" });
+const goTo = (el: HTMLElement, page: number, smooth = false) => {
+  const go = () =>
+    el.scrollTo({
+      left: page === FACE ? el.scrollWidth : page * el.clientWidth,
+      behavior: smooth ? "smooth" : "auto",
+    });
   go();
   if (!smooth) requestAnimationFrame(go);
 };
 
-const settings = (el: HTMLElement) => el.scrollTo({ left: 0, behavior: "smooth" });
-
-// Half a page is the line between them, so a track left mid-swipe by a resize
-// returns to whichever page it was nearer rather than always to the face.
-const showingSettings = (el: HTMLElement) => el.scrollLeft < el.scrollWidth / 4;
+const face = (el: HTMLElement, smooth = false) => goTo(el, FACE, smooth);
 
 export const Bar = {
   mounted(this: { el: HTMLElement }) {
@@ -71,7 +83,7 @@ export const Bar = {
     // that repair from becoming its own bug: a patch arrives on this surface for
     // reasons that have nothing to do with the band, and slamming the settings
     // shut under the hand of somebody reading them would be no better.
-    this.page = "face";
+    this.page = FACE;
     face(this.el);
 
     // ── PRESSING AN EMPTY BAND TURNS IT OVER ─────────────────────────────────
@@ -80,6 +92,9 @@ export const Bar = {
     // the largest target on the page inert; the settings are what it should have
     // been doing, and reaching them by press rather than by swipe is what makes
     // them findable at all.
+    //
+    // IT OPENS THE NEARER DRAWER, not the furthest. One swipe's worth, so the
+    // press and the gesture agree about what "open the settings" means.
     //
     // WHETHER THE BAND IS EMPTY IS THE CLIENT'S ANSWER, not the server's. It is
     // a fact about where the LIST is scrolled to, which lives in this browser —
@@ -92,41 +107,53 @@ export const Bar = {
     // above it; capturing on the bar is early enough to be sure.
     this.onPress = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      if (!target?.closest?.(".focus-box")) return; // a setting, not the band
-      if (showingSettings(this.el)) return;
+
+      // A CONTROL IN A DRAWER COMMITS AND HANDS THE LIST BACK. Whatever you came
+      // in to change is changed by the time the press lands, so keeping the
+      // drawer up would leave you reading a setting instead of the result of it.
+      // The press itself goes through untouched — this only decides where the
+      // track ends up afterwards.
+      if (target?.closest?.(".list-tags")) {
+        this.page = FACE;
+        requestAnimationFrame(() => face(this.el, true));
+        return;
+      }
+
+      if (!target?.closest?.(".focus-box")) return;
+      if (pageOf(this.el) !== FACE) return;
       const list = this.el.parentElement?.querySelector<HTMLElement>(".scopes-scroll");
       if (list?.classList.contains("has-selection")) return; // filled: pick it up
       e.stopPropagation();
       e.preventDefault();
-      this.page = "settings";
-      settings(this.el);
+      this.page = SCOPE;
+      goTo(this.el, SCOPE, true);
     };
     this.el.addEventListener("click", this.onPress, true);
 
-    // ── CLOSING THE SETTINGS LEAVES THE PLACE PICKER ─────────────────────────
-    // Pressing the place turns the LIST into a roll of countries, which is the
-    // whole point of it — you scroll to one and press again to commit. The way
-    // out without choosing is a cancel that stands beside the place itself, and
-    // that used to be fine because both were on a line of their own above the
-    // band, always in view.
+    // ── THE PLACE DRAWER IS THE PLACE MODE ───────────────────────────────────
+    // Opening it turns the LIST into a roll of countries and closing it puts back
+    // what was there. That is what makes the swipe worth making: the drawer is
+    // not a form you fill in and submit, it is the mode, and you are in it
+    // exactly as long as it is up.
     //
-    // BEHIND THE BAND, THE WAY OUT GOES WITH THEM. Swipe back to the face and
-    // the list is still a roll of countries with its cancel now hidden — a mode
-    // you are in, with no visible way out of, and no name on screen to tell you
-    // what happened to your people. So the swipe IS the cancel: shutting the
-    // drawer puts back whatever the roll replaced.
+    // IT USED TO TAKE A PRESS TO GET IN AND A CANCEL TO GET OUT, both of which
+    // stood in the drawer beside the place — fine while these lived on a line
+    // above the list, always in view. Behind the band the way out went with them:
+    // swipe back and the list was still every country in the world, with its
+    // cancel now hidden, no name on screen, and nothing to say what had happened
+    // to your people.
     //
-    // IT ASKS THE DOM RATHER THAN KEEPING A FLAG, because the server owns
-    // whether the picker is open and the cancel is rendered exactly when it is.
-    // A flag here would be a second copy of that answer, free to drift.
+    // IT ASKS THE DOM RATHER THAN KEEPING A FLAG, because the server owns whether
+    // the picker is open and says so on the bar. A flag here would be a second
+    // copy of that answer, free to drift from it.
     let idle: number;
     this.onSettle = () => {
       clearTimeout(idle);
       idle = setTimeout(() => {
-        this.page = showingSettings(this.el) ? "settings" : "face";
-        if (this.page === "settings") return;
-        if (!this.el.querySelector('[phx-click="cancel_place"]')) return;
-        this.pushEvent("cancel_place", {});
+        this.page = pageOf(this.el);
+        const open = this.el.dataset.placeOpen === "true";
+        if (this.page === PLACE && !open) this.pushEvent("place_box", {});
+        if (this.page !== PLACE && open) this.pushEvent("cancel_place", {});
       }, 140) as unknown as number;
     };
     this.el.addEventListener("scroll", this.onSettle, { passive: true });
@@ -136,7 +163,7 @@ export const Bar = {
     // track parked between the two.
     this.onResize = () => {
       this.sync();
-      if (this.page === "face") face(this.el);
+      goTo(this.el, this.page);
     };
     window.addEventListener("resize", this.onResize);
   },
@@ -148,19 +175,19 @@ export const Bar = {
   // that is opening under it, and arriving there turned over — showing a place
   // and a population instead of the name of whoever was picked — would make the
   // header the label of the wrong thing.
-  updated(this: { el: HTMLElement; page: string; sync: () => void }) {
+  updated(this: { el: HTMLElement; page: number; sync: () => void }) {
     this.sync();
 
     // A PICKED BAND ALWAYS SHOWS ITS FACE, whatever page it was on — it is flying
     // up to become the header of a room opening under it, and arriving there
     // turned over would make the header the label of the wrong thing.
     if (this.el.classList.contains("is-picked")) {
-      this.page = "face";
+      this.page = FACE;
       face(this.el, true);
-    } else if (this.page === "face") {
+    } else {
       // Otherwise: put it back where the reader left it. See the note at mount —
       // a patch can move this node, and a moved scroller loses its offset.
-      face(this.el);
+      goTo(this.el, this.page);
     }
   },
 

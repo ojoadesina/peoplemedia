@@ -56,11 +56,16 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute rows =~ "scopes-doing"
   end
 
-  # BOTH MARKS, OR NEITHER. They are one fact split across the row's two ends —
-  # the kind of the last letter, and which way it went — and the left half spent
-  # a while missing after it was swept out alongside `2·0`, a round number beside
-  # an unread count, which really is a database row wearing a serif.
-  test "a row carries the kind mark and the flow", %{conn: conn} do
+  # TWO MARKS, AND THEY ANSWER DIFFERENT QUESTIONS. On the left, whether they are
+  # ROUND — a fact about them, which everybody has an answer to at every moment.
+  # On the right, which way the last letter went — a fact about the two of you.
+  #
+  # THE LEFT ONE USED TO BE A LETTER'S KIND TOO, and that is what made it useless:
+  # a correspondence is something only the two of you have, so a visitor's list
+  # could not carry a single mark, the PEOPLE tab could not either, and even a
+  # busy thread went blank the moment nothing was new. A column that is empty for
+  # most rows most of the time is not a column.
+  test "a row carries the round mark and the flow", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
@@ -70,16 +75,29 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
 
-    # EVERY ROW IN A LIST CARRIES THE COLUMN, filled or not, so a name with a mark
-    # and a name without start in the same place.
-    #
-    # AND NO LIST CARRIES IT FOR NOTHING. A letter is written to a SCOPE, so not
-    # one row on the PEOPLE tab can ever have a mark — twenty-six empty boxes
-    # indenting twenty-six names for a fact none of them has. It is asked once per
-    # list, so the column appears exactly when something can go in it.
+    # ONE RECTANGLE AT FOUR ANGLES. Level is a mouth, struck through at 45° is
+    # words with no face and no voice, upright is that mouth shut — not around.
+    assert rows =~ "rotate(-45 12 12)", "somebody round, with words"
+    assert rows =~ "rotate(-90 12 12)", "somebody who is not round"
+
+    # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
+    # letters: they have no correspondence at all and they are still either round
+    # or not.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    refute unscoped =~ "letter-glyph", "strangers have no correspondence, so no column"
-    refute unscoped =~ "letter-flow"
+    assert unscoped =~ "letter-glyph"
+    refute unscoped =~ "letter-flow", "no correspondence, so no direction to show"
+  end
+
+  # NEVER LIT. Terracotta is spent on the one thing asking something of you, and
+  # being round is an invitation rather than a demand — Law 1 says absence is
+  # silent, and its opposite is not a summons either.
+  test "and the round mark never takes the attention colour", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+    rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+
+    for glyph <- rows |> String.split(~s(class="letter-glyph)) |> tl() do
+      refute glyph |> String.split("</span>") |> hd() =~ "is-lit"
+    end
   end
 
   test "the rail is the only measure the page uses", %{conn: conn} do
@@ -290,7 +308,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute has_element?(live, "#letterbox")
 
     # AND THE WAY OUT THAT CHANGES NOTHING leaves with what you came in with.
-    live |> element(~s(button[phx-click="cancel_place"])) |> render_click()
+    render_hook(live, "cancel_place", %{})
     assert has_element?(live, "#letterbox")
     assert tags_say(live) =~ "FINLAND"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
@@ -326,20 +344,33 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute unscoped =~ "AMINA"
   end
 
-  test "the cancel is the only exit while the roll of places is open", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
+  # THE WAY OUT IS THE GESTURE THAT GOT YOU IN, and there is no longer a control
+  # for it. A cancel X stood beside the place while these lived on a line above
+  # the list, always in view; behind the band it would be hidden by the very swipe
+  # somebody makes to leave. So the drawer IS the mode — the bar says whether it
+  # is open, the hook opens it on arrival and cancels it on the way out, and the
+  # server keeps `cancel_place` for the hook to call rather than for a button.
+  test "the drawer being open is what says the roll of places is open", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+    assert html =~ ~s(data-place-open="false")
     refute has_element?(live, ~s(button[phx-click="cancel_place"]))
 
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert has_element?(live, ~s(button[phx-click="cancel_place"]))
+    opened = live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    assert opened =~ ~s(data-place-open="true")
     assert has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+    refute has_element?(live, ~s(button[phx-click="cancel_place"])), "the swipe out is the cancel"
 
     # WORLD is a choice like any other, so pressing the box on an empty band
     # commits it rather than being inert.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
     assert tags_say(live) =~ "WORLD"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
-    refute has_element?(live, ~s(button[phx-click="cancel_place"]))
+    assert render(live) =~ ~s(data-place-open="false")
+
+    # And leaving without choosing is the same event, sent by the hook.
+    live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    render_hook(live, "cancel_place", %{})
+    assert render(live) =~ ~s(data-place-open="false")
   end
 
   test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do
@@ -361,25 +392,22 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
   end
 
-  # WHETHER THE LIST MOVES IS DRAWN, NOT SPELLED. It was the word LIVE beside the
-  # word PAUSED — same length, same weight, same place, so you had to read the
-  # letters to know which state you were in. A lamp that breathes or does not is
-  # the same answer without the reading.
-  test "live is a lamp, and it is the only thing that says so", %{conn: conn} do
+  # WHETHER THE LIST MOVES IS SHOWN ON THE BAND, and nowhere else. It was the
+  # word LIVE beside the word PAUSED — same length, same weight, same place, so
+  # you had to read the letters to know which state you were in — then a lamp in
+  # the settings, and now not a control at all: pausing is held back, the list is
+  # always live, and the three dots in the band report it where you are already
+  # looking rather than where you would have gone to change it.
+  test "live is on the band's own mark, not in a word", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
-    assert html =~ "live-lamp"
+    refute html =~ "live-lamp"
     refute tags_say(live) =~ "PAUSED"
     refute tags_say(live) =~ "LIVE"
+    refute has_element?(live, ~s(button[phx-click="toggle_live"]))
 
-    # THE BAND CARRIES IT TOO, on the dots — the lamp is where you change it, the
-    # band is where you are already looking.
     assert has_element?(live, ~s(#bar.is-live))
-    assert has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
-
-    live |> element(~s(button[phx-click="toggle_live"])) |> render_click()
-    refute has_element?(live, ~s(#bar.is-live))
-    refute has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
+    assert html =~ "focus-dot"
   end
 
   test "only the place lights, and only while the world is open", %{conn: conn} do
@@ -388,7 +416,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # a name's ink at rest, with terracotta as its HOVER — so a bare search for
     # the colour finds `hover:text-primary-600` and reports every tag as lit.
     lit = ~r/(list-place|list-scope)[^"]*(?<!:)text-primary-600/
-    tags = fn -> live |> element(".list-tags") |> render() end
+    tags = fn -> tags_html(live) end
 
     # NOTHING IS LIT OVER PEOPLE. Both tags were washed boxes and exactly one was
     # always on; as small tracked words at the head of the list, terracotta means
@@ -428,7 +456,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute boxes =~ "list-place"
     refute boxes =~ "list-scope"
 
-    tags = live |> element(".list-tags") |> render()
+    tags = tags_html(live)
     assert tags =~ "list-place"
     assert tags =~ "list-scope"
     refute tags =~ "letterbox"
@@ -566,10 +594,19 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # boxes on the right rail and read out of `.scope-boxes`; they are a caption at
   # the head of the list, because a place and a population are true of the LIST
   # and the rail is for the things that answer the BAND.
+  # TWO DRAWERS, ONE READING. The list's settings used to share a line and now
+  # share a track — one page for WHERE and one for WHO — so anything asking what
+  # the head of the list says has to ask both.
+  defp tags_html(live) do
+    render(live)
+    |> String.split(~s(class="list-tags))
+    |> tl()
+    |> Enum.map_join(" ", &(&1 |> String.split("</div>") |> hd()))
+  end
+
   defp tags_say(live) do
     live
-    |> element(".list-tags")
-    |> render()
+    |> tags_html()
     |> String.replace(~r/<[^>]*>/, " ")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()

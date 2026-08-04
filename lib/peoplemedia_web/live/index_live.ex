@@ -1037,23 +1037,24 @@ defmodule PeoplemediaWeb.IndexLive do
 
   # Stored rather than read through a function in the markup, which would switch
   # LiveView's change tracking off for the whole block.
-  # THE MARK COLUMN IS THE LIST'S, NOT THE ROW'S — and this is the assign that
-  # decides whether there is one at all.
+  defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
+
+  # WHAT THE MARK ON A ROW SAYS, and it is one question: are they round, and with
+  # what?
   #
-  # EVERY ROW HOLDS THE SLOT so that a name with a mark and a name without start
-  # in the same place. That is right within a list and wrong ACROSS lists: a
-  # visitor holds nobody, a letter is written to a SCOPE, so not one row on their
-  # surface can ever have a mark — and they were being shown twenty-six empty
-  # boxes indenting twenty-six names for a fact none of them has. The same is
-  # true of the PEOPLE tab for anybody: strangers, no correspondence, no marks.
+  # A ROUND WITHOUT A FRAME IS WORDS, which is what every round is today — frames
+  # are captured and there is nothing to capture with yet. The moment a round can
+  # carry one, this is the single line that has to learn about it, and both of the
+  # drawings it will reach for are already in the vocabulary.
   #
-  # An invisible thing that still takes room is the worst of both. Asked once per
-  # list rather than once per row, the column appears exactly when something can
-  # go in it, and the alignment it exists to protect is protected either way.
-  defp put_list(socket) do
-    list = current_list(socket.assigns)
-    assign(socket, list: list, marks: Enum.any?(list, & &1[:letter]))
-  end
+  # NO ROUND IS AN ANSWER TOO, and it is the commonest one on the list, which is
+  # exactly why it gets a drawing rather than a blank. It is also the QUIETEST of
+  # them: on a list of twenty names, most of them not round, anything loud here
+  # would be a column shouting about absence — and Law 1 says absence is silent.
+  defp round_mark(%{} = round) when map_size(round) > 0,
+    do: round[:frame] || "text"
+
+  defp round_mark(_not_round), do: "away"
 
   # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
   # places the place box is showing the band's own answer — it follows the
@@ -1785,36 +1786,42 @@ defmodule PeoplemediaWeb.IndexLive do
                 <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
                   <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
                     <div class="flex min-w-0 flex-1 items-start">
-                      <%!-- THE KIND MARK IS BACK ON THE LEFT — two eyes for a
-                           face, one mouth for a voice, the mouth struck through
-                           for a letter that is only words.
+                      <%!-- THE MARK IS ABOUT THEIR ROUND, NOT THEIR LETTERS.
 
-                           IT WAS TAKEN OFF WITH THE WRONG THING. What actually
-                           had to go was `2·0`, a round number beside an unread
-                           count, which is a database row wearing a serif — and
-                           the mark went out in the same sweep on the argument
-                           that nothing belongs on the left of a name. That
-                           argument proves too much. A mark is not a headline:
-                           it does not compete with the name because it is not
-                           WORDS, and it says the one thing about a
-                           correspondence you cannot get from a name.
+                           IT HUNG OFF THE LAST LETTER first, which made it a
+                           fact about the CORRESPONDENCE — and a correspondence
+                           is a thing only the two of you have. A visitor holds
+                           nobody, so not one row could carry a mark; the People
+                           tab was the same; and even between two people who
+                           write constantly the mark went blank the moment there
+                           was nothing new. A column that is empty for most rows
+                           most of the time is not a column.
 
-                           IT PAIRS WITH THE FLOW, and always did. The left mark
-                           says WHAT the last letter was and the right says
-                           WHICH WAY it went — one fact split across the row's
-                           two ends, and half of it was missing. See
-                           `Directory.summarise/1`, which has described both of
-                           them all along.
+                           A ROUND IS THE RIGHT SUBJECT. Everybody has an answer
+                           to it at every moment — they are round, or they are
+                           not — so the mark always says something, and what it
+                           says is the thing this whole surface exists to show.
+                           It is also the fact that CHANGES, which is what a
+                           glanceable mark is for; who last wrote to you does not
+                           change while you are looking at the list.
 
-                           EVERY ROW CARRIES ONE, filled or not. `kind={nil}`
-                           draws nothing and keeps the width, which is what
-                           stops a stranger's name — a letter is written to a
-                           SCOPE, so they have none — starting a mark's width
-                           left of everybody else's. --%>
+                           THE VOCABULARY IS ONE RECTANGLE AT FOUR ANGLES. Level
+                           is a mouth: here, saying something. Struck through at
+                           45° is words with no face and no voice, which is what
+                           every round is until frames are built. Upright is that
+                           same mouth CLOSED — not around. Two eyes are a face.
+                           When a round can carry a frame, `round_mark/1` is the
+                           one line that has to learn about it.
+
+                           IT NEVER LIGHTS. Terracotta means something is asking
+                           for you, and being round is an invitation rather than
+                           a demand — Law 1 says absence is silent, and its
+                           opposite is not a summons either. The FLOW on the
+                           right still lights, because an unopened letter really
+                           is asking. --%>
                       <.letter_glyph
-                        :if={@marks}
-                        kind={item[:letter] && item.letter.kind}
-                        lit={!!item[:letter] && item.letter.unread}
+                        :if={@list_mode == :people}
+                        kind={round_mark(item[:round])}
                         class="mr-3 -mt-[0.125em]"
                       />
                       <div class="min-w-0 flex-1 leading-tight">
@@ -2379,13 +2386,14 @@ defmodule PeoplemediaWeb.IndexLive do
           <div
             id="bar"
             phx-hook="Bar"
+            {%{"data-place-open" => to_string(@list_mode == :location)}}
             class={
               [
                 "bar pointer-events-none absolute top-(--band-top) left-0 flex w-(--list-w) -translate-y-1/2 items-center",
                 @mode in [:open, :self] && "is-picked",
                 # THE DOTS BREATHE FROM HERE. The state belongs to the LIST and
                 # the mark that shows it is in the band, so the class goes on the
-                # one element that contains both faces of it.
+                # one element that contains every face of it.
                 @live && "is-live",
                 # THE FORM HAS THE LINE. Two things on it would be two answers to
                 # "what is at the top of this list".
@@ -2429,118 +2437,96 @@ defmodule PeoplemediaWeb.IndexLive do
                  to find one of the three controls and pull on that. Nothing is
                  under this page worth reaching: when it is closed the bar's own
                  overflow has clipped it away entirely. --%>
-            <div class="list-tags bar-tags list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <%!-- ── IT IS SET LIKE A ROW, BECAUSE IT IS ONE OF THE BAND'S TWO
-                   FACES ────────────────────────────────────────────────────────
-                   A NAME AND A QUIET WORD BESIDE IT — exactly the shape the band
-                   shows on the other side, where a label is set at the row's own
-                   type and the person's own name hangs off it in grey. Two
-                   captions at --sub-type was the arrangement they had while they
-                   stood ABOVE the band, where they were furniture over a list and
-                   had to stay out of its way. In the band they are not over
-                   anything: they are what the band is currently about, and
-                   whispering it makes the box look empty.
+            <%!-- ── PAGE ONE: WHERE ─────────────────────────────────────────
+                 TWO DRAWERS, NOT ONE, and the second swipe is what makes the
+                 first one honest. They shared a page while there were three of
+                 them and the page was a row of small words; set like a row —
+                 which is what they are — one page holds one thing you can change,
+                 and choosing between them is the swipe rather than a hunt along a
+                 line.
 
-                   THE PLACE TAKES THE NAME'S VOICE because it is the one that
-                   changes what you are looking at. The population stays quiet and
-                   stays small — it is a fact you glance at, and at the name's
-                   size two things would be asking to be read at once, which is
-                   the failure the whole caption line was moved to fix. --%>
-              <div class="flex min-w-0 items-baseline gap-3">
-                <button
-                  type="button"
-                  phx-click="place_box"
-                  aria-pressed={to_string(@list_mode == :location)}
-                  class={[
-                    "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
-                    "transition-colors",
-                    "text-(length:--row-type) tracking-(--row-track) focus-visible:underline",
-                    tag_ink(@list_mode == :location)
-                  ]}
-                >
-                  {String.upcase(@box_place)}
-                </button>
+                 THE PLACE IS THE FURTHER ONE because it is the rarer act. You
+                 change population often and place seldom, so the cheap gesture
+                 goes to the cheap decision.
 
-                <%!-- THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
-                     inside one button for a reason beyond tidiness: this is what a
-                     reader parses as a single fact — "four relationships" — and
-                     splitting it across two controls would offer two answers to a
-                     question with one. --%>
-                <button
-                  type="button"
-                  phx-click="scope_box"
-                  aria-pressed={to_string(@list_mode == :people)}
-                  class={
-                    [
-                      "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-1.5",
-                      "outline-none",
-                      "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                      "focus-visible:underline",
-                      # THE SAME GREY THE BAND GIVES A PERSON'S OWN NAME, for the
-                      # same reason: it is the second thing on the line and it must
-                      # not read as a second heading.
-                      "text-neutral-400/70 hover:text-neutral-500",
-                      "dark:text-neutral-500/70 dark:hover:text-neutral-400"
-                    ]
-                  }
-                >
-                  <span class="font-bold">
-                    {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
-                  </span>
-                  <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
-                </button>
-              </div>
+                 ARRIVING HERE OPENS THE ROLL — the list becomes every country,
+                 under the band, and this page reads back whichever one is
+                 currently there. That is the answer to "swiping should change
+                 what the list is showing": the drawer is not a form you fill in
+                 and submit, it IS the mode, and you are in it exactly as long as
+                 it is open. Pressing takes the country under the band; swiping
+                 away puts back what you had. Neither needs a control of its own,
+                 which is why the cancel X that used to stand here is gone — it
+                 was the only way out while these lived above the list, and the
+                 gesture that got you here is a better one.
 
-              <%!-- ── WHETHER THE LIST MOVES ON ITS OWN ──────────────────────
-                 LIVE IS A CHOICE, and it belongs beside the other two facts about
-                 the list because it is one: where you are, which population, and
-                 whether it comes to you.
-
-                 OFF IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that said
-                 nothing would be a list quietly going stale; the number is the
-                 offer to catch up, and pressing it is the reader choosing the
-                 moment the ground moves under them.
-
-                 IT IS DRAWN NOW, NOT SPELLED. The word LIVE was a caption on a
-                 thing that was not there: text is what this surface uses for
-                 FACTS you read — a place, a population — and whether the ground
-                 is moving is a STATE, which should be visible without being read.
-                 Two beside each other made it worse, because PAUSED and LIVE are
-                 the same size and shape and you had to actually read the letters
-                 to know which one you were looking at.
-
-                 A LIT SQUARE THAT BREATHES, OR A HOLLOW ONE THAT DOES NOT. Same
-                 mark, two states, told apart at a glance and from the corner of
-                 the eye. Square because everything on this surface is; the
-                 vocabulary has no circles in it but the waiting dots, and those
-                 mean something else.
-
-                 SAGE, NOT TERRACOTTA. Terracotta is spent on the one thing that
-                 asks something of you, and a live list is not asking — it is
-                 REPORTING that it will keep up on its own, which is the sage
-                 half of this palette and the same voice the read-receipt arrow
-                 speaks in. Lit terracotta it would out-shout every unread mark
-                 in the list beneath it, permanently.
-
-                 THE WORD SURVIVES WHERE IT IS ACTUALLY NEEDED: `aria-label` says
-                 it in full, because a screen reader cannot see a square pulse. --%>
+                 IT READS THE BAND WITHOUT SHOWING IT. The band is off-screen
+                 while this page is up, so `@box_place` following the selection is
+                 not a nicety here — it is the only readout there is. --%>
+            <div class="list-tags bar-place list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
               <button
                 type="button"
-                phx-click="toggle_live"
-                aria-pressed={to_string(@live)}
-                aria-label={
-                  (@live && "Live — new rounds arrive on their own") ||
-                    "Paused — press to let new rounds arrive"
-                }
+                phx-click="place_box"
+                aria-pressed={to_string(@list_mode == :location)}
                 class={[
-                  "list-live pointer-events-auto flex shrink-0 cursor-pointer items-center",
-                  "outline-none focus-visible:ring-1 focus-visible:ring-current",
-                  @live && "is-live"
+                  "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
+                  "transition-colors",
+                  "text-(length:--row-type) tracking-(--row-track) focus-visible:underline",
+                  tag_ink(@list_mode == :location)
                 ]}
               >
-                <span class="live-lamp"></span>
+                {String.upcase(@box_place)}
+              </button>
+              <span class="shrink-0 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
+                PLACE
+              </span>
+            </div>
+
+            <%!-- ── PAGE TWO: WHO ───────────────────────────────────────────
+                 THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
+                 inside one button for a reason beyond tidiness: this is what a
+                 reader parses as a single fact — "four relationships" — and
+                 splitting it across two controls would offer two answers to a
+                 question with one.
+
+                 THIS ONE COMMITS AND STAYS COMMITTED, which is the difference
+                 between the two drawers and worth naming. A population is a
+                 TOGGLE: two sides, neither more chosen than the other, so
+                 pressing it is a decision and swiping away must not undo a
+                 decision. A place is a PICKER: it puts the list into a state you
+                 are visibly inside, and leaving that state is what closing it
+                 means. Same gesture, different consequences, because the two
+                 controls are different kinds of thing.
+
+                 THE COUNT TAKES THE NAME'S VOICE AND THE WORD STAYS QUIET —
+                 exactly the band's other face, where a label is set at the row's
+                 own type and the person's own name hangs off it in grey. --%>
+            <div class="list-tags bar-scope list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
+              <button
+                type="button"
+                phx-click="scope_box"
+                aria-pressed={to_string(@list_mode == :people)}
+                class={[
+                  "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-3",
+                  "outline-none transition-colors focus-visible:underline"
+                ]}
+              >
+                <span class="text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100">
+                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
+                </span>
+                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
+                  {(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}
+                </span>
               </button>
 
+              <%!-- OFF IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that
+                   said nothing would be a list quietly going stale; the number is
+                   the offer to catch up, and pressing it is the reader choosing
+                   the moment the ground moves under them.
+
+                   THE TOGGLE ITSELF IS GONE FOR NOW — the list is always live and
+                   the band's three dots say so. This is what would stand here if
+                   it were ever held again, and it costs nothing to leave. --%>
               <button
                 :if={!@live && @waiting > 0}
                 type="button"
@@ -2553,31 +2539,6 @@ defmodule PeoplemediaWeb.IndexLive do
                 ]}
               >
                 {@waiting} NEW
-              </button>
-
-              <%!-- THE WAY OUT THAT CHANGES NOTHING, and it travels with the control
-                   it undoes. Both tags COMMIT something when pressed, and the roll
-                   of places has no empty state to escape to — the band always holds
-                   a country, or reads WORLD, and WORLD is itself a choice. So
-                   leaving without choosing needs a door of its own. --%>
-              <button
-                :if={@list_mode == :location}
-                type="button"
-                phx-click="cancel_place"
-                aria-label="Leave the world without changing place"
-                class="pointer-events-auto cursor-pointer text-neutral-400/50 transition-colors outline-none hover:text-neutral-500 focus-visible:text-neutral-500 dark:text-neutral-500/60 dark:hover:text-neutral-400"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  class="size-[1.15em]"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="butt"
-                  aria-hidden="true"
-                >
-                  <path d="m5 5 14 14M19 5 5 19" />
-                </svg>
               </button>
             </div>
 
@@ -2678,7 +2639,7 @@ defmodule PeoplemediaWeb.IndexLive do
                    slot exists to prevent. The name beside it sets the same size
                    on itself; the empty box has no text to inherit it from. --%>
               <.letter_glyph
-                :if={@subject && @marks}
+                :if={@subject && @list_mode == :people}
                 kind={nil}
                 class="mr-3 text-(length:--row-type)"
               />

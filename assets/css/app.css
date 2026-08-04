@@ -1107,11 +1107,11 @@ html[data-theme="dark"] {
   scroll-snap-align: start;
 }
 /* THE SETTINGS WEAR THE BAND'S OWN WASH, because they are not a second object
-   beside it — they are its back. Mid-swipe the two pages read as one box turning
+   beside it — they are its back. Mid-swipe the pages read as one box turning
    over; drawn on the page colour instead, the band would appear to leave and
    something else to arrive, and the rows passing underneath would show straight
    through the settings while it happened. */
-.bar > .bar-tags {
+.bar > .list-tags {
   position: static;
   /* A TIGHTER INSET THAN THE NAME'S, and it is arithmetic rather than taste.
      Three controls and their gaps come to about 245px; --list-pad on both sides
@@ -1128,54 +1128,11 @@ html[data-theme="dark"] {
 }
 
 /* ── WHETHER THE GROUND IS MOVING ──────────────────────────────────────────────
-   ONE MARK, TWO STATES, AND IT IS DRAWN IN TWO PLACES. The LAMP on the settings
-   face is the control; the DOTS in the band are the same fact where you are
-   already looking. Neither is a second indicator: the lamp is where you go to
-   change it, the dots are where you notice it.
-
-   SAGE AND NOT TERRACOTTA — see the note in the template. A live list reports,
-   it does not ask, and terracotta is spent on asking. */
-.live-lamp {
-  width: 0.5rem;
-  height: 0.5rem;
-  background-color: var(--color-neutral-300);
-  transition: background-color 200ms ease-out;
-}
-.list-live:hover .live-lamp {
-  background-color: var(--color-neutral-400);
-}
-.list-live.is-live .live-lamp {
-  background-color: var(--color-secondary-600);
-  animation: lamp-breathe 2400ms ease-in-out infinite;
-}
-[data-theme="dark"] .live-lamp {
-  background-color: var(--color-neutral-700);
-}
-[data-theme="dark"] .list-live.is-live .live-lamp {
-  background-color: var(--color-secondary-400);
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .live-lamp {
-    background-color: var(--color-neutral-700);
-  }
-  html:not([data-theme]) .list-live.is-live .live-lamp {
-    background-color: var(--color-secondary-400);
-  }
-}
-/* NOT A FLASH. A blink says ALARM and this is the resting state of a page
-   somebody may sit on for an hour; it has to be legible at a glance and
-   invisible the rest of the time. Never fully out either — a mark that vanishes
-   reads as a rendering fault rather than as a rhythm. */
-@keyframes lamp-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
+   THE LAMP IS GONE WITH ITS TOGGLE. It stood in the settings as the control for
+   pausing the list, and pausing is held back for now — the list is always live.
+   What is left is the half that was never a control: the band's three dots, which
+   report the same fact where you are already looking rather than where you would
+   have gone to change it. */
 /* THE EMPTY BAND'S DOTS, IN TURN. Left to right, each a third of a cycle behind
    the last — the motion of a cursor waiting, which is what an empty band IS: the
    list is running and nothing has reached the middle of it yet.
@@ -1231,8 +1188,7 @@ html[data-theme="dark"] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bar.is-live .focus-dot,
-  .list-live.is-live .live-lamp {
+  .bar.is-live .focus-dot {
     animation: none;
   }
 }

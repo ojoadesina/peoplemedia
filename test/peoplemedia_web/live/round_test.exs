@@ -205,7 +205,12 @@ defmodule PeoplemediaWeb.RoundTest do
          %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
 
-      tags = live |> element(".list-tags") |> render()
+      tags =
+        render(live)
+        |> String.split(~s(class="list-tags))
+        |> tl()
+        |> Enum.map_join(" ", &(&1 |> String.split("</div>") |> hd()))
+
       assert tags =~ "FINLAND"
       assert tags =~ "RELATIONSHIPS"
 
@@ -411,9 +416,11 @@ defmodule PeoplemediaWeb.RoundTest do
       teller = person("TELLER")
       {:ok, live, _} = live(build_conn(), ~p"/")
 
-      live |> element(~s(button[phx-click="toggle_live"])) |> render_click()
-      # The word PAUSED used to be the whole of it; the lamp stops breathing now.
-      refute has_element?(live, ~s(button[phx-click="toggle_live"].is-live))
+      # PAUSING HAS NO CONTROL ON THE SURFACE FOR NOW — the list is always live and
+      # the band's dots say so. The machinery underneath is what this guards, so
+      # it is driven straight rather than through a button that is not there.
+      render_click(live, "toggle_live")
+      refute has_element?(live, ~s(#bar.is-live))
 
       round(teller, %{doing: "a book about rivers", audience: "public"})
       send(live.pid, :surface_stir)
