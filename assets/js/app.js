@@ -36,13 +36,14 @@ import {SubPanel} from "./hooks/sub_panel"
 import {Media} from "./hooks/media"
 import {Geolocation} from "./hooks/geolocation"
 import {Confirm} from "./hooks/confirm"
+import {Frame} from "./hooks/frame"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Scopes, Head, Bar, Presence, Stream, Screen, Panel, Launcher, LiveRoom, SubPanel, Media, Geolocation, Confirm},
+  hooks: {...colocatedHooks, Scopes, Head, Bar, Presence, Stream, Screen, Panel, Launcher, LiveRoom, SubPanel, Media, Geolocation, Confirm, Frame},
 })
 
 // Show progress bar on live navigation and form submits

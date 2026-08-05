@@ -27,6 +27,16 @@ defmodule PeoplemediaWeb.Router do
     live_session :surface,
       on_mount: {PeoplemediaWeb.Plugs.PassportAuth, :assign_current_person} do
       live "/", IndexLive
+
+      # THE FRAME, being tried at size before it replaces the list. In here rather
+      # than beside the other two exhibits below, because it draws the SAME people
+      # the surface draws — and outside this session it was handed the visitor's
+      # answer, which is everybody and nobody's letters. An exhibit fed different
+      # data from the thing it is standing in for is not an exhibit.
+      #
+      # Same terms as those two otherwise: a route that exists to settle a
+      # decision, deleted with the module once it is settled.
+      live "/ui", UiLive
     end
 
     # A reference exhibit of the old recorder UI, kept only while it is being
