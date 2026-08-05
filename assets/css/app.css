@@ -2589,21 +2589,21 @@ textarea {
   --doing-max: 50vh;
 
   /* ── THE FRAME ────────────────────────────────────────────────────────────
-     CLOSED, IT IS A BAND'S HEIGHT AND A HALF. The reference block is about a
-     fifth as tall as it is wide, which on a phone rail comes to seventy pixels —
-     not enough to hold a name at the size that makes it a name rather than a row
-     label. Held at a ratio of the ROW instead, it scales with the type between
-     screens the way everything else here does, and stays a block rather than
-     becoming a strip.
+     CLOSED, IT IS A LINE OF TYPE WITH AIR ROUND IT. It was a fifth as tall as it
+     was wide, because it was holding a picture; it holds nothing now — the
+     capture opens beneath it — so it is flatter, and the ratio is the head's
+     rather than the whole panel's. Bounded at both ends because a pure ratio
+     gives 48px on a phone, which cannot hold the name, and 147px on a wide
+     screen, which is a great deal of panel for one word.
 
      OPEN, IT TAKES WHAT A CAPTURE NEEDS AND NO MORE. Three quarters of the
      viewport, capped in rems so a tall desktop window does not hand one frame a
      page and a half. It is a portrait shape because a captured face is: the mark
      in the reference is a portrait rectangle, and that is the one piece of the
      drawing that says what shape the thing behind it has. */
-  --frame-ratio: 5 / 1;
-  --frame-min: 5.5rem;
-  --frame-max: 11rem;
+  --frame-ratio: 7.5 / 1;
+  --frame-min: 4.25rem;
+  --frame-max: 7rem;
   --frame-open: min(75vh, 34rem);
   /* WIDE ENOUGH TO READ AS SEPARATE BLOCKS AND NO WIDER. At a hairline they read
      as one striped object; at a row's height the page stops being a list of
@@ -3055,65 +3055,23 @@ textarea {
 
 
 /* ── THE FRAME ─────────────────────────────────────────────────────────────────
-   ONE FLAT BLOCK PER PERSON, and the page scrolls it. No list, no scroller
-   inside the page, no band across it — see PeoplemediaWeb.UiLive for what that
-   costs and what it buys.
+   ONE FLAT PANEL PER PERSON, and the page scrolls them. No list, no scroller
+   inside the page, no band across it — see PeoplemediaWeb.UiLive.
 
-   SQUARE AND FLAT, which is the one place this departs from the drawing it came
-   from. That block is a rounded glass panel floating over a photograph, and
-   neither half survives: every corner on this surface is square, and a
-   translucent pane with a blur behind it is something laid OVER content, when
-   this block IS the content. Rounded and glossy it is a card ABOUT a person;
-   flat and square it is the moment, with their name on it.
+   SQUARE, FLAT AND SOLID. The drawings this came from are rounded panels, one of
+   them glass over a photograph, and none of that survives: every corner here is
+   square, and a translucent pane with a blur behind it is something laid OVER
+   content.
 
-   THE TRANSITION IS ON HEIGHT ALONE. Everything inside it is positioned from the
-   block's own edges, so the picture, the scrim and the name all follow for free —
-   and a height that eases is the block growing, where a transform would be the
-   block being stretched. */
-/* THE CLOSED HEIGHT IS A PROPORTION OF THE WIDTH, not a number. Held at a fixed
-   height it was a different block on every screen — three-to-one on a phone,
-   nearly nine-to-one on a wide one — and the drawing this came from is one
-   proportion, about five to one. A frame is a picture's shape whether or not
-   there is a picture in it yet.
-
-   BOUNDED AT BOTH ENDS, because a pure ratio fails at both. Narrow, five-to-one
-   comes to seventy pixels, which cannot hold a name at the size that makes it a
-   name; wide, it comes to two hundred and twenty, which is a billboard for one
-   word. The clamps are where it stops being a block and starts being a strip or
-   a poster. */
-.frame {
-  aspect-ratio: var(--frame-ratio);
-  min-height: var(--frame-min);
-  max-height: var(--frame-max);
-  transition:
-    height 420ms cubic-bezier(0.22, 0.61, 0.24, 1),
-    max-height 420ms cubic-bezier(0.22, 0.61, 0.24, 1);
-}
-/* OPEN, THE PROPORTION GIVES WAY — a capture is portrait and the closed block is
-   emphatically not, so the ratio has to stop applying rather than be overridden
-   by a taller one. `max-height` moves with it or it would hold the block at its
-   closed cap and nothing would appear to happen. */
-.frame.is-open {
-  aspect-ratio: auto;
-  height: var(--frame-open);
-  max-height: var(--frame-open);
-}
-
-/* THE WASH IS THE FLOOR OF EVERY FRAME, not the livery of the empty ones.
-   Pictures are laid ON it, so a frame is never a hole in the page — and holes
-   were exactly what was happening: frames are CAPTURED and there is nothing to
-   capture with, so a face whose file does not exist yet had no background at
-   all and read as a rendering fault rather than as a face with nothing behind it
-   yet.
-
-   NEUTRAL, BECAUSE AN EMPTY FRAME IS NOT ASKING FOR ANYTHING. It is the
-   commonest state on this page by a long way, and terracotta means something
-   wants you. The same wash the band wore with no row in it, and the same one an
-   unanswered box on the rail wears.
-
-   A VOICE KEEPS IT RATHER THAN GAINING A PICTURE. Drawing one for a recording
-   would be a lie about what was captured; what tells a voice from an empty frame
-   is its MARK, which is the argument for having marks at all. */
+   AND IT OPENS LIKE A DRAWER, WHICH IS WHY THERE IS NO GRADIENT LEFT IN IT. The
+   picture used to BE the panel, with the name laid over it under a scrim — and a
+   scrim exists to keep words legible over an image, which is a problem you only
+   have because you put the words on the image. That arrangement also made every
+   row an advertisement for itself: whoever had last pointed a camera at
+   themselves was the loudest thing on the page, which is not what a list of
+   PEOPLE looks like. The name keeps its own line at the top and the capture
+   opens underneath it. Nothing is drawn over anything, so nothing has to be
+   faded to rescue it. */
 .frame {
   background-color: color-mix(in srgb, var(--color-neutral-400) 12%, var(--color-light-50));
 }
@@ -3126,12 +3084,55 @@ textarea {
   }
 }
 
-/* THE PICTURE IS THE BLOCK. Not inset, not a thumbnail beside a label, not a
-   background-image on a box that also holds text — an element of its own, filling
-   the frame, with everything else standing on top of it. `cover` because the
-   block's shape is the design's and the capture's shape is whatever it is; a
-   frame that changed proportion to suit its contents would make the page a
-   ragged column. */
+/* THE HEAD IS THE WHOLE OF A CLOSED FRAME and it never moves. Its height is what
+   makes the closed page a rhythm rather than a stack. */
+.frame-head {
+  aspect-ratio: var(--frame-ratio);
+  min-height: var(--frame-min);
+  max-height: var(--frame-max);
+}
+
+/* THE BODY IS SHUT BY HEIGHT, not by display. `display: none` cannot be eased,
+   and a drawer that appears rather than opens looks like a layout fault. Nothing
+   inside it can be reached while it is shut: the height is zero and the panel
+   clips. The bottom padding arrives with the opening so the capture has the same
+   air under it as beside it — set on the closed state it would hold every panel
+   permanently taller than its own head. */
+.frame-body {
+  height: 0;
+  overflow: hidden;
+  transition:
+    height 420ms cubic-bezier(0.22, 0.61, 0.24, 1),
+    padding-bottom 420ms cubic-bezier(0.22, 0.61, 0.24, 1);
+}
+.frame.is-open .frame-body {
+  height: var(--frame-open);
+  padding-bottom: var(--list-pad);
+}
+
+/* THE STAGE IS WHERE A CAPTURE SITS, and it keeps its own surface whether or not
+   there is anything in it yet — frames are CAPTURED and there is nothing to
+   capture with, so most of these are a shape with no file behind them. Darker
+   than the panel rather than lighter: a pale rectangle on a pale panel reads as
+   an image that failed to load, and a darker one reads as a place for one. */
+.frame-stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--color-neutral-500) 22%, var(--color-light-50));
+}
+[data-theme="dark"] .frame-stage {
+  background-color: color-mix(in srgb, var(--color-neutral-200) 10%, var(--color-dark-950));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .frame-stage {
+    background-color: color-mix(in srgb, var(--color-neutral-200) 10%, var(--color-dark-950));
+  }
+}
+
+/* `cover` because the stage's shape is the design's and a capture's shape is
+   whatever it is. A stage that changed proportion to suit its contents would
+   make the page ragged the moment two people captured differently. */
 .frame-media {
   position: absolute;
   inset: 0;
@@ -3140,25 +3141,10 @@ textarea {
   object-fit: cover;
 }
 
-/* AND THE NAME HAS TO STAY READABLE OVER IT. A gradient from the foot, not a
-   flat veil over the whole picture: the words are at the bottom, so that is the
-   only part that needs darkening, and dimming the rest would be dimming the
-   thing you opened the page to see. It stops well short of the top for the same
-   reason.
-
-   IT IS DRAWN ONLY WHERE THERE IS SOMETHING TO DARKEN. Over the flat wash of an
-   empty frame it would be a smudge with no cause. */
-.frame-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.28) 32%, transparent 62%);
-}
-
-/* THE NAME TAKES ITS COLOUR FROM WHAT IS BEHIND IT. On a picture it is white,
-   because a scrim can be relied on to be dark and the ordinary ink cannot be
-   relied on to be legible over a photograph. On the flat wash of an empty frame
-   it is the ordinary ink, because inventing a dark panel to put white text on
-   would be drawing a picture that is not there. */
+/* THE NAME AND ITS MARK TAKE THE ORDINARY INK, and now they can: they sit on the
+   panel's own flat surface and never on a picture, so there is no photograph to
+   be legible against and no reason to reach for white. That was the last thing
+   forcing a gradient. */
 .frame-name,
 .frame-mark {
   color: var(--color-light-900);
@@ -3173,17 +3159,6 @@ textarea {
     color: var(--color-dark-100);
   }
 }
-/* WHITE ONLY WHERE THERE IS A SCRIM TO BE WHITE ON. Keyed off the scrim rather
-   than off the KIND, because a kind is a promise and the scrim is the fact: a
-   face whose capture does not exist yet has no picture, no scrim and therefore
-   nothing dark to sit on, and white ink there would be a name written in the
-   page's own colour. `:has` asks the block what is actually in it. */
-.frame:has(.frame-scrim) .frame-name,
-.frame:has(.frame-scrim) .frame-mark,
-[data-theme="dark"] .frame:has(.frame-scrim) .frame-name,
-[data-theme="dark"] .frame:has(.frame-scrim) .frame-mark {
-  color: var(--color-light-50);
-}
 
 /* THE MARK IS SIZED OFF THE NAME, like every other mark on this surface, so the
    pair keeps its proportions from a phone to a wide screen without either being
@@ -3192,25 +3167,40 @@ textarea {
   font-size: var(--frame-type);
 }
 
-/* A VOICE PLAYING FILLS THE BLOCK IT HAS NO PICTURE FOR. Nothing else in an open
-   voice frame changes — there is nothing to show — so without this, pressing one
-   would look like pressing a wall. The wash carries the app's attention colour
-   here and only here, because a clip playing out loud on a page IS asking for
-   your attention, and it lasts exactly as long as the clip does. */
-.frame.is-open[data-kind="voice"] {
-  background-color: color-mix(in srgb, var(--color-primary-600) 18%, var(--color-light-50));
+/* HOW FAR THROUGH, ON THE PANEL'S OWN EDGE. It is the only thing a VOICE can
+   show — there is no picture to watch — and the only thing a face needs while it
+   is the thing you are watching. Driven by `--played`, the same custom property
+   the panel's stage is driven by, so the two cannot drift apart.
+
+   TERRACOTTA, AND THIS IS WHERE IT BELONGS. The colour means LOOK HERE, and a
+   clip running out loud on a page of otherwise still panels is the one thing on
+   the surface actually asking for you — for exactly as long as it lasts. Two
+   pixels: a hairline reporting a position, not a bar competing with the name
+   above it. */
+.frame-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: var(--played, 0%);
+  background-color: var(--color-primary-600);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
 }
-[data-theme="dark"] .frame.is-open[data-kind="voice"] {
-  background-color: color-mix(in srgb, var(--color-primary-500) 22%, var(--color-dark-950));
+[data-theme="dark"] .frame-progress {
+  background-color: var(--color-primary-500);
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .frame.is-open[data-kind="voice"] {
-    background-color: color-mix(in srgb, var(--color-primary-500) 22%, var(--color-dark-950));
+  html:not([data-theme]) .frame-progress {
+    background-color: var(--color-primary-500);
   }
+}
+.frame.is-playing .frame-progress {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .frame {
+  .frame-body {
     transition: none;
   }
 }

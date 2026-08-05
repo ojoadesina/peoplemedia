@@ -1,32 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-  <!-- A STAND-IN FOR A CAPTURED STILL, and it is drawn rather than photographed
-       on purpose: a photograph here would be indistinguishable from real content
-       that had arrived from somewhere, and this is neither. It exists so `still`
-       is a state somebody can look at while the design is being settled, and it
-       goes when there is a way to capture one.
+  <!-- A STAND-IN FOR A CAPTURED STILL. There are no captured stills in the data
+       and no way to make one yet, so without this, `still` — a quarter of the
+       design — would be a state nobody could look at while it is being settled.
+       It goes when there is a way to capture one.
 
-       NOTHING IN IT IS A SHAPE. It had a sun and three hills, which at a frame's
-       crop read as a crude drawing of a landscape — an illustration, which is a
-       kind of content, and the moment it looks like content it stops standing in
-       for content and starts competing with the design. Colour and blur only:
-       what a photograph looks like when you are not looking at it, which is
-       exactly what a frame's backdrop has to survive being. -->
-  <defs>
-    <linearGradient id="a" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#7d8a72" />
-      <stop offset="0.45" stop-color="#8d8391" />
-      <stop offset="1" stop-color="#3d4144" />
-    </linearGradient>
-    <radialGradient id="b" cx="0.72" cy="0.22" r="0.6">
-      <stop offset="0" stop-color="#e6dcc6" stop-opacity="0.55" />
-      <stop offset="1" stop-color="#e6dcc6" stop-opacity="0" />
-    </radialGradient>
-    <linearGradient id="c" x1="0" y1="1" x2="0.25" y2="0.15">
-      <stop offset="0" stop-color="#39462a" stop-opacity="0.9" />
-      <stop offset="1" stop-color="#39462a" stop-opacity="0" />
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="900" fill="url(#a)" />
-  <rect width="1200" height="900" fill="url(#b)" />
-  <rect width="1200" height="900" fill="url(#c)" />
+       FLAT, AND NOTHING IN IT IS A SHAPE. It was a blurred wash with a sun and
+       three hills in it, and both of those were mistakes of the same kind: the
+       hills read as an illustration and the blur read as a photograph, and the
+       moment a stand-in looks like content it stops standing in for content and
+       starts competing with the design it is there to let somebody judge. One
+       flat colour is a rectangle where a picture will be, which is all it was
+       ever asked to be. -->
+  <rect width="1200" height="900" fill="#8d8391" />
 </svg>

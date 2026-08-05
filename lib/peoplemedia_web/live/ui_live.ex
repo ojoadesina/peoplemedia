@@ -15,10 +15,19 @@ defmodule PeoplemediaWeb.UiLive do
   service of "which one are you looking at", and a frame answers that by being
   the size of the thing it is about instead of by being scrolled into a slot.
 
-  THE FRAME IS THE CONTENT, NOT A CARD AROUND IT. Empty, it is a flat wash with
-  a name on it — the resting state, and the commonest one. Filled, the captured
-  moment IS the surface: a still or a face fills the block and the name sits on
-  it under a scrim. Nothing is inset, nothing is a thumbnail beside a label.
+  THE FRAME IS A CONTAINER, AND IT HOLDS THE CAPTURE. It was tried the other way
+  first — the picture WAS the block, filling it edge to edge with the name laid
+  over it under a gradient — and that is a poster, not a person in a list. Every
+  row became an advertisement for itself, and the gradient was the tell: a scrim
+  exists to keep words readable over an image, which is a problem you only have
+  because you put the words on the image.
+
+  SO THE PANEL IS FLAT AND SOLID, and nothing is drawn on top of anything. It
+  opens like a drawer: the name stays on its line at the top, and what was
+  captured appears underneath it, inside the panel, with the panel's own surface
+  still visible around it. Closed, every frame is the same shape whatever is in
+  it — which is what a list of PEOPLE looks like, rather than a column of things
+  competing to be looked at.
 
   FOUR STATES: face, voice, still, empty. The mark on the right says which,
   using the vocabulary the rows already speak — one rectangle at four angles,
@@ -36,11 +45,14 @@ defmodule PeoplemediaWeb.UiLive do
 
   alias Peoplemedia.Directory
 
-  # A STAND-IN, AND NAMED AS ONE. There are no captured stills in the data and
-  # no way to make one yet, so `still` — a whole quarter of the design — would
-  # otherwise be a state nobody could look at. Drawn rather than photographed
-  # because a drawing cannot be mistaken for real content that arrived from
-  # somewhere; it goes when captures do.
+  # A STAND-IN, AND NAMED AS ONE. There are no captured stills in the data and no
+  # way to make one yet, so `still` — a whole quarter of the design — would
+  # otherwise be a state nobody could look at.
+  #
+  # FLAT, WITH NO GRADIENT IN IT. It was a blurred wash, which read as a
+  # photograph and therefore as content; the point of a stand-in is that it
+  # stands where content will be without pretending to be any. It goes when
+  # captures do.
   @still "/images/still-placeholder.svg"
 
   @impl true
@@ -120,75 +132,82 @@ defmodule PeoplemediaWeb.UiLive do
   attr :frame, :map, required: true
 
   @doc """
-  ONE BLOCK, FOUR STATES, AND IT OPENS.
+  ONE PANEL, FOUR STATES, AND IT OPENS LIKE A DRAWER.
 
-  SQUARE, AND FLAT. The shape it is drawn from is a rounded glass panel floating
-  over a photograph, and neither half of that survives here: every corner on this
-  surface is square, and a translucent panel with a blur behind it is a pane laid
-  OVER content, when this block IS the content. Rounded and glossy it would be a
-  card about a person; flat and square it is the moment itself, with their name
-  on it.
+  SQUARE, FLAT, AND SOLID. The drawings this came from are rounded panels — one
+  of them glass over a photograph — and none of that survives: every corner on
+  this surface is square, and a translucent pane with a blur behind it is
+  something laid OVER content. What is kept is the arrangement: a name on the
+  left, a mark on the right, on one line.
 
-  THE NAME SITS AT THE FOOT, not in the middle, and the mark sits opposite it on
-  the same line. That is the one thing taken unchanged from the reference: a name
-  low on a picture reads as a caption belonging to the picture, and a name
-  centred in a box reads as a label on a container.
+  THE NAME KEEPS ITS LINE WHEN IT OPENS. That is the whole difference between a
+  drawer and a poster. It was at the foot of a picture, over a gradient, and the
+  gradient was the tell — a scrim exists to keep words legible over an image,
+  which is only a problem if you put the words on the image. Here the words are
+  never on the image: the head stays where it was and the capture opens beneath
+  it, inside the panel, with the panel's surface still showing around it.
 
-  IT OPENS INTO ITSELF. Pressed, the block grows and the clip inside it plays —
-  no room, no overlay, no navigation. The frame is already the right shape for
-  its contents, so opening it is a matter of giving it more of the page rather
-  than moving what is in it somewhere else. Empty frames do not open, because
-  there is nothing behind them to see.
+  CLOSED, THEY ARE ALL THE SAME SHAPE. A person with a face captured and a
+  person with nothing look identical but for their mark, which is right for a
+  list of PEOPLE — the alternative is a column in which whoever last pointed a
+  camera at themselves is the loudest thing on your screen.
+
+  EMPTY FRAMES DO NOT OPEN, because there is nothing behind them to see.
   """
   def frame(assigns) do
     ~H"""
     <div
       id={"frame-#{@frame.id}"}
       phx-hook="Frame"
-      phx-mounted={JS.ignore_attributes(["class"])}
+      phx-mounted={JS.ignore_attributes(["class", "style"])}
       data-kind={@frame.kind}
       role={@frame.kind != "empty" && "button"}
       tabindex={@frame.kind != "empty" && "0"}
       aria-label={label_for(@frame)}
-      class={[
-        "frame relative flex w-full flex-col justify-end overflow-hidden",
-        "px-(--list-pad) pb-(--list-pad)",
-        @frame.kind != "empty" && "cursor-pointer"
-      ]}
+      class={["frame relative w-full overflow-hidden", @frame.kind != "empty" && "cursor-pointer"]}
     >
-      <%!-- THE PICTURE IS THE BACKGROUND, in the literal sense: it is behind
-           everything and it is the whole block. A still is an <img> and a face is
-           a <video> showing its first frame until it is asked to move, which is
-           what a poster IS — so no separate poster is needed and no still stands
-           in for a face that is right there. --%>
-      <img :if={@frame.kind == "still"} src={@frame.media} alt="" class="frame-media" />
-      <video
-        :if={@frame.kind == "face"}
-        src={@frame.media}
-        class="frame-media"
-        playsinline
-        preload="metadata"
-        muted
-      >
-      </video>
-      <%!-- A VOICE HAS NO PICTURE, and drawing one for it would be a lie about
-           what was captured. It gets the same wash an empty frame gets and is
-           told apart by its mark — which is the argument for having marks at
-           all. What it does have is a LENGTH, so opening it fills the block as
-           it plays: see .frame.is-open[data-kind="voice"]. --%>
-      <audio :if={@frame.kind == "voice"} src={@frame.media} preload="metadata"></audio>
-      <div :if={@frame.media && @frame.kind in ~w(still face)} class="frame-scrim"></div>
-
-      <div class="relative flex w-full items-end justify-between gap-6">
+      <%!-- THE HEAD IS THE WHOLE OF A CLOSED FRAME, and it does not move when the
+           panel opens. Everything else about this design follows from that. --%>
+      <div class="frame-head flex w-full items-center justify-between gap-6 px-(--list-pad)">
         <span class="frame-name min-w-0 truncate text-(length:--frame-type) tracking-(--frame-track)">
           {@frame.name}
         </span>
         <%!-- THE SAME VOCABULARY THE ROWS SPEAK — one rectangle at four angles,
              plus two eyes for a face — so a mark means the same thing wherever it
-             is drawn. It is bigger here because the block is, and for no other
-             reason. --%>
+             is drawn. It is bigger here because the panel is, and for no other
+             reason. It stands where the reference puts a `+`, and says more: a
+             plus would only tell you the panel opens, which is a thing you
+             discover once and then know for every row on the page. --%>
         <.letter_glyph kind={glyph_for(@frame.kind)} class="frame-mark shrink-0" />
       </div>
+
+      <%!-- WHAT WAS CAPTURED, WHEN YOU ASK FOR IT. Inset by the panel's own
+           padding rather than run to its edges, so the panel is visibly a thing
+           HOLDING a capture rather than a capture with a name printed on it. --%>
+      <div :if={@frame.kind != "empty"} class="frame-body px-(--list-pad)">
+        <div class="frame-stage">
+          <img :if={@frame.kind == "still"} src={@frame.media} alt="" class="frame-media" />
+          <video
+            :if={@frame.kind == "face"}
+            src={@frame.media}
+            class="frame-media"
+            playsinline
+            preload="metadata"
+          >
+          </video>
+          <%!-- A VOICE HAS NO PICTURE, and drawing one for it would be a lie about
+               what was captured. Its stage stays the panel's own surface; what
+               says it is playing is the line at the foot, which is the only thing
+               a recording actually has to show — how far through it you are. --%>
+          <audio :if={@frame.kind == "voice"} src={@frame.media} preload="metadata"></audio>
+        </div>
+      </div>
+
+      <%!-- HOW FAR THROUGH, AS A LINE ON THE PANEL'S OWN EDGE. The same idiom the
+           panel's stage already uses, driven by the same `--played`. It is the
+           only answer a voice can give, and the only one a face needs while it is
+           the thing you are looking at. --%>
+      <div :if={@frame.kind in ~w(face voice)} class="frame-progress" aria-hidden="true"></div>
     </div>
     """
   end
