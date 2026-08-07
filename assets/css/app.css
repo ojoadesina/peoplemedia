@@ -3050,3 +3050,33 @@ textarea {
     opacity 250ms ease,
     transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+
+/* ── NO BRACKETS ───────────────────────────────────────────────────────────────
+   They were drawn on the selection box and on the trailing box, and they meant
+   AIMING: this is the one the surface is pointing at. That was a mark worth
+   having while the band was a strip across a line of text and needed to say
+   which line; a band that is the exact height of a frame's head is already
+   shaped like the thing it has hold of, and corners drawn on top of it are the
+   same claim made twice.
+
+   WHAT SAYS IT INSTEAD IS THE GROUND. A captured item gives up its own wash so
+   the band's is the only one under it — see below — which is a stronger signal
+   than four corners because it changes the thing itself rather than annotating
+   it. */
+.bar .focus-box::before,
+.bar .focus-box::after,
+.scope-boxes .letterbox::before,
+.scope-boxes .letterbox::after {
+  content: none !important;
+}
+
+/* AND THE CAPTURED ITEM GIVES UP ITS GROUND. Two washes stacked — the head's own
+   grey under the band's terracotta — made the captured head a different colour
+   from every other head AND a different colour from the band, which is one
+   surface too many. With the head transparent the band's wash is the only one
+   there, so the thing you have hold of is drawn in exactly one colour and the
+   rest of the column is drawn in exactly one other. */
+.scopes-item.is-focused .frame-head {
+  background-color: transparent;
+}

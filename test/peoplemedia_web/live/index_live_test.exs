@@ -65,11 +65,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # could not carry a single mark, the PEOPLE tab could not either, and even a
   # busy thread went blank the moment nothing was new. A column that is empty for
   # most rows most of the time is not a column.
-  test "a row carries the round mark and the flow", %{conn: conn} do
+  test "an item carries a head, a word block, and no words of its own", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    assert rows =~ "letter-flow"
+    assert rows =~ "frame-head"
     refute rows =~ "tabular-nums"
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
@@ -82,9 +82,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
     # letters: they have no correspondence at all and they are still either round
     # or not.
+    # THE FLOW IS ABOUT WORDS NOW, so it is drawn on the block that holds them and
+    # only where a round has any. A stranger with no round has neither.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
     assert unscoped =~ "frame-head"
-    refute unscoped =~ "letter-flow", "no correspondence, so no direction to show"
+    assert unscoped =~ "frame-plate", "no correspondence, so no direction to show"
   end
 
   # NEVER LIT. Terracotta is spent on the one thing asking something of you, and

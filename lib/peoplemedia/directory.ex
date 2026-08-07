@@ -189,6 +189,11 @@ defmodule Peoplemedia.Directory do
 
     # ONE QUERY FOR THE WHOLE LIST, like every other answer here. A status is a
     # column on the person, so it costs a single select rather than a join.
+    # WHAT WAS SAID IN THEM. Asked for every live round at once, and only for the
+    # live ones: an expired round is off the surface, so its words have nothing
+    # to be drawn on.
+    words = Peoplemedia.Words.for_rounds(Enum.map(Map.values(rounds), & &1.id), viewer_id)
+
     statuses =
       Person
       |> Repo.all()
@@ -204,7 +209,10 @@ defmodule Peoplemedia.Directory do
          # folded into it: a caller that could not tell them apart would show a
          # status where a round belongs the first time somebody went quiet.
          status: statuses[id],
-         round: rounds[id],
+         # THE WORDS RIDE WITH THE ROUND THEY ARE IN, so a caller that has one has
+         # the other — the item draws them on the same block and would otherwise
+         # be reaching into two answers to fill one.
+         round: rounds[id] && Map.put(rounds[id], :words, words[rounds[id].id]),
          last_round: last[id]
        }}
     end)

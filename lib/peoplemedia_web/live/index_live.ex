@@ -1013,15 +1013,35 @@ defmodule PeoplemediaWeb.IndexLive do
   # LiveView's change tracking off for the whole block.
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-  # WHAT THE PLATE CALLS A ROUND. `name` is the column meant for it — a forum
-  # title over the words beneath — and nothing writes one yet, so the DOING
-  # stands in: it is the one sentence somebody typed about the round, which is
-  # the closest thing to a name it has until the field is filled.
-  defp round_name(item) do
-    case item[:round][:name] || item[:round][:doing] do
-      nil -> nil
-      "" -> nil
-      word -> String.upcase(word)
+  # WHAT THE WORD BLOCK SAYS, in order of what is actually there: the last thing
+  # said in the round, then the round's own name if nothing has been said yet,
+  # then the standing status if they are not round at all. Three answers to one
+  # question, and the block never says nothing.
+  defp plate_says(item) do
+    cond do
+      last = item[:round][:words][:last] -> String.upcase(last)
+      name = blank_to_nil(item[:round][:name] || item[:round][:doing]) -> String.upcase(name)
+      status = blank_to_nil(item[:status]) -> String.upcase(status)
+      true -> nil
+    end
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(word), do: word
+
+  defp word_count(item), do: item[:round][:words][:count] || 0
+
+  # THE PAIR IS BUILT FROM THE TWO DIRECTIONS rather than stored, so it cannot
+  # disagree with the count beside it. `:read` in both places because neither is
+  # asking anything of you — see the note on the arrows.
+  defp word_flow(item) do
+    case item[:round][:words] do
+      %{said: said, heard: heard} when said > 0 or heard > 0 ->
+        %{outgoing: (said > 0 && :read) || nil, incoming: (heard > 0 && :read) || nil}
+
+      _none ->
+        nil
     end
   end
 
@@ -1864,13 +1884,6 @@ defmodule PeoplemediaWeb.IndexLive do
                       >
                         {String.upcase(item.letter.when)}
                       </span>
-
-                      <%!-- THE ARROWS GET THEIR OWN BASE rather than the head's.
-                           They are drawn at 1.05em against a 20px row; at this
-                           block's 14px the same 1.05em lands under 15px, and a
-                           mark tuned to be quiet at 20 is merely hard to find at
-                           15. --%>
-                      <.letter_flow :if={item[:letter]} letter={item.letter} class="text-xl" />
                     </div>
 
                     <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
@@ -1896,50 +1909,71 @@ defmodule PeoplemediaWeb.IndexLive do
                          AND THE MOOD IS GONE FROM HERE. It was a coloured chip at
                          the trailing edge, which put a second thing to read on a
                          block that answers one question. --%>
+                    <%!-- ── THE WORD BLOCK ────────────────────────────────
+                         WHAT WAS LAST SAID IN THE ROUND, on one line. A round
+                         surfaces a person and names what it is about; this is
+                         what has actually been said once they were surfaced, and
+                         it is the reason to open it rather than a description of
+                         it. Where nothing has been said yet the block falls back
+                         to the round's own name, because a round with no words in
+                         it is still a round.
+
+                         ONE LINE AND TRUNCATED. A word is said into a room
+                         somebody is standing in, not sat down and composed; the
+                         block is the glimpse and opening the round is what asks
+                         for the rest.
+
+                         OFF-ROUND IT IS THE SAME BLOCK, TURNED DOWN. Not a badge
+                         — a badge is a thing ADDED to a block, and what is
+                         happening is that the block is INERT: nobody is round,
+                         there is nothing to join. Held back in its ground, and in
+                         its ink only as far as it can go while staying READABLE.
+                         Disabled is a state you can see, not a thing you have to
+                         squint at; the last pass took the ink so far down that
+                         the status was gone rather than quiet. --%>
                     <div class={[
                       "frame-plate flex h-16 items-center gap-3 px-(--list-pad)",
-                      (round_name(item) && "bg-neutral-100 dark:bg-dark-900") ||
-                        "bg-neutral-100/60 dark:bg-dark-900/50"
+                      (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
+                        "bg-neutral-100/50 dark:bg-dark-900/40"
                     ]}>
-                      <%!-- OFF-ROUND, THE PLATE IS TURNED DOWN RATHER THAN
-                           FILLED. It held a badge for a while, which was the
-                           wrong drawing twice over: a badge is a thing added to a
-                           block, and what is actually happening is that the block
-                           itself is INERT — nobody is round, there is nothing to
-                           join, and the standing status is a label on that state
-                           rather than an object sitting in it.
-
-                           SO IT IS THE SAME BLOCK, DISABLED. Same height, same
-                           inset, same word — held back in ground and in ink, and
-                           carrying no count, because a disabled thing with a
-                           number on it is asking you to act on something that is
-                           not there. A round's plate and an off-round plate are
-                           one object in two states, which is what makes the
-                           difference readable without either of them explaining
-                           itself. --%>
                       <p class={[
-                        "min-w-0 truncate text-md tracking-[0.08em]",
-                        (round_name(item) && "text-neutral-900 dark:text-dark-100") ||
-                          "text-neutral-400 dark:text-neutral-600"
+                        "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
+                        (item[:round] && "text-neutral-900 dark:text-dark-100") ||
+                          "text-neutral-500 dark:text-neutral-400"
                       ]}>
-                        {round_name(item) || (item[:status] && String.upcase(item.status))}
+                        {plate_says(item)}
                       </p>
 
-                      <%!-- HOW MUCH IS WAITING, at the trailing edge, and only on
-                           a live round. It counts what has come IN and not been
-                           opened — the one thing a row can be asking of you — so
-                           it takes terracotta as a GROUND rather than as ink: it
-                           holds a number, and a badge that only recoloured its
-                           digit would be the faintest thing on the block.
+                      <%!-- WHICH WAY THE WORDS HAVE GONE. It was on the head,
+                           about LETTERS, which are written to a scope and so are
+                           a fact about the two of you; a word is said in a round
+                           and is a fact about the round. The pair belongs on the
+                           block that holds them.
 
-                           ABSENT, NOT ZERO. A column of "0" badges is a column
-                           reporting an absence, and Law 1 is that absence is
-                           silent. --%>
+                           BOTH QUIET. An unopened letter is asking for you and
+                           lights; a round you have spoken in is not asking
+                           anything, it is telling you where you stand in it. --%>
+                      <.letter_flow
+                        :if={word_flow(item)}
+                        letter={word_flow(item)}
+                        class="shrink-0 text-xl"
+                      />
+
+                      <%!-- HOW MANY WORDS ARE IN THERE. A word is threaded, so a
+                           round is a door onto a stack of them, and the count is
+                           the one thing worth saying about a stack before you
+                           open it: whether there is a conversation in there or
+                           just the sentence you are looking at.
+
+                           ABSENT, NOT ZERO, and never on an off-round plate. A
+                           column of "0" badges is a column reporting an absence —
+                           Law 1 — and a disabled block with a number on it asks
+                           you to act on something that is not there. --%>
                       <span
-                        :if={round_name(item) && (item[:letter][:waiting] || 0) > 0}
-                        class="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center bg-primary-600 px-1.5 text-sm tracking-[0.08em] text-light-50 dark:bg-primary-500 dark:text-dark-950"
+                        :if={word_count(item) > 0}
+                        class="flex h-5 min-w-5 shrink-0 items-center justify-center bg-primary-600 px-1.5 text-sm tracking-[0.08em] text-light-50 dark:bg-primary-500 dark:text-dark-950"
                       >
-                        {item.letter.waiting}
+                        {word_count(item)}
                       </span>
                     </div>
                   </div>

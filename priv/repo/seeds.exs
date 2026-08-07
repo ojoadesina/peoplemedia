@@ -285,3 +285,39 @@ for {name, said} <- rounds,
 end
 
 IO.puts("round: #{length(rounds)} of them")
+
+# ── AND WORDS INSIDE THE ROUNDS ───────────────────────────────────────────────
+# A round surfaces a person; the words are what gets said once they are surfaced.
+# The surface draws two things from them — the last one, on the item's second
+# block, and how many there are, at its trailing edge — so a sheet where every
+# round held the same number would show neither working.
+#
+# SOME ROUNDS HOLD NONE. Going round is one tap and saying something is another,
+# so a round nobody has spoken in yet is the commonest state there is and the one
+# the design has to survive: no count, and a block with only the round's name.
+#
+# BOTH DIRECTIONS. Some are the creator's, some are ojo's, because the arrows on
+# an item say which way the conversation has gone and a thread that only ever ran
+# one way would draw one arrow for ever.
+alias Peoplemedia.Words
+
+said = [
+  ["Nearly there. The beetroot is winning."],
+  [],
+  ["Third lap.", "Rain held off.", "Legs gone."],
+  ["Anyone seen my other glove"],
+  [],
+  ["Halfway up and regretting the shoes", "Worth it for the view though"],
+  ["Two episodes in"],
+  []
+]
+
+Peoplemedia.Repo.all(Peoplemedia.Rounds.Round)
+|> Enum.with_index()
+|> Enum.each(fn {round, i} ->
+  for {body, n} <- Enum.with_index(Enum.at(said, rem(i, length(said)))) do
+    # EVERY OTHER ONE IS OJO'S, so both arrows have something to say.
+    who = if rem(n, 2) == 1, do: me.id, else: round.person_id
+    {:ok, _} = Words.say(round.id, who, body)
+  end
+end)
