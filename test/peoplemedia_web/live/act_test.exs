@@ -27,9 +27,11 @@ defmodule PeoplemediaWeb.ActTest do
 
       live |> element("#self") |> render_click()
       assert has_element?(live, "#panel")
-      # The header carries your own name — a label is what you call somebody
-      # else, and you do not call yourself anything.
-      assert live |> element(".focus-name") |> render() =~ "OJO"
+      # YOUR OWN NAME IS ON THE PAGE, and it is your NAME — a label is what you
+      # call somebody else, and you do not call yourself anything. It was carried
+      # by the band, lifted into a header; there is no band, so the panel carries
+      # it as it carries anybody's.
+      assert render(live) =~ "OJO"
 
       live |> element("#self") |> render_click()
       refute has_element?(live, "#panel")

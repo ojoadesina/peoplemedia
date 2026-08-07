@@ -300,6 +300,27 @@ defmodule PeoplemediaWeb.IndexLive do
     {:noreply, socket |> assign(selected: index) |> put_current()}
   end
 
+  # ── OPENING SOMEBODY, IN ONE PRESS ──────────────────────────────────────────
+  # IT USED TO TAKE TWO, and neither of them was a decision. You scrolled a row
+  # into the band — `select` — and then pressed the band to open it. The first
+  # was the price of having a band at all: a column of small rows needs a way to
+  # nominate one, and scrolling was it. With the band gone there is nothing to
+  # nominate, so the press that opens somebody is the only press there is.
+  #
+  # IT STILL SETS `selected`, because everything downstream of the old band reads
+  # it — `put_current/1`, the boxes that were beside it, the panel's own keying.
+  # The index is found here rather than sent from the client, so the client never
+  # has to know what position anybody is in.
+  def handle_event("open_item", %{"id" => id}, socket) do
+    index = Enum.find_index(socket.assigns.list, &(&1[:id] == to_id(id)))
+
+    {:noreply,
+     socket
+     |> assign(selected: index, mode: :open)
+     |> put_current()
+     |> put_subject()}
+  end
+
   def handle_event("deselect", _params, socket) do
     # There is no such thing as an open view of nobody.
     {:noreply, socket |> assign(selected: nil, mode: :list) |> put_current()}
@@ -968,32 +989,6 @@ defmodule PeoplemediaWeb.IndexLive do
   defp other_scope("SCOPED"), do: "UNSCOPED"
   defp other_scope(_unscoped), do: "SCOPED"
 
-  # ── WHICH TAG IS LIT ────────────────────────────────────────────────────────
-  # ONLY THE PLACE, AND ONLY WHEN THE ROLL OF THE WORLD IS OPEN.
-  #
-  # The two used to be washed boxes on the right rail and exactly one was lit at
-  # a time — whichever the list was obeying. That was right for boxes and is
-  # wrong for a caption: as small tracked words at the head of the list, a lit
-  # population would read as a WARNING rather than as a state, and terracotta on
-  # this surface is rationed to the one thing asking something of you.
-  #
-  # AND THE POPULATION HAS NO CHOSEN STATE TO SHOW. It is a toggle you can press
-  # from either side, and neither side is more selected than the other. The place
-  # is different: it can be OPEN, with the whole world scrolling under the band,
-  # and that is a state worth a colour.
-  #
-  # It takes a BOOLEAN rather than assigns, so the caller still names the assign
-  # it depends on and change tracking holds.
-  defp tag_ink(true), do: "text-primary-600 dark:text-primary-500"
-
-  # AT REST IT TAKES THE NAME'S INK, because it is now set like a name. It was a
-  # grey caption while it stood in a line of captions ABOVE the band, where it had
-  # to stay out of the list's way. In the band it IS the band's subject — the
-  # place this whole list is of — and a heading whispered in the colour of a
-  # timestamp reads as a box somebody forgot to fill in.
-  defp tag_ink(false),
-    do: "text-light-900 hover:text-primary-600 dark:text-dark-100 dark:hover:text-primary-500"
-
   # AN ID OFF THE WIRE IS A STRING, and an id from anywhere else is not. The
   # browser only ever sends the first kind, so this looks redundant until
   # something calls these directly — and then it is the difference between a
@@ -1039,22 +1034,257 @@ defmodule PeoplemediaWeb.IndexLive do
   # LiveView's change tracking off for the whole block.
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-  # WHAT THE MARK ON A ROW SAYS, and it is one question: are they round, and with
-  # what?
-  #
-  # A ROUND WITHOUT A FRAME IS WORDS, which is what every round is today — frames
-  # are captured and there is nothing to capture with yet. The moment a round can
-  # carry one, this is the single line that has to learn about it, and both of the
-  # drawings it will reach for are already in the vocabulary.
-  #
-  # NO ROUND IS AN ANSWER TOO, and it is the commonest one on the list, which is
-  # exactly why it gets a drawing rather than a blank. It is also the QUIETEST of
-  # them: on a list of twenty names, most of them not round, anything loud here
-  # would be a column shouting about absence — and Law 1 says absence is silent.
-  defp round_mark(%{} = round) when map_size(round) > 0,
-    do: round[:frame] || "text"
+  attr :item, :map, required: true
+  attr :mode, :atom, required: true
 
-  defp round_mark(_not_round), do: "away"
+  @doc false
+  # ── AN ITEM IS A FRAME, AND WHAT THEY ARE ROUND WITH ────────────────────────
+  #
+  # TWO BLOCKS, NOT ONE PANEL. They were one row, which made the person a
+  # property of what they had done — a byline over the thing you were actually
+  # being shown. Split, the person is a block in their own right standing over a
+  # block of their own round, and the column reads as PEOPLE WITH THINGS UNDER
+  # THEM rather than as posts that happen to be signed.
+  #
+  # AND THE SECOND BLOCK IS ABSENT WHEN THERE IS NO ROUND. Most people are not
+  # round most of the time; an empty panel under every name would be the column
+  # reporting an absence fourteen times over, and Law 1 is that absence is
+  # silent. A person with nothing on is one block, and that is the resting state.
+  #
+  # A COUNTRY IS ONE BLOCK TOO, and never more: a place has no round, no letters
+  # and no age. It carries its two counts where a person carries their age.
+  def feed_item(assigns) do
+    ~H"""
+    <.frame_block item={@item} mode={@mode} />
+
+    <%!-- THE JOIN: A SHORT STROKE STANDING IN THE GAP. It says the two blocks
+         are one item — without it they are a frame and a panel that happen to be
+         near each other, and the eye has to be told which round belongs to which
+         name every time it lands.
+
+         IT IS ALSO THE GAP. The 0.5rem is this element's own height rather than a
+         `gap` on the column, so the air between the blocks and the mark crossing
+         that air are one measurement and cannot drift apart.
+
+         A GUTTER IN, NOT FLUSH. It stands where the name above it starts and the
+         doing below it starts, so it reads as belonging to the words rather than
+         to the box. Flush to the edge it was merely the edge continuing, which
+         says nothing the edge was not already saying. --%>
+    <div :if={round_text(@item)} class="flex h-2 pl-4" aria-hidden="true">
+      <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
+    </div>
+
+    <%!-- AND IT OPENS THE SAME PERSON. The two blocks are one item, so pressing
+         either has to mean the same thing — a stroke saying they belong together
+         while only the top half answered would be the item contradicting itself.
+         It carries no swipe of its own: the acts belong to the PERSON, and the
+         person is the block above. --%>
+    <div
+      :if={round_text(@item)}
+      phx-click={@mode == :people && "open_item"}
+      phx-value-id={@item[:id]}
+      class={[
+        "flex h-16 items-center gap-3 bg-neutral-100 px-4 dark:bg-dark-900",
+        @mode == :people && "cursor-pointer"
+      ]}
+    >
+      <%!-- WHAT THEY ARE UP TO, AT ITS OWN WIDTH. It is a room's name — short,
+           deliberate, the thing you would say to tell somebody which round you
+           meant — so it takes the width it needs and truncates rather than being
+           padded out to fill the rail, which would make it read as a field. --%>
+      <p class="min-w-0 truncate text-md tracking-[0.08em] text-neutral-900 dark:text-dark-100">
+        {round_text(@item)}
+      </p>
+
+      <%!-- HOW THEY ARE, AS A COLOUR, at the trailing edge where a count of
+           words will go once words exist. It is the one place on this surface
+           that carries a hue of its own; the word keeps the ordinary ink and the
+           WASH carries the family, at a strength that can never outshout an
+           unread mark. --%>
+      <span
+        :if={@item[:round][:mood]}
+        class="mood-box ml-auto flex h-5 shrink-0 items-center px-2 text-sm tracking-[0.08em] text-neutral-700 dark:text-dark-200"
+        data-family={@item[:round][:family]}
+      >
+        {String.upcase(@item.round.mood)}
+      </span>
+    </div>
+    """
+  end
+
+  attr :item, :map, required: true
+  attr :mode, :atom, required: true
+
+  # THE FRAME: WHO, ON ONE LINE, AND WHAT IT IS WORTH TO YOU.
+  #
+  # THE NAME STARTS ON THE EDGE WITH NOTHING BEFORE IT. The kind mark used to
+  # lead, which put a SECONDARY answer — what sort of thing this is — in front of
+  # the primary one. A column of people is scannable because the first characters
+  # of the names line up and the eye runs down them without stopping.
+  #
+  # SO THE MARKS TRAIL, as one group: age, then flow. What it is, when it was, how
+  # it stands with you — all three are answers you want AFTER you know who, and
+  # they sit where you look after reading a name.
+  #
+  # WHERE A FACE WAS CAPTURED THE WHOLE FRAME IS THAT CAPTURE, edge to edge, with
+  # the name laid over it. A face is what somebody captured OF themselves, so on
+  # their own frame it is the substrate rather than something attached to one.
+  defp frame_block(assigns) do
+    ~H"""
+    <div class="relative h-14 overflow-hidden text-md">
+      <%!-- THE SWIPE SURVIVED THE ROWS. Scoping somebody, unscoping them and
+           writing to them were behind a sideways drag on the old row, and they
+           are the only way any of those three happen — a redesign that dropped
+           them would have made this column beautiful and inert. At rest the
+           frame is exactly the frame; the acts are one drag away, where they
+           have always been.
+
+           NO JAVASCRIPT AT ALL: two snap points, `snap-mandatory` to rest on one
+           or the other, and the browser doing the dragging, the momentum and the
+           rubber-banding. `overscroll-x-contain` keeps a sideways drag from
+           becoming a browser back-gesture, and `touch-pan` keeps it from
+           fighting the page it sits in — two scrollers at right angles in the
+           same pixel, each needing the other to keep out of its axis. --%>
+      <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
+        <div
+          phx-click={@mode == :people && "open_item"}
+          phx-value-id={@item[:id]}
+          class={[
+            "relative flex h-full w-full shrink-0 snap-start items-center gap-3 px-4",
+            @mode == :people && "cursor-pointer",
+            (face(@item) && "text-light-50") || "bg-neutral-100 dark:bg-dark-900"
+          ]}
+        >
+          <video
+            :if={face(@item)}
+            src={@item[:media]}
+            autoplay
+            muted
+            loop
+            playsinline
+            aria-hidden="true"
+            class="absolute inset-0 size-full object-cover"
+          >
+          </video>
+          <%!-- THE SCRIM AND THE SHADOW BOTH, and they are the app's own answer
+               copied rather than reinvented — `.stage.is-face` lays this ramp
+               over a capture and `.panel-item[data-kind="face"]` carries this
+               shadow. The wash holds the light end of the picture down; the
+               shadow holds the type up over whatever the wash misses. A video is
+               a moving background, so nothing static can be relied on to be dark
+               where a word happens to fall. --%>
+          <span
+            :if={face(@item)}
+            class="absolute inset-0 bg-linear-to-b from-black/65 via-black/35 to-black/25"
+            aria-hidden="true"
+          >
+          </span>
+
+          <p class={[
+            "relative min-w-0 flex-1 truncate tracking-[0.1em]",
+            face(@item) && "on-capture"
+          ]}>
+            {String.upcase(@item[:label] || @item[:name])}
+          </p>
+
+          <%!-- A COUNTRY CARRIES ITS TWO COUNTS where a person carries their
+               age: how many there you hold, and how many you do not. --%>
+          <span
+            :if={@mode == :location}
+            class="relative shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+          >
+            {@item.scopes} · {@item.unscopes}
+          </span>
+
+          <%!-- AN AGE IS AN ASIDE and is drawn like one. It was tracked far
+               enough apart to occupy a name's worth of rail, which made it a
+               second heading; enough to keep capitals from touching, no more. --%>
+          <span
+            :if={@item[:letter][:when]}
+            class={[
+              "relative shrink-0 text-sm tracking-[0.08em]",
+              (face(@item) && "text-light-100 on-capture") ||
+                "text-neutral-400 dark:text-neutral-500"
+            ]}
+          >
+            {String.upcase(@item.letter.when)}
+          </span>
+
+          <%!-- THE ARROWS GET THEIR OWN BASE rather than the row's. They are
+               drawn at 1.05em and tuned against a 20px row; at this row's 14px
+               the same 1.05em came out under 15px, and a mark tuned to be quiet
+               at 20 is merely hard to find at 15. --%>
+          <.letter_flow
+            :if={@item[:letter]}
+            letter={@item.letter}
+            class={["relative text-xl", face(@item) && "on-capture-mark"]}
+          />
+        </div>
+
+        <%!-- TWO ACTS. The first changes what you are to each other and says
+             which change is outstanding — see `row_act/1`. The second is always
+             the same word.
+
+             UNSCOPING IS NOT DONE ON ONE PRESS. Everything else here opens a
+             room and asks something; this one would act, immediately and
+             irreversibly, on a control you reach by dragging — which is exactly
+             the gesture a thumb makes by accident on a moving column. So it ARMS
+             instead, and the toast asks for the second press. --%>
+        <div :if={@mode == :people} class="flex h-full shrink-0 snap-start">
+          <button
+            type="button"
+            data-open-room={(@item[:label] && "") || "scope"}
+            data-unscope={(@item[:label] && @item.id) || nil}
+            phx-click={(@item[:label] && "unscope") || "pick_person"}
+            phx-value-id={@item.id}
+            phx-value-act="scope"
+            class={[
+              "row-scope flex h-full cursor-pointer items-center px-6",
+              "text-sm tracking-[0.08em] transition-colors",
+              (@item[:label] &&
+                 "bg-primary-600/15 text-primary-700 hover:bg-primary-600/25 dark:bg-primary-500/25 dark:text-primary-200") ||
+                "bg-neutral-200 text-neutral-600 hover:bg-neutral-300 dark:bg-dark-800 dark:text-dark-200"
+            ]}
+          >
+            {row_act(@item)}
+          </button>
+          <button
+            type="button"
+            data-open-room="write"
+            phx-click="pick_person"
+            phx-value-id={@item.id}
+            phx-value-act="write"
+            class={[
+              "row-scope flex h-full cursor-pointer items-center px-6",
+              "text-sm tracking-[0.08em] transition-colors",
+              "bg-neutral-200 text-neutral-600 hover:bg-neutral-300",
+              "dark:bg-dark-800 dark:text-dark-200 dark:hover:bg-dark-700"
+            ]}
+          >
+            WRITE
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # A FACE IS A FACE WITH A FILE BEHIND IT. Frames are captured and there is
+  # nothing to capture with yet, so most of these are a kind with no clip — and a
+  # frame that styled itself for a video it does not have would be a black block
+  # with white type on the page's own colour.
+  defp face(item), do: item[:frame] == "face" && item[:media]
+
+  # THE ROUND'S OWN WORDS, and nothing invented when there are none. A round with
+  # no doing on it is somebody saying only "I am here", which the frame already
+  # says — so there is no second block to draw.
+  defp round_text(item) do
+    case item[:round][:doing] do
+      nil -> nil
+      "" -> nil
+      doing -> String.upcase(doing)
+    end
+  end
 
   # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
   # places the place box is showing the band's own answer — it follows the
@@ -1203,10 +1433,20 @@ defmodule PeoplemediaWeb.IndexLive do
     ~H"""
     <div
       id="scopes"
-      class={[
-        "app-root fixed inset-0 z-0 bg-light-50 font-mono dark:bg-dark-950",
-        @mode in [:open, :self] && "is-open"
-      ]}
+      class={
+        [
+          # NOT FIXED ANY MORE, and not cream either. It was pinned to the
+          # viewport so that the scroller inside it could own the scroll — with the
+          # page itself scrolling, a fixed root would clip the column at the fold.
+          #
+          # AND THE GROUND IS A TRUE GREY. The `light-*` ramp runs cream to cocoa
+          # and belongs to the surface's own furniture; a column of posts reads as
+          # a column of posts in untinted greys, which is what `neutral-*` is
+          # reserved for — chrome that must not pick up a temperature.
+          "app-root relative z-0 min-h-dvh bg-neutral-50 font-mono dark:bg-dark-950",
+          @mode in [:open, :self] && "is-open"
+        ]
+      }
     >
       <%!-- ── THE APP LINE ─────────────────────────────────────────────────────
            The mark belongs to the APP, not to the list, so it takes its position
@@ -1573,7 +1813,14 @@ defmodule PeoplemediaWeb.IndexLive do
         pending={@pending}
       />
 
-      <div class="rail flex h-screen flex-col pt-(--body-top)">
+      <%!-- THE PAGE IS WHAT SCROLLS. This was `h-screen` with a scroller inside
+           it, because the band had to stay at a fixed point while rows moved
+           under it — a viewport-height box holding a viewport-height list. With
+           no band there is nothing to hold still, so the shell stops being a
+           frame around a scroller and simply grows to whatever the column is. On
+           a phone that also gives back the browser chrome's own collapse, which
+           an inner scroller can never do. --%>
+      <div class="rail flex min-h-dvh flex-col pt-(--body-top)">
         <%!-- THE LINE, on the content edge with the mark above it and the names
              below. Every WORD on this surface now starts here; the bare rail is
              left to structure — where a fill begins and where a trailing box
@@ -1601,7 +1848,12 @@ defmodule PeoplemediaWeb.IndexLive do
              forgotten becomes the most awkward thing on the page. The clamp
              shrinks the TYPE rather than the tracking, because the tracking is
              what makes it read as a standing sentence rather than as a row. --%>
-        <p class="lede text-(length:--lede-type) tracking-[0.15em] whitespace-nowrap text-neutral-250 dark:text-neutral-750">
+        <%!-- ON THE COLUMN'S MEASURE, NOT THE RAIL'S. The rail is the page's full
+             width and the column is 26rem centred in it, so a strapline left on
+             the rail started half a screen away from the names it stands over —
+             two things claiming to be the top of the same page from two
+             different edges. One measure. --%>
+        <p class="lede mx-auto w-full max-w-[26rem] px-4 text-(length:--lede-type) tracking-[0.15em] whitespace-nowrap text-neutral-250 dark:text-neutral-750">
           SO YOU DON'T DO LIFE ALONE
         </p>
 
@@ -1617,7 +1869,7 @@ defmodule PeoplemediaWeb.IndexLive do
              and adds none), which is what lets the bar's top:34% and the band
              the hook measures at 34% of the scroller be the same line. --%>
         <div class={[
-          "stage-box relative mt-6 min-h-0 w-full flex-1",
+          "stage-box relative mt-6 w-full",
           @mode in [:open, :self] && "list-away"
         ]}>
           <%!-- NO phx-update="ignore", and its going was the right call — the
@@ -1691,276 +1943,119 @@ defmodule PeoplemediaWeb.IndexLive do
 
                The container/child split is the one `.scope-boxes` and
                `.app-foot` already use, and for exactly this reason. --%>
-          <div
-            id={"scopes-scroll-#{@list_mode}-#{@scope}"}
-            phx-hook="Scopes"
-            phx-mounted={JS.ignore_attributes(["class"])}
-            class="scopes-scroll h-full w-(--list-w) overflow-y-auto overscroll-contain"
-          >
-            <%!-- Lead and trail are what let the first and last row REACH the
-                   band. The lead is one row DEEPER than the band, so the list
-                   opens with the band standing empty — the unselected state.
-                   They are MEASURED, so they are the hook's to write and the
-                   server's to leave alone — see the note above. --%>
-            <ul phx-mounted={JS.ignore_attributes(["style"])}>
-              <%!-- SOMEBODY IS ARRIVING. It holds the row's exact shape for the
-                   couple of seconds between the news and the list taking it in,
-                   so the movement is announced before it happens rather than
-                   simply happening. An empty pause would be the same jolt with
-                   a delay on it. --%>
-              <li
-                :if={@landing && @list_mode == :people}
-                class="scopes-item scopes-landing flex h-(--row-h) items-center px-(--list-pad)"
-                aria-hidden="true"
+          <%!-- ── THE COLUMN ─────────────────────────────────────────────────
+               ONE COLUMN, PHONE-WIDTH, ON THE PAGE'S OWN SCROLL. What was here
+               was a fixed-height scroller with a BAND across it: a slot at a
+               third of the way down that rows were pushed through, one at a
+               time, to become the thing you were looking at. Everything else on
+               the surface was arranged around that slot — the boxes answered it,
+               the settings hid behind it, the creation form took its line.
+
+               IT ANSWERED THE WRONG QUESTION. "Which one are you looking at" is
+               a question a LIST has to ask, because a list is a column of labels
+               and only one of them can be the subject at a time. An item that is
+               the size of what it is about does not need to be nominated: it is
+               either on your screen or it is not, and your thumb already knows
+               how to bring it there. The band was a mechanism for making a small
+               row temporarily important, and the answer was to stop drawing
+               small rows.
+
+               26rem IS A LARGE PHONE WITH ITS GUTTER TAKEN OFF, and `mx-auto`
+               is the whole of the wide-screen story. There is no second
+               arrangement at 64rem, because a second arrangement is a second
+               design and this is one design seen at one width. --%>
+          <div class="mx-auto w-full max-w-[26rem] px-4 pb-24">
+            <%!-- WHERE, AND WHICH OF THEM — the two facts about the LIST rather
+                 than about anybody in it. They were behind the band, reached by
+                 swiping it sideways, which was a good answer to "these are in the
+                 way" and is not available any more: there is no band to hide
+                 behind. Back at the head of the column, in the small tracked
+                 voice every aside here uses.
+
+                 ONLY THE PLACE LIGHTS. The population is a toggle you can press
+                 from either side and neither side is more chosen than the other;
+                 the place can be OPEN, with the roll of the world under it, and
+                 that is a state worth a colour. --%>
+            <div class="list-tags mb-7 flex items-baseline gap-3">
+              <button
+                type="button"
+                phx-click="place_box"
+                aria-pressed={to_string(@list_mode == :location)}
+                class={[
+                  "list-place min-w-0 cursor-pointer truncate text-sm tracking-[0.08em]",
+                  "outline-none transition-colors focus-visible:underline",
+                  (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
+                    "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+                ]}
               >
-                <span class="skeleton block h-[0.9em] w-40"></span>
+                {String.upcase(@box_place)}
+              </button>
+              <button
+                type="button"
+                phx-click="scope_box"
+                aria-pressed={to_string(@list_mode == :people)}
+                class={[
+                  "list-scope flex shrink-0 cursor-pointer items-baseline gap-1.5",
+                  "text-sm tracking-[0.08em] outline-none transition-colors",
+                  "focus-visible:underline text-neutral-400 hover:text-neutral-600",
+                  "dark:text-neutral-500 dark:hover:text-neutral-300"
+                ]}
+              >
+                <span>{(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}</span>
+                <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
+              </button>
+
+              <%!-- OFF, IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that
+                   said nothing would be a list quietly going stale; the number is
+                   the offer to catch up, and pressing it is the reader choosing
+                   the moment the ground moves under them. --%>
+              <button
+                :if={!@live && @waiting > 0}
+                type="button"
+                phx-click="catch_up"
+                class={[
+                  "list-waiting ml-auto shrink-0 cursor-pointer px-2 py-0.5",
+                  "text-sm tracking-[0.08em] transition-colors",
+                  "bg-secondary-500/20 text-secondary-700 hover:bg-secondary-500/30",
+                  "dark:bg-secondary-400/25 dark:text-secondary-200"
+                ]}
+              >
+                {@waiting} NEW
+              </button>
+            </div>
+
+            <%!-- WHAT AN EMPTY LIST SAYS. A place with nobody in it used to be a
+                 blank column, which on a surface whose whole content IS the list
+                 is indistinguishable from a page that failed to load. It named
+                 the place at the band; there is no band, so it stands where the
+                 first item would. --%>
+            <div :if={@list == []} class="flex flex-col gap-2">
+              <p class="text-md tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
+                {empty_line(@scope)}
+              </p>
+              <p class="text-sm tracking-[0.08em] text-neutral-300 dark:text-neutral-600">
+                {empty_hint(@scope, @box_place)}
+              </p>
+            </div>
+
+            <%!-- THE GAP IS THE ONLY SEPARATOR, and it is wider between items
+                 than inside one. 1.75rem outside against 0.5rem inside is what
+                 makes a frame and the round under it read as ONE item rather
+                 than as two things that happen to be adjacent. --%>
+            <ul :if={@list != []} class="flex flex-col gap-7">
+              <%!-- SOMEBODY IS ARRIVING. It holds an item's exact shape for the
+                   couple of seconds between the news and the column taking it
+                   in, so the movement is announced before it happens rather than
+                   simply happening. --%>
+              <li :if={@landing && @list_mode == :people} class="flex flex-col">
+                <div class="scopes-landing skeleton h-14 bg-neutral-100 dark:bg-dark-900"></div>
               </li>
-              <%!-- The row carries its own frame as DATA, not markup: one
-                     shared frame reads these on settle, so nineteen rows cost
-                     nineteen attributes rather than nineteen media elements. A
-                     country carries none — its answer is a headcount the server
-                     renders, not a face. --%>
-              <%!-- ── THE ROW IS THE PANEL'S ROW ────────────────────────────
-                     One shape for a list item in this app, and the panel is
-                     where it was worked out: a KIND MARK, then the name with
-                     its age hung under it. What was here before was the name
-                     alone, which is why the two lists read as unrelated
-                     surfaces despite being the same gesture one level apart.
-
-                     What the home row adds is the FLOW, on the right — the
-                     panel does not need it because a thread is already sorted
-                     by direction and time, and a list of nineteen threads is
-                     not. See `letter_flow/1` for what the two arrows mean.
-
-                     THE MARK COLUMN IS ON EVERY PEOPLE ROW, filled or not. A
-                     stranger has no letters — a letter is written to a SCOPE,
-                     not to a person — but their row still reserves the mark's
-                     width, because the SCOPED and UNSCOPED lists share one
-                     scroller and one band, and a name that jumps sideways when
-                     you switch between them would make the two look like
-                     different columns. A country gets no mark at all: that
-                     list is a roll of places, it never opens a header, and
-                     there is no name of a person for it to line up with. --%>
               <li
                 :for={item <- @list}
-                data-state={item[:state] || "present"}
-                data-letter-kind={item[:frame] || "empty"}
-                data-media={item[:media]}
-                data-body={item[:body]}
-                class={
-                  [
-                    "scopes-item flex cursor-pointer whitespace-nowrap",
-                    # JUST ARRIVED. Sage, which on this surface reports rather
-                    # than asks — terracotta is for the one thing wanting
-                    # something from you, and somebody turning up wants nothing.
-                    # It fades on its own; a row that stayed marked would be
-                    # permanently new, which is the same as unmarked.
-                    # `item[:id]`, NOT `item.id`. The same scroller carries a
-                    # roll of COUNTRIES, and a country has a name and no id —
-                    # the dotted form raises on every one of them.
-                    item[:id] && item[:id] == @fresh && "is-fresh",
-                    "text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100",
-                    # A PLACE IS ONE LINE, so it gets a shorter row. --row-h is
-                    # sized for a name with its age hung under it; a roll of
-                    # countries has no age and no mark, and at the people row's
-                    # height the words ended up further apart than the band they
-                    # scroll through is tall — which reads as a list with gaps in
-                    # it rather than as a list.
-                    (@list_mode == :location && "h-(--place-h)") || "h-(--row-h)"
-                  ]
-                }
+                data-state={item[:state]}
+                class={["scopes-item flex flex-col", @fresh == item[:id] && "is-fresh"]}
               >
-                <%!-- ── THE ROW SWIPES ────────────────────────────────────
-                       A HORIZONTAL SCROLLER WITH TWO SNAP POINTS, and no
-                       JavaScript at all: the row is one page and the action is
-                       the next, `snap-mandatory` makes it rest on one or the
-                       other, and the browser does the dragging, the momentum and
-                       the rubber-banding for free. A hand-written swipe would be
-                       three of those four re-invented worse.
-
-                       overscroll-x-contain is what keeps a sideways drag from
-                       becoming a browser back-gesture, and `touch-pan-*` is what
-                       keeps it from fighting the VERTICAL list it sits inside —
-                       two scrollers at right angles in the same pixel, each
-                       needing the other to keep out of its axis. --%>
-                <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
-                  <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
-                    <div class="flex min-w-0 flex-1 items-start">
-                      <%!-- THE MARK IS ABOUT THEIR ROUND, NOT THEIR LETTERS.
-
-                           IT HUNG OFF THE LAST LETTER first, which made it a
-                           fact about the CORRESPONDENCE — and a correspondence
-                           is a thing only the two of you have. A visitor holds
-                           nobody, so not one row could carry a mark; the People
-                           tab was the same; and even between two people who
-                           write constantly the mark went blank the moment there
-                           was nothing new. A column that is empty for most rows
-                           most of the time is not a column.
-
-                           A ROUND IS THE RIGHT SUBJECT. Everybody has an answer
-                           to it at every moment — they are round, or they are
-                           not — so the mark always says something, and what it
-                           says is the thing this whole surface exists to show.
-                           It is also the fact that CHANGES, which is what a
-                           glanceable mark is for; who last wrote to you does not
-                           change while you are looking at the list.
-
-                           THE VOCABULARY IS ONE RECTANGLE AT FOUR ANGLES. Level
-                           is a mouth: here, saying something. Struck through at
-                           45° is words with no face and no voice, which is what
-                           every round is until frames are built. Upright is that
-                           same mouth CLOSED — not around. Two eyes are a face.
-                           When a round can carry a frame, `round_mark/1` is the
-                           one line that has to learn about it.
-
-                           IT NEVER LIGHTS. Terracotta means something is asking
-                           for you, and being round is an invitation rather than
-                           a demand — Law 1 says absence is silent, and its
-                           opposite is not a summons either. The FLOW on the
-                           right still lights, because an unopened letter really
-                           is asking. --%>
-                      <.letter_glyph
-                        :if={@list_mode == :people}
-                        kind={round_mark(item[:round])}
-                        class="mr-3 -mt-[0.125em]"
-                      />
-                      <div class="min-w-0 flex-1 leading-tight">
-                        <p class="scopes-line flex items-baseline">
-                          {String.upcase(item[:label] || item[:name])}
-                          <%!-- Their own name, quiet beside the label, arriving only
-                             while the row is IN the band. It keeps its own muted
-                             colour on purpose: the focused row turns terracotta,
-                             and this staying grey is what stops the band reading
-                             as two labels shouting. Only a scoped person has both
-                             a label and a name — a stranger or a country is one
-                             word. --%>
-                          <%!-- AND NOT THEIR OTHER NAME EITHER. "MUM SARAH" is
-                               two labels for one person on one line, which reads
-                               as a headline over a byline. One name. --%>
-                        </p>
-                        <%!-- WHEN THE LAST LETTER CAME, and nothing else.
-
-                           GREY, NOT THE WARM RAMP. It used to be `light-500`,
-                           which is not a neutral at all — the light ramp runs
-                           cream to cocoa, so its middle is a muted terracotta,
-                           and an age drawn in it read as a quiet version of the
-                           colour this surface uses for ATTENTION. Every subtext
-                           here is grey for that reason: terracotta has one job
-                           and a timestamp is not it.
-
-                           It stays grey through the focus too — the row turning
-                           terracotta is about the NAME, and an age that lit with
-                           it would make the band read as two things being
-                           pointed at. --%>
-                        <%!-- AND NOTHING UNDER THE NAME. The doing was here for
-                             a while — grey, small, under a name at full size —
-                             and the argument for it was real: with it gone the
-                             only way to learn what anybody is up to is to scroll
-                             them into the band one at a time.
-
-                             IT STILL LOST, and to the same law it lost to the
-                             first time. A subtitle on every row turns a list
-                             into a FEED — a column of headlines with people's
-                             names attached — and this list is people-first or it
-                             is nothing. The mark on the left and the flow on the
-                             right are not headlines: they are two glyphs saying
-                             what passed and which way, which is what a row of a
-                             list of PEOPLE is allowed to say about them.
-
-                             SO THE DOING LIVES ON THEIR PAGE, beside LETTERS,
-                             where the panel already carries it — one person at a
-                             time, and only once you have opened them. That is a
-                             step further in than settling them under the band,
-                             and it is the price of a list that stays a list. --%>
-                      </div>
-                      <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
-                       the kind mark at top left — the row's two marks are one
-                       pair and belong on one line, with the age hanging under
-                       the name between them. Centred against the whole two-line
-                       block it sat below both of them and read as a third thing
-                       floating in the row rather than as the other half of what
-                       the left mark says. --%>
-                      <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
-                    </div>
-                  </div>
-
-                  <%!-- WHAT THE SWIPE UNCOVERS: TWO ACTS, NOT ONE.
-
-                       It offered exactly one — SCOPE for a stranger, WRITE for
-                       somebody you hold — on the reasoning that each row has one
-                       thing that applies to it. That was wrong in both
-                       directions. A scoped person had no way to be UNSCOPED at
-                       all, which made scoping the one decision here you could
-                       not take back; and a stranger could not be written to,
-                       which is a rule about who may write to whom rather than a
-                       fact about what a row is, and one this app has not decided
-                       yet.
-
-                       SO: THE TIE, AND THE LETTER. The first changes what you
-                       are to each other and says which change is outstanding —
-                       see `row_act/1`. The second is always the same word.
-
-                       TWO THINGS ON ONE PRESS: the server is told who, and the
-                       hook opens the room. The panel's open state lives in the
-                       browser and the target lives in the process, so neither
-                       can do this alone. --%>
-                  <div :if={@list_mode == :people} class="flex h-full shrink-0 snap-start">
-                    <%!-- UNSCOPING IS NOT DONE ON ONE PRESS. Everything else
-                         behind this swipe opens a room and asks something; this
-                         one would act, immediately and irreversibly, on a
-                         control you reach by dragging — which is exactly the
-                         gesture a thumb makes by accident on a moving list. So
-                         it ARMS instead, and the toast asks for the second
-                         press. The reference calls this the irreversible-X law
-                         and applies it everywhere a press cannot be taken back.
-
-                         `phx-click` stays on it either way: the confirmation
-                         lives in the browser because it is about a gesture, and
-                         the hook stops the first press from reaching here. --%>
-                    <button
-                      type="button"
-                      data-open-room={(item[:label] && "") || "scope"}
-                      data-unscope={(item[:label] && item.id) || nil}
-                      phx-click={(item[:label] && "unscope") || "pick_person"}
-                      phx-value-id={item.id}
-                      phx-value-act="scope"
-                      class={
-                        [
-                          "row-scope flex h-full cursor-pointer items-center px-8",
-                          "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                          # UNSCOPING WEARS THE COLOUR, and it is the only thing
-                          # behind this swipe that does. Terracotta on this surface
-                          # means "look here" — it is on an unread mark and on the
-                          # one button in a room that commits — and undoing a tie
-                          # two people agreed to is the only act here that deserves
-                          # it. Both themes, because a wash that exists in one is
-                          # a button that disappears in the other.
-                          (item[:label] &&
-                             "bg-primary-600/15 text-primary-700 hover:bg-primary-600/25 dark:bg-primary-500/25 dark:text-primary-200 dark:hover:bg-primary-500/35") ||
-                            "bg-neutral-150 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-50"
-                        ]
-                      }
-                    >
-                      {row_act(item)}
-                    </button>
-
-                    <%!-- WRITING IS OFFERED TO EVERYONE. Whether a letter to
-                         somebody who has not scoped you should arrive is a
-                         question about permission, and this app has not answered
-                         it yet — hiding the button was answering it by accident,
-                         and answering it "never". --%>
-                    <button
-                      type="button"
-                      data-open-room="write"
-                      phx-click="pick_person"
-                      phx-value-id={item.id}
-                      phx-value-act="write"
-                      class="row-scope flex h-full cursor-pointer items-center bg-neutral-150 px-8 text-(length:--sub-type) tracking-(--sub-track) text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-50"
-                    >
-                      WRITE
-                    </button>
-                  </div>
-                </div>
+                <.feed_item item={item} mode={@list_mode} />
               </li>
             </ul>
           </div>
@@ -1972,17 +2067,6 @@ defmodule PeoplemediaWeb.IndexLive do
                the place — the reason the list is empty is almost always that
                you are standing somewhere you know nobody, and the way out is
                the place box directly above it. --%>
-          <div
-            :if={@list == []}
-            class="pointer-events-none absolute inset-x-0 top-[34%] flex -translate-y-1/2 flex-col gap-2 px-(--list-pad)"
-          >
-            <p class="text-(length:--row-type) tracking-(--row-track) text-neutral-300 dark:text-neutral-700">
-              {empty_line(@scope)}
-            </p>
-            <p class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-250 dark:text-neutral-750">
-              {empty_hint(@scope, @box_place)}
-            </p>
-          </div>
 
           <%!-- ── THE TRAILING BOXES ─────────────────────────────────────────
                THREE BOXES ON ONE LINE, and between them they answer the only
@@ -2051,222 +2135,6 @@ defmodule PeoplemediaWeb.IndexLive do
                All three are gone: the boxes are beside the band on every screen
                and the only thing that changes is how much of them you can see
                without asking. --%>
-          <div class={[
-            "scope-boxes pointer-events-none z-20 flex items-start",
-            @going && "bg-light-50 dark:bg-dark-950"
-          ]}>
-            <%!-- THE BAND'S OWN COLUMN, HELD OPEN AND EMPTY. It is what puts the
-                 boxes after the band rather than on top of it, and it takes no
-                 presses — the band underneath is still the thing you are
-                 pressing when you press here. --%>
-            <div class="boxes-lead" aria-hidden="true"></div>
-            <%!-- THE BOXES TRAVEL AS ONE SHEET, and the sheet is why it has a
-                 ground. Pulled in on a phone they cross the band's tail, and
-                 half of what is in them is a WASH — a mood at 18%, a frame at
-                 15% — which was mixed against the page on the argument that
-                 these "sit on the page rather than over the list". That stopped
-                 being true the moment they could be dragged over it. An opaque
-                 sheet under them makes it true again, and costs nothing on a
-                 wide screen where it is the page colour on the page. --%>
-            <div class="boxes-run flex items-start gap-3">
-              <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
-                 exactly where the answers will be, so nothing moves between
-                 filling the form in and reading it back. --%>
-              <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
-                 answer replaces it, the same way the doing box works one step to
-                 the left. A label reading MOOD over a dash was two lines to say
-                 nothing. --%>
-              <button
-                :if={@going}
-                type="button"
-                phx-click="pick_open"
-                phx-value-which="mood"
-                data-family={Rounds.family_of(@round_pick.mood)}
-                aria-label="How are you"
-                class={[
-                  "around-box mood-box pointer-events-auto flex min-h-(--band-h) w-(--mood-w)",
-                  "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-4",
-                  "outline-none transition-colors",
-                  !Rounds.family_of(@round_pick.mood) &&
-                    "bg-neutral-400/10 hover:bg-neutral-400/20 dark:bg-neutral-300/15 dark:hover:bg-neutral-300/25"
-                ]}
-              >
-                <span class={[
-                  "w-full truncate text-center text-(length:--row-type) tracking-(--row-track)",
-                  (@round_pick.mood && "text-light-900 dark:text-dark-100") ||
-                    "text-neutral-300 dark:text-neutral-700"
-                ]}>
-                  {String.upcase(@round_pick.mood || "—")}
-                </span>
-              </button>
-
-              <%!-- THE FRAME'S PLACE, and it is empty because a frame is CAPTURED
-                 and there is nothing to capture with yet. It pulses rather than
-                 sitting blank: an unfilled round frame is somebody here with
-                 nothing to show, which is a real state and the commonest one. --%>
-              <%!-- THE WHOLE BOX BREATHES, not a dot inside it. A small mark
-                 pulsing in the middle of a still square reads as a status light
-                 bolted to a container; the frame IS the thing that is empty, so
-                 the frame is what should say so. It is also what a captured one
-                 will fill, and a box that changed shape when it got contents
-                 would be two objects. --%>
-              <div
-                :if={@going}
-                aria-label="A frame, when there is one"
-                class="around-box presence-box pointer-events-auto relative size-(--band-h) shrink-0 bg-primary-600/15 dark:bg-primary-500/20"
-              >
-              </div>
-
-              <%!-- ONLY TWO BOXES ON THE RAIL NOW. The doing moved on to the ROW,
-                 where it is legible without being chosen — so a third box
-                 repeating it beside the band would be the same fact twice, and
-                 the one that only appears once somebody has been settled would
-                 be the redundant one. What is left is what a row cannot hold: a
-                 colour, and a frame. --%>
-              <%!-- TWO: HOW THEY ARE, and the one place on this surface that
-                 carries a colour of its own.
-
-                 THE BAND COULD NOT HAVE IT. Tinting the selection by mood was
-                 the obvious move and it is the one thing that cannot work: the
-                 band already uses colour to say THIS IS THE CHOSEN ONE, so a
-                 second meaning on the same property leaves neither readable —
-                 scroll to somebody and the wash goes amber, and there is no way
-                 to tell whether the amber is the selection or the person.
-
-                 A BOX THAT MEANS ONLY MOOD CANNOT LIE. It is a dedicated object,
-                 it sits nowhere near the unread marks, and it puts the colour
-                 directly beside the word — which is how a colour language is
-                 learned in the first place.
-
-                 THE WORD KEEPS THE ORDINARY INK. The wash carries the hue and
-                 the hue never reaches full strength, because the moment a mood is
-                 as loud as terracotta, terracotta stops meaning "look here". --%>
-              <div
-                :if={!@going}
-                phx-mounted={JS.ignore_attributes(["class"])}
-                role="button"
-                tabindex="0"
-                data-opens="how they are"
-                aria-label="Expand how they are"
-                class={[
-                  "around-box mood-box pointer-events-auto relative flex h-(--band-h) w-(--mood-w)",
-                  "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-3",
-                  !@current[:round][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
-                ]}
-                data-family={@current[:round][:family]}
-              >
-                <span
-                  :if={@current[:round][:mood]}
-                  class="around-brief truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100"
-                >
-                  {String.upcase(@current.round.mood)}
-                </span>
-                <%!-- OPEN, IT NAMES THE FAMILY TOO. The colour belongs to the
-                   family and the word to the feeling, so a box that only ever
-                   showed the word left its own hue unexplained — you would
-                   learn it eventually and never once be told. --%>
-                <div class="around-full flex-col items-center justify-center gap-3 text-center">
-                  <span class="text-(length:--count-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100">
-                    {String.upcase(@current[:round][:mood] || "")}
-                  </span>
-                  <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400">
-                    {String.upcase(@current[:round][:family] || "")}
-                  </span>
-                </div>
-              </div>
-
-              <%!-- THREE: THE LETTER BOX — the last letter the settled person
-                 sent YOU, and the reason this surface exists. It is the only
-                 box here that is an ANSWER rather than a control, which is why
-                 it is the only one that comes and goes and the only one wearing
-                 brackets.
-
-                 It was called the frame, which named the drawing rather than
-                 the contents, and it held whatever the row's newest letter was
-                 — as often your own, so the box could answer you with your own
-                 words. It holds the last INCOMING one now, and holds nothing at
-                 all when there is none: see `Directory.letterbox/1`, where a
-                 stranger and a one-sided correspondence come out the same way,
-                 because you cannot be shown a letter that was never written to
-                 you and you cannot be shown one written to somebody else.
-
-                 ITS WHOLE STATE IS ITS CLASS, and the class is the client's.
-                 Which letter is in the box depends on where the list has
-                 settled, which is a fact about a scroll position in one browser
-                 — the server renders `is-empty` because that is all it can
-                 honestly say, and the hook writes the truth over it.
-
-                 SO THE CLASS IS EXEMPT, and leaving it out cost the box twice
-                 over. A patch reset it to `is-empty`, so the letter the hook had
-                 just put there vanished on the very next round trip — which is
-                 the same round trip the settle itself causes, so the box flashed
-                 once and went. Before the empty box was HIDDEN that read as a
-                 blank square and was survivable; once an empty box meant "no
-                 letter, show nothing", it read as the box being broken.
-
-                 The two MEDIA elements inside carry their own state separately
-                 (see the Media hook) because an attribute exemption cannot help
-                 a playing clip. --%>
-              <div
-                :if={@list_mode == :people && !@going}
-                id="letterbox"
-                phx-mounted={JS.ignore_attributes(["class"])}
-                role="button"
-                tabindex="0"
-                aria-label="Expand the letter"
-                class="letterbox is-empty pointer-events-auto relative flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
-              >
-                <%!-- The screen is inset from the frame so the brackets bracket the
-                   picture rather than cropping it, and square on every corner —
-                   a screen has corners, and rounding them makes it a widget. --%>
-                <div class="letterbox-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
-                  <%!-- THE WORDS, and the one thing on this surface set in the
-                     case it was written in. Everything else is the app talking
-                     and is therefore in capitals; a letter is a person talking,
-                     and putting somebody's own sentence in capitals is the app
-                     raising its voice on their behalf.
-
-                     Clipped rather than shortened: at 56px there is room for a
-                     few words, and the box is a glimpse — pressing it is what
-                     asks for the rest. --%>
-                  <span class="letterbox-words"></span>
-                  <video
-                    id="letterbox-video"
-                    phx-hook="Media"
-                    class="letterbox-video h-full w-full object-cover"
-                    playsinline
-                    preload="metadata"
-                  >
-                  </video>
-                  <%!-- Sits ON the screen, covering it: after a clip ends the
-                     screen is the only thing there, and a control tucked into
-                     the corner of a 45px square is a target nobody can hit. --%>
-                  <button
-                    type="button"
-                    class="letterbox-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
-                    aria-label="Play again"
-                  >
-                    <%!-- A three-quarter arc with an arrowhead, which reads as
-                       "again"; heroicons' closed two-arrow loop says "sync". --%>
-                    <svg
-                      viewBox="0 0 1024 1024"
-                      fill="currentColor"
-                      stroke="currentColor"
-                      stroke-width="0"
-                      aria-hidden="true"
-                      class="size-4"
-                    >
-                      <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
-                    </svg>
-                  </button>
-                </div>
-                <%!-- No controls, so the UA never renders any — the screen is the
-                   only thing a voice is allowed to look like. --%>
-                <audio id="letterbox-audio" phx-hook="Media" class="letterbox-audio" preload="none">
-                </audio>
-              </div>
-            </div>
-          </div>
 
           <%!-- BAND AND FRAME ARE ONE ROW, so the two can never fall out of line.
                The band answers "which one", the frame answers "and what are they
@@ -2292,7 +2160,7 @@ defmodule PeoplemediaWeb.IndexLive do
             id="round-form"
             phx-change="round_change"
             phx-submit="round_send"
-            class="round-form list-box pointer-events-auto absolute top-(--list-top) left-0 z-30 flex min-h-(--band-h) flex-col justify-center"
+            class="round-form pointer-events-auto absolute inset-x-0 top-0 z-30 mx-auto flex min-h-14 w-full max-w-[26rem] flex-col justify-center px-4"
           >
             <%!-- OPAQUE, AND THAT IS THE WHOLE OF THE FIX. It wore the band's
                  own wash — `bg-primary-600/15` — and the band is TRANSLUCENT on
@@ -2340,6 +2208,32 @@ defmodule PeoplemediaWeb.IndexLive do
               class="doing-field mt-1 max-h-(--doing-max) w-full resize-none overflow-hidden bg-transparent text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
             ></textarea>
             <input type="hidden" name="mood" value={@round_pick.mood || ""} />
+
+            <%!-- HOW YOU ARE, INSIDE THE FORM RATHER THAN BESIDE IT. It used to
+                 be a box on the rail — one of a cluster that answered the band —
+                 and when the band went the cluster went with it, taking the only
+                 way to put a mood on a round. It belongs here anyway: it is one
+                 of the two things this form asks, and a control for a form that
+                 lives outside the form is a control that can be lost by moving
+                 the form.
+
+                 `—` IS THE PLACEHOLDER AND THE ANSWER REPLACES IT. A label
+                 reading MOOD over a dash was two lines to say nothing. --%>
+            <button
+              type="button"
+              phx-click="pick_open"
+              phx-value-which="mood"
+              data-family={Rounds.family_of(@round_pick.mood)}
+              aria-label="How are you"
+              class={[
+                "mood-box mt-2 flex h-5 w-fit cursor-pointer items-center px-2",
+                "text-sm tracking-[0.08em] outline-none transition-colors",
+                (@round_pick.mood && "text-neutral-700 dark:text-dark-200") ||
+                  "bg-neutral-200 text-neutral-400 hover:bg-neutral-300 dark:bg-dark-800 dark:text-neutral-500"
+              ]}
+            >
+              {String.upcase(@round_pick.mood || "—")}
+            </button>
           </form>
 
           <%!-- ── WHAT A BOX OPENS ONTO ──────────────────────────────────
@@ -2355,7 +2249,7 @@ defmodule PeoplemediaWeb.IndexLive do
                underneath are not the question. --%>
           <div
             :if={@going && @picker}
-            class="round-picker absolute inset-x-0 top-(--list-top) z-40 mt-(--picker-top) max-h-[55vh] overflow-y-auto bg-light-50/95 py-4 dark:bg-dark-950/95"
+            class="round-picker absolute inset-x-0 top-0 z-40 mx-auto mt-24 w-full max-w-[26rem] px-4 max-h-[55vh] overflow-y-auto bg-light-50/95 py-4 dark:bg-dark-950/95"
           >
             <div :if={@picker == "mood"} class="flex flex-col gap-5">
               <div :for={{family, words} <- Rounds.mood_families()} class="flex flex-col gap-2">
@@ -2380,281 +2274,6 @@ defmodule PeoplemediaWeb.IndexLive do
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div
-            id="bar"
-            phx-hook="Bar"
-            {%{"data-place-open" => to_string(@list_mode == :location)}}
-            class={
-              [
-                "bar pointer-events-none absolute top-(--band-top) left-0 flex w-(--list-w) -translate-y-1/2 items-center",
-                @mode in [:open, :self] && "is-picked",
-                # THE DOTS BREATHE FROM HERE. The state belongs to the LIST and
-                # the mark that shows it is in the band, so the class goes on the
-                # one element that contains every face of it.
-                @live && "is-live",
-                # THE FORM HAS THE LINE. Two things on it would be two answers to
-                # "what is at the top of this list".
-                @going && "invisible"
-              ]
-            }
-          >
-            <%!-- ── THE BAND'S OTHER FACE ───────────────────────────────────
-                 WHERE YOU ARE, HOW MANY, AND WHETHER IT MOVES — the three facts
-                 about the LIST rather than about anybody in it. They stood on
-                 their own line above the band, and a caption over a caption over
-                 a list is two things to read before the names you came for.
-
-                 SO THEY GO BEHIND THE BAND, and the band swipes right to show
-                 them. It is the same object either way: one box of the list's
-                 own width, holding a NAME on the face and the list's SETTINGS on
-                 the back. Nothing on this surface has to make room for them any
-                 more, and the strip they were standing in is now list.
-
-                 RIGHT, AND NOT LEFT LIKE EVERYTHING ELSE HERE. A row swipes left
-                 to reach its actions and the boxes beside the band pull in from
-                 the right, so the right-hand side of this strip is spoken for
-                 twice over. These live on the other side, which keeps two
-                 gestures from meaning two different things in the same pixels —
-                 and settings belong BEFORE a list in the reading order anyway.
-
-                 AN EMPTY BAND OPENS THEM ON A PRESS. Pressing the band normally
-                 picks up whoever is in it; with nobody in it that press does
-                 nothing at all, and a control that does nothing is where a
-                 control that does something should be. So the empty state is the
-                 way in that needs no gesture — see the Bar hook, which is also
-                 what parks the track on the face to begin with.
-
-                 THE WHOLE FACE TAKES PRESSES, unlike every other cluster on this
-                 surface. Those are `pointer-events-none` boxes holding a few
-                 live children, so that whatever sits UNDER them stays reachable
-                 — and that is exactly wrong for a page you have to be able to
-                 drag back. Left inert, a finger on the gap between RELATIONSHIPS
-                 and the lamp fell straight through to the row beneath and
-                 scrolled the LIST instead, so the only way back to the band was
-                 to find one of the three controls and pull on that. Nothing is
-                 under this page worth reaching: when it is closed the bar's own
-                 overflow has clipped it away entirely. --%>
-            <%!-- ── PAGE ONE: WHERE ─────────────────────────────────────────
-                 TWO DRAWERS, NOT ONE, and the second swipe is what makes the
-                 first one honest. They shared a page while there were three of
-                 them and the page was a row of small words; set like a row —
-                 which is what they are — one page holds one thing you can change,
-                 and choosing between them is the swipe rather than a hunt along a
-                 line.
-
-                 THE PLACE IS THE FURTHER ONE because it is the rarer act. You
-                 change population often and place seldom, so the cheap gesture
-                 goes to the cheap decision.
-
-                 ARRIVING HERE OPENS THE ROLL — the list becomes every country,
-                 under the band, and this page reads back whichever one is
-                 currently there. That is the answer to "swiping should change
-                 what the list is showing": the drawer is not a form you fill in
-                 and submit, it IS the mode, and you are in it exactly as long as
-                 it is open. Pressing takes the country under the band; swiping
-                 away puts back what you had. Neither needs a control of its own,
-                 which is why the cancel X that used to stand here is gone — it
-                 was the only way out while these lived above the list, and the
-                 gesture that got you here is a better one.
-
-                 IT READS THE BAND WITHOUT SHOWING IT. The band is off-screen
-                 while this page is up, so `@box_place` following the selection is
-                 not a nicety here — it is the only readout there is. --%>
-            <div class="list-tags bar-place list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <button
-                type="button"
-                phx-click="place_box"
-                aria-pressed={to_string(@list_mode == :location)}
-                class={[
-                  "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
-                  "transition-colors",
-                  "text-(length:--row-type) tracking-(--row-track) focus-visible:underline",
-                  tag_ink(@list_mode == :location)
-                ]}
-              >
-                {String.upcase(@box_place)}
-              </button>
-              <span class="shrink-0 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
-                PLACE
-              </span>
-            </div>
-
-            <%!-- ── PAGE TWO: WHO ───────────────────────────────────────────
-                 THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
-                 inside one button for a reason beyond tidiness: this is what a
-                 reader parses as a single fact — "four relationships" — and
-                 splitting it across two controls would offer two answers to a
-                 question with one.
-
-                 THIS ONE COMMITS AND STAYS COMMITTED, which is the difference
-                 between the two drawers and worth naming. A population is a
-                 TOGGLE: two sides, neither more chosen than the other, so
-                 pressing it is a decision and swiping away must not undo a
-                 decision. A place is a PICKER: it puts the list into a state you
-                 are visibly inside, and leaving that state is what closing it
-                 means. Same gesture, different consequences, because the two
-                 controls are different kinds of thing.
-
-                 THE COUNT TAKES THE NAME'S VOICE AND THE WORD STAYS QUIET —
-                 exactly the band's other face, where a label is set at the row's
-                 own type and the person's own name hangs off it in grey. --%>
-            <div class="list-tags bar-scope list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <button
-                type="button"
-                phx-click="scope_box"
-                aria-pressed={to_string(@list_mode == :people)}
-                class={[
-                  "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-3",
-                  "outline-none transition-colors focus-visible:underline"
-                ]}
-              >
-                <span class="text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100">
-                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
-                </span>
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
-                  {(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}
-                </span>
-              </button>
-
-              <%!-- OFF IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that
-                   said nothing would be a list quietly going stale; the number is
-                   the offer to catch up, and pressing it is the reader choosing
-                   the moment the ground moves under them.
-
-                   THE TOGGLE ITSELF IS GONE FOR NOW — the list is always live and
-                   the band's three dots say so. This is what would stand here if
-                   it were ever held again, and it costs nothing to leave. --%>
-              <button
-                :if={!@live && @waiting > 0}
-                type="button"
-                phx-click="catch_up"
-                class={[
-                  "list-waiting pointer-events-auto shrink-0 cursor-pointer px-2 py-0.5 outline-none",
-                  "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                  "bg-secondary-500/20 text-secondary-700 hover:bg-secondary-500/30",
-                  "dark:bg-secondary-400/25 dark:text-secondary-200"
-                ]}
-              >
-                {@waiting} NEW
-              </button>
-            </div>
-
-            <%!-- THE LEFT HALF IS THE HANDLE — pressing here picks the whole bar
-                 up and carries it to the top; pressing the frame at the other
-                 end only resizes the frame. Two targets, two jobs, one bar.
-
-                 list-box is "a row, filled": the same column width and the same
-                 --list-pad every row uses, so the band's label lands exactly on
-                 top of the label of whichever row is passing through it. Its
-                 WASH starts at the rail, because the box is a block in the
-                 frame; its WORDS start at the list's own inset, because that is
-                 where every row's words start. --%>
-            <div
-              phx-click="toggle_open"
-              class={[
-                "focus-box list-box pointer-events-auto relative flex h-(--band-h) shrink-0 items-center",
-                "bg-primary-600/15 dark:bg-primary-500/20",
-                @selected && "cursor-pointer"
-              ]}
-            >
-              <%!-- ABSOLUTE, not merely transparent: in flow its width sat in
-                   front of the header's label and pushed the text off the rail.
-                   Invisible is not the same as absent.
-
-                   IT STANDS IN THE MARK'S COLUMN, not the name's, because that
-                   is the column a mark would arrive in. Which is why it does
-                   not take the name's indent below.
-
-                   DOTS, AND IT USED TO BE "--". Two dashes was the wrong
-                   drawing for one blunt reason: THE MARK IS TWO DASHES. The
-                   app's logo is a pair of thin closed eyes, and the voice glyph
-                   is a single bar as wide as they span — so an empty band was
-                   showing, in terracotta, at the head of the list, something
-                   the eye reads as the logo appearing in the middle of the
-                   page. A placeholder must not be a sign that already means
-                   something else.
-
-                   A ROW OF DOTS means what no other mark here means: WAITING.
-                   It is an ellipsis, which is a well-worn way to say "nothing
-                   yet, and something is expected" — exactly the empty band's
-                   state — and it is the one shape in this vocabulary that is
-                   neither a rectangle nor made of them, so it can never be
-                   mistaken for a face, a voice, a letter or the mark. --%>
-              <%!-- ── AND WHEN THE LIST IS LIVE, THEY BREATHE ────────────────
-                   THE WORD "LIVE" WAS THE INDICATOR, sitting in the tags as one
-                   more piece of text. Text is what this surface uses for FACTS
-                   — a place, a population — and whether the ground is moving
-                   under you is not a fact you read, it is a state you should be
-                   able to see without reading anything. A label saying LIVE is
-                   a caption on a thing that is not drawn.
-
-                   SO THE DOTS DO IT. Three, in turn, left to right — which is
-                   the same motion as a cursor waiting and means the same thing:
-                   something is expected and it has not arrived yet. Held still,
-                   they are the empty band exactly as before. It is one drawing
-                   with the state ON it rather than a second drawing beside it.
-
-                   THEY ARE STILL THE EMPTY MARK FIRST. The animation is on a
-                   glyph that already earned its place; nothing was added to the
-                   band to carry this. --%>
-              <span
-                class="focus-empty absolute flex items-center gap-[0.3em] text-(length:--row-type) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500"
-                aria-hidden="true"
-              >
-                <span class="focus-dot"></span><span class="focus-dot"></span><span class="focus-dot"></span>
-              </span>
-              <%!-- The bar takes over the words only at the moment of the pick.
-                   In the list what you read is the ROW's label showing through a
-                   translucent band; handing over while the two are still exactly
-                   on top of each other means there is nothing to see. Neutral,
-                   not terracotta — once this is a header it is the label on what
-                   is below it, and terracotta is this surface's word for "look
-                   here".
-
-                   AND THE MARK COLUMN COMES BACK WITH THE MARKS. It was dropped
-                   on the argument that an invisible thing which still takes room
-                   is the worst of both — unreadable and unignorable — and that a
-                   header has no mark to put there. That held for exactly as long
-                   as the ROWS had none either.
-
-                   THEY HAVE ONE AGAIN, so the column is no longer empty on this
-                   surface, it is empty in this one box. The band's whole trick is
-                   that the label does not appear to move when a row settles into
-                   it: same width, same inset, the header's name landing exactly
-                   on top of the row's. A mark's width of difference breaks that
-                   at the one moment anybody is looking at it. A permanent 40px
-                   indent is a cost you see once; a name jumping sideways is a
-                   cost you see on every settle.
-
-                   `kind={nil}` DRAWS NOTHING AND KEEPS THE WIDTH — and it has no
-                   HEIGHT either, which is what stops it dragging this
-                   `items-baseline` line off the label's baseline. --%>
-              <%!-- THE TYPE HAS TO BE ON IT, not merely near it. The mark takes
-                   its width in `em`, so a slot that inherits the page default
-                   instead of --row-type comes out four pixels narrower than the
-                   column it is standing in for — which is the whole of what this
-                   slot exists to prevent. The name beside it sets the same size
-                   on itself; the empty box has no text to inherit it from. --%>
-              <.letter_glyph
-                :if={@subject && @list_mode == :people}
-                kind={nil}
-                class="mr-3 text-(length:--row-type)"
-              />
-              <span
-                :if={@subject}
-                class="focus-name flex min-w-0 flex-1 items-baseline overflow-hidden whitespace-nowrap text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100"
-              >
-                {String.upcase(@subject[:label] || @subject[:name])}
-                <span
-                  :if={@subject[:label]}
-                  class="ml-3 text-neutral-400/70 dark:text-neutral-500/70"
-                >
-                  {@subject[:name]}
-                </span>
-              </span>
             </div>
           </div>
         </div>
