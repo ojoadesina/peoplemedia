@@ -118,17 +118,18 @@ defmodule PeoplemediaWeb.RoundTest do
     # carried on the person's PAGE instead, beside LETTERS, at a size that suits
     # it. What is left on the rail is what neither a line nor a page-heading does
     # well: a colour, and a frame.
-    test "hold what a row cannot: a colour and a frame", %{conn: conn} do
+    test "the plate names the round, and holds no colour", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "MUM")
 
-      # THE PLATE HOLDS BOTH, side by side: what they are up to, and how they
-      # are. They were split across a row and a box on the rail, which put one
-      # fact where you were reading and the other where you were not.
+      # THE PLATE NAMES THE ROUND AND NOTHING ELSE. The mood was a coloured chip
+      # at its trailing edge for a while, which put a second thing to read on a
+      # block that answers one question — and the colour is held back until there
+      # is somewhere it earns its place.
       item = item_for(live, "MUM")
-      assert item =~ "HAPPY"
-      assert item =~ ~s(data-family="joy")
       assert item =~ "THE WITCHERS, FINALLY"
+      refute item =~ "HAPPY"
+      refute item =~ ~s(data-family="joy")
     end
 
     # AND THE DOING IS ON NEITHER — NOT THE ROW, NOT THE RAIL.

@@ -88,6 +88,36 @@ threads = [
   [{:you, true, "text"}]
 ]
 
+# ── WHAT THEY ARE UP TO WHEN THEY ARE NOT ROUND ──────────────────────────────
+# Most people are not in a round most of the time, and their item's second block
+# holds this instead. Short, standing, and plainly not an invitation — a status
+# says where somebody is, not that they want joining.
+#
+# NOT EVERYBODY HAS ONE. Having nothing to say is a real answer and the sheet has
+# to show it, or the design is only ever judged against a full column.
+statuses = [
+  "AT WORK",
+  "AT SCHOOL",
+  "COMMUTING",
+  nil,
+  "OFF TODAY",
+  "HEADS DOWN",
+  nil,
+  "ON THE ROAD",
+  "AT HOME",
+  nil,
+  "IN A MEETING",
+  "OUT WALKING"
+]
+
+Repo.all(Person)
+|> Enum.with_index()
+|> Enum.each(fn {person, i} ->
+  person
+  |> Ecto.Changeset.change(%{status: Enum.at(statuses, rem(i, length(statuses)))})
+  |> Repo.update!()
+end)
+
 # WHERE THEY LIVE, and most of them live where ojo does. The place box is the
 # list's parent now — pick Finland and you see Finland — so a cast spread evenly
 # over eighteen countries would give every place a list of one and the home page

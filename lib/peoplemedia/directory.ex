@@ -187,10 +187,23 @@ defmodule Peoplemedia.Directory do
     rounds = Rounds.live_for(ids, viewer_id)
     last = Rounds.last_round_for(ids, viewer_id)
 
+    # ONE QUERY FOR THE WHOLE LIST, like every other answer here. A status is a
+    # column on the person, so it costs a single select rather than a join.
+    statuses =
+      Person
+      |> Repo.all()
+      |> Enum.filter(&(&1.id in ids))
+      |> Map.new(&{&1.id, &1.status})
+
     Map.new(ids, fn id ->
       {id,
        %{
          state: (MapSet.member?(here, id) && "present") || "absent",
+         # WHAT THEY ARE UP TO WHEN THEY ARE NOT ROUND — standing, unexpiring,
+         # and not an invitation. It rides beside the round rather than being
+         # folded into it: a caller that could not tell them apart would show a
+         # status where a round belongs the first time somebody went quiet.
+         status: statuses[id],
          round: rounds[id],
          last_round: last[id]
        }}
@@ -358,6 +371,11 @@ defmodule Peoplemedia.Directory do
       kind: latest.kind,
       when: latest.when,
       unread: latest.from == "them" and not latest.read,
+      # HOW MANY HAVE COME IN AND NOT BEEN OPENED. The marks say THAT something
+      # is waiting; this says how much, which is the one number a row is allowed
+      # to carry — it counts a thing you have not done rather than a thing anybody
+      # has achieved, so Law 2 does not reach it.
+      waiting: Enum.count(letters, &(&1.from == "them" and not &1.read)),
       incoming: opened(Enum.find(letters, &(&1.from == "them"))),
       outgoing: if(latest.from == "you", do: opened(latest))
     }

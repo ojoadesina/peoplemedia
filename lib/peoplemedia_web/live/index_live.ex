@@ -968,32 +968,6 @@ defmodule PeoplemediaWeb.IndexLive do
   defp other_scope("SCOPED"), do: "UNSCOPED"
   defp other_scope(_unscoped), do: "SCOPED"
 
-  # ── WHICH TAG IS LIT ────────────────────────────────────────────────────────
-  # ONLY THE PLACE, AND ONLY WHEN THE ROLL OF THE WORLD IS OPEN.
-  #
-  # The two used to be washed boxes on the right rail and exactly one was lit at
-  # a time — whichever the list was obeying. That was right for boxes and is
-  # wrong for a caption: as small tracked words at the head of the list, a lit
-  # population would read as a WARNING rather than as a state, and terracotta on
-  # this surface is rationed to the one thing asking something of you.
-  #
-  # AND THE POPULATION HAS NO CHOSEN STATE TO SHOW. It is a toggle you can press
-  # from either side, and neither side is more selected than the other. The place
-  # is different: it can be OPEN, with the whole world scrolling under the band,
-  # and that is a state worth a colour.
-  #
-  # It takes a BOOLEAN rather than assigns, so the caller still names the assign
-  # it depends on and change tracking holds.
-  defp tag_ink(true), do: "text-primary-600 dark:text-primary-500"
-
-  # AT REST IT TAKES THE NAME'S INK, because it is now set like a name. It was a
-  # grey caption while it stood in a line of captions ABOVE the band, where it had
-  # to stay out of the list's way. In the band it IS the band's subject — the
-  # place this whole list is of — and a heading whispered in the colour of a
-  # timestamp reads as a box somebody forgot to fill in.
-  defp tag_ink(false),
-    do: "text-light-900 hover:text-primary-600 dark:text-dark-100 dark:hover:text-primary-500"
-
   # AN ID OFF THE WIRE IS A STRING, and an id from anywhere else is not. The
   # browser only ever sends the first kind, so this looks redundant until
   # something calls these directly — and then it is the difference between a
@@ -1039,14 +1013,15 @@ defmodule PeoplemediaWeb.IndexLive do
   # LiveView's change tracking off for the whole block.
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-  # WHAT THE PLATE SAYS, AND NOTHING WHEN THERE IS NOTHING. A round with no doing
-  # on it is somebody saying only "I am here", which the head above already says;
-  # an empty plate holds its wash and stays quiet rather than captioning itself.
-  defp round_doing(item) do
-    case item[:round][:doing] do
+  # WHAT THE PLATE CALLS A ROUND. `name` is the column meant for it — a forum
+  # title over the words beneath — and nothing writes one yet, so the DOING
+  # stands in: it is the one sentence somebody typed about the round, which is
+  # the closest thing to a name it has until the field is filled.
+  defp round_name(item) do
+    case item[:round][:name] || item[:round][:doing] do
       nil -> nil
       "" -> nil
-      doing -> String.upcase(doing)
+      word -> String.upcase(word)
     end
   end
 
@@ -1685,6 +1660,59 @@ defmodule PeoplemediaWeb.IndexLive do
 
                The container/child split is the one `.scope-boxes` and
                `.app-foot` already use, and for exactly this reason. --%>
+          <%!-- ── WHERE, AND WHICH OF THEM ─────────────────────────────────
+               THE TWO FACTS ABOUT THE LIST, back at the head of it. They spent a
+               while BEHIND the band, reached by swiping it sideways, which was a
+               good answer to "these are in the way" and a poor one to "how would
+               anybody know they are there". A caption over a column is a thing
+               you can see; a drawer is a thing you have to be told about.
+
+               ONLY THE PLACE LIGHTS. The population is a toggle you can press
+               from either side and neither side is more chosen than the other;
+               the place can be OPEN, with the roll of the world under the band,
+               and that is a state worth a colour. --%>
+          <div class="list-tags pointer-events-none absolute top-0 left-0 z-20 flex items-baseline gap-3">
+            <button
+              type="button"
+              phx-click="place_box"
+              aria-pressed={to_string(@list_mode == :location)}
+              class={[
+                "list-place pointer-events-auto min-w-0 cursor-pointer truncate",
+                "text-sm tracking-[0.08em] outline-none transition-colors focus-visible:underline",
+                (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
+                  "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+              ]}
+            >
+              {String.upcase(@box_place)}
+            </button>
+            <button
+              type="button"
+              phx-click="scope_box"
+              aria-pressed={to_string(@list_mode == :people)}
+              class={[
+                "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-1.5",
+                "text-sm tracking-[0.08em] outline-none transition-colors focus-visible:underline",
+                "text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+              ]}
+            >
+              <span>{(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}</span>
+              <span>{(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}</span>
+            </button>
+            <button
+              :if={!@live && @waiting > 0}
+              type="button"
+              phx-click="catch_up"
+              class={[
+                "list-waiting pointer-events-auto shrink-0 cursor-pointer px-2 py-0.5",
+                "text-sm tracking-[0.08em] transition-colors",
+                "bg-secondary-500/20 text-secondary-700 hover:bg-secondary-500/30",
+                "dark:bg-secondary-400/25 dark:text-secondary-200"
+              ]}
+            >
+              {@waiting} NEW
+            </button>
+          </div>
+
           <div
             id={"scopes-scroll-#{@list_mode}-#{@scope}"}
             phx-hook="Scopes"
@@ -1849,27 +1877,55 @@ defmodule PeoplemediaWeb.IndexLive do
                       <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
                     </div>
 
+                    <%!-- THE PLATE SAYS ONE OF TWO THINGS, AND NEVER NOTHING.
+                         A ROUND'S NAME when they are in one — a room's name,
+                         short and given deliberately, the thing you would say to
+                         tell somebody which round you meant.
+
+                         A STANDING STATUS WHEN THEY ARE NOT. Most people are not
+                         round most of the time, and an empty panel under every
+                         second name is the column reporting an absence over and
+                         over. A status is the opposite of a round in every way
+                         that matters — standing rather than made, unexpiring, and
+                         not an invitation — which is why it can take the same
+                         place without ever being mistaken for one. It is drawn as
+                         a BADGE rather than as a line, because a badge is plainly
+                         a label on a person and a line reads as something they
+                         are saying.
+
+                         AND THE MOOD IS GONE FROM HERE. It was a coloured chip at
+                         the trailing edge, which put a second thing to read on a
+                         block that answers one question. --%>
                     <div class="frame-plate flex h-16 items-center gap-3 bg-neutral-100 px-(--list-pad) dark:bg-dark-900">
-                      <%!-- WHAT THEY ARE UP TO, AT ITS OWN WIDTH. It is a room's
-                           name — short, deliberate, the thing you would say to
-                           tell somebody which round you meant — so it truncates
-                           rather than being padded out to fill the rail, which
-                           would make it read as a field. --%>
-                      <p class="min-w-0 truncate text-md tracking-[0.08em] text-neutral-900 dark:text-dark-100">
-                        {round_doing(item)}
+                      <p
+                        :if={round_name(item)}
+                        class="min-w-0 truncate text-md tracking-[0.08em] text-neutral-900 dark:text-dark-100"
+                      >
+                        {round_name(item)}
                       </p>
 
-                      <%!-- HOW THEY ARE, AS A COLOUR, at the trailing edge. It is
-                           the one place on this surface carrying a hue of its
-                           own: the word keeps the ordinary ink and the WASH
-                           carries the family, at a strength that can never
-                           outshout an unread mark. --%>
                       <span
-                        :if={item[:round][:mood]}
-                        class="mood-box ml-auto flex h-5 shrink-0 items-center px-2 text-sm tracking-[0.08em] text-neutral-700 dark:text-dark-200"
-                        data-family={item[:round][:family]}
+                        :if={!round_name(item) && item[:status]}
+                        class="flex h-5 shrink-0 items-center bg-neutral-200 px-2 text-sm tracking-[0.08em] text-neutral-500 dark:bg-dark-800 dark:text-neutral-400"
                       >
-                        {String.upcase(item.round.mood)}
+                        {String.upcase(item.status)}
+                      </span>
+
+                      <%!-- HOW MUCH IS WAITING, at the trailing edge. It counts
+                           what has come IN and not been opened — the one thing a
+                           row can be asking of you — so it takes terracotta as a
+                           GROUND rather than as ink: it holds a number, and a
+                           badge that only recoloured its digit would be the
+                           faintest thing on the block.
+
+                           ABSENT, NOT ZERO. A column of "0" badges is a column
+                           reporting an absence, and Law 1 is that absence is
+                           silent. --%>
+                      <span
+                        :if={item[:letter][:waiting] && item.letter.waiting > 0}
+                        class="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center bg-primary-600 px-1.5 text-sm tracking-[0.08em] text-light-50 dark:bg-primary-500 dark:text-dark-950"
+                      >
+                        {item.letter.waiting}
                       </span>
                     </div>
                   </div>
@@ -2404,110 +2460,6 @@ defmodule PeoplemediaWeb.IndexLive do
                  to find one of the three controls and pull on that. Nothing is
                  under this page worth reaching: when it is closed the bar's own
                  overflow has clipped it away entirely. --%>
-            <%!-- ── PAGE ONE: WHERE ─────────────────────────────────────────
-                 TWO DRAWERS, NOT ONE, and the second swipe is what makes the
-                 first one honest. They shared a page while there were three of
-                 them and the page was a row of small words; set like a row —
-                 which is what they are — one page holds one thing you can change,
-                 and choosing between them is the swipe rather than a hunt along a
-                 line.
-
-                 THE PLACE IS THE FURTHER ONE because it is the rarer act. You
-                 change population often and place seldom, so the cheap gesture
-                 goes to the cheap decision.
-
-                 ARRIVING HERE OPENS THE ROLL — the list becomes every country,
-                 under the band, and this page reads back whichever one is
-                 currently there. That is the answer to "swiping should change
-                 what the list is showing": the drawer is not a form you fill in
-                 and submit, it IS the mode, and you are in it exactly as long as
-                 it is open. Pressing takes the country under the band; swiping
-                 away puts back what you had. Neither needs a control of its own,
-                 which is why the cancel X that used to stand here is gone — it
-                 was the only way out while these lived above the list, and the
-                 gesture that got you here is a better one.
-
-                 IT READS THE BAND WITHOUT SHOWING IT. The band is off-screen
-                 while this page is up, so `@box_place` following the selection is
-                 not a nicety here — it is the only readout there is. --%>
-            <div class="list-tags bar-place list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <button
-                type="button"
-                phx-click="place_box"
-                aria-pressed={to_string(@list_mode == :location)}
-                class={[
-                  "list-place pointer-events-auto min-w-0 cursor-pointer truncate outline-none",
-                  "transition-colors",
-                  "text-(length:--row-type) tracking-(--row-track) focus-visible:underline",
-                  tag_ink(@list_mode == :location)
-                ]}
-              >
-                {String.upcase(@box_place)}
-              </button>
-              <span class="shrink-0 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
-                PLACE
-              </span>
-            </div>
-
-            <%!-- ── PAGE TWO: WHO ───────────────────────────────────────────
-                 THE COUNT AND ITS WORD ARE ONE PRESS, and they stay adjacent
-                 inside one button for a reason beyond tidiness: this is what a
-                 reader parses as a single fact — "four relationships" — and
-                 splitting it across two controls would offer two answers to a
-                 question with one.
-
-                 THIS ONE COMMITS AND STAYS COMMITTED, which is the difference
-                 between the two drawers and worth naming. A population is a
-                 TOGGLE: two sides, neither more chosen than the other, so
-                 pressing it is a decision and swiping away must not undo a
-                 decision. A place is a PICKER: it puts the list into a state you
-                 are visibly inside, and leaving that state is what closing it
-                 means. Same gesture, different consequences, because the two
-                 controls are different kinds of thing.
-
-                 THE COUNT TAKES THE NAME'S VOICE AND THE WORD STAYS QUIET —
-                 exactly the band's other face, where a label is set at the row's
-                 own type and the person's own name hangs off it in grey. --%>
-            <div class="list-tags bar-scope list-box pointer-events-auto flex h-(--band-h) shrink-0 items-center gap-3 bg-primary-600/15 dark:bg-primary-500/20">
-              <button
-                type="button"
-                phx-click="scope_box"
-                aria-pressed={to_string(@list_mode == :people)}
-                class={[
-                  "list-scope pointer-events-auto flex shrink-0 cursor-pointer items-baseline gap-3",
-                  "outline-none transition-colors focus-visible:underline"
-                ]}
-              >
-                <span class="text-(length:--row-type) tracking-(--row-track) text-light-900 dark:text-dark-100">
-                  {(@scope == "SCOPED" && @box_counts.scopes) || @box_counts.unscopes}
-                </span>
-                <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/70 dark:text-neutral-500/70">
-                  {(@scope == "SCOPED" && "RELATIONSHIPS") || "PEOPLE"}
-                </span>
-              </button>
-
-              <%!-- OFF IT COUNTS RATHER THAN QUEUING SILENTLY. A held list that
-                   said nothing would be a list quietly going stale; the number is
-                   the offer to catch up, and pressing it is the reader choosing
-                   the moment the ground moves under them.
-
-                   THE TOGGLE ITSELF IS GONE FOR NOW — the list is always live and
-                   the band's three dots say so. This is what would stand here if
-                   it were ever held again, and it costs nothing to leave. --%>
-              <button
-                :if={!@live && @waiting > 0}
-                type="button"
-                phx-click="catch_up"
-                class={[
-                  "list-waiting pointer-events-auto shrink-0 cursor-pointer px-2 py-0.5 outline-none",
-                  "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                  "bg-secondary-500/20 text-secondary-700 hover:bg-secondary-500/30",
-                  "dark:bg-secondary-400/25 dark:text-secondary-200"
-                ]}
-              >
-                {@waiting} NEW
-              </button>
-            </div>
 
             <%!-- THE LEFT HALF IS THE HANDLE — pressing here picks the whole bar
                  up and carries it to the top; pressing the frame at the other

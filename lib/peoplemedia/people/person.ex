@@ -25,13 +25,17 @@ defmodule Peoplemedia.People.Person do
     # expire along with the thing it was protecting, which is the one moment it
     # must not. See `Peoplemedia.Around`, which is the only place it is read.
     field(:around_hidden, :boolean, default: false)
+    # STANDING, AND NOT AN INVITATION. A round is made and expires; this simply
+    # is. See the migration for why the two can share a block without being
+    # mistaken for one another.
+    field(:status, :string)
 
     timestamps()
   end
 
   def changeset(person, attrs) do
     person
-    |> cast(attrs, [:name, :country])
+    |> cast(attrs, [:name, :country, :status])
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 60)
   end
