@@ -2609,6 +2609,16 @@ textarea {
      off the bottom of the page. Anything two siblings both need belongs on the
      root they share. */
   --list-top: calc(var(--band-top) - var(--band-h) / 2);
+  /* THE CAPTION SITS UNDER THE BAND, NOT OVER IT. It stood above for as long as
+     it was a caption on a COLUMN — the place and the population, read before you
+     read the names. There is no place any more and what is left says which
+     population you are looking at, which is a fact about the band's own list; a
+     line above the band reads as a heading for the page, a line under it reads as
+     a note on the thing directly above it.
+
+     HALF A ROW OF CLEARANCE, so it is plainly in the gap between the band and the
+     first item rather than sitting on either. */
+  --tags-under: calc(var(--band-top) + var(--band-h) / 2 + 0.9rem);
   /* HOW FAR UNDER THE FORM ITS OWN GRID OPENS. One band's height on a wide
      screen, where the form is a single row; on a phone the boxes wrap beneath
      the name bar, so the grid has to clear two. */

@@ -144,6 +144,11 @@ held
   # for. Skipped entirely if this thread already has letters, or a second run
   # would double every conversation.
   if Letters.thread(me.id, person.id) == [] do
+    face_clip =
+      "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
+
+    voice_clip = "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"
+
     for {who, read, kind} <- Enum.reverse(Enum.at(threads, rem(i, length(threads)))) do
       sender = (who == :you && me) || person
       recipient = (who == :you && person) || me
@@ -151,6 +156,15 @@ held
       attrs =
         case kind do
           "text" -> %{kind: "text", body: "Thinking of you."}
+          # REAL FILES, BORROWED AND PUBLIC. Frames are CAPTURED and there is
+          # nothing in this app to capture with, so a face frame and a voice
+          # frame had nothing behind them and drew as empty blocks — the two
+          # states hardest to judge were the two nobody could see. These are
+          # small CC-licensed clips from test-videos.co.uk and a drawn still of
+          # our own; they go the day captures arrive, and until then this page
+          # needs a network to look right.
+          "face" -> %{kind: "face", media: face_clip}
+          "voice" -> %{kind: "voice", media: voice_clip}
           other -> %{kind: other, media: nil}
         end
 

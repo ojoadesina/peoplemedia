@@ -1716,7 +1716,7 @@ defmodule PeoplemediaWeb.IndexLive do
                from either side and neither side is more chosen than the other;
                the place can be OPEN, with the roll of the world under the band,
                and that is a state worth a colour. --%>
-          <div class="list-tags pointer-events-none absolute top-0 left-0 z-20 flex items-baseline gap-3">
+          <div class="list-tags pointer-events-none absolute top-(--tags-under) left-0 z-20 flex items-baseline gap-3">
             <button
               type="button"
               phx-click="place_box"
