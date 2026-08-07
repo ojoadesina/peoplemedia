@@ -1011,7 +1011,28 @@ defmodule PeoplemediaWeb.IndexLive do
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(word), do: word
 
+  # WHEN, AND IT PREFERS THE ROUND'S OWN. A round is identified by when it was
+  # made, so on somebody who is round that is the timing the head should carry —
+  # it is the age of the thing you are being shown. Off-round it falls back to the
+  # last letter's, which is the only other clock an item has.
+  defp item_age(item) do
+    case item[:round][:at] || item[:letter][:when] do
+      nil -> nil
+      %NaiveDateTime{} = at -> at |> Letters.since() |> String.upcase()
+      %DateTime{} = at -> at |> Letters.since() |> String.upcase()
+      word -> String.upcase(word)
+    end
+  end
+
   defp word_count(item), do: item[:round][:words][:count] || 0
+  defp word_images(item), do: item[:round][:words][:images] || 0
+
+  # THE DECK AND THE ↓ LIGHT FOR THE SAME REASON AND MUST AGREE. Both mean "an
+  # unopened letter is here", so the answer is read off the letter rather than
+  # stored twice — terracotta appearing on one but not the other is a bug nobody
+  # would spot on a still page.
+  defp unread?(%{letter: %{incoming: :unread}}), do: true
+  defp unread?(_read), do: false
 
   # THE PAIR IS BUILT FROM THE TWO DIRECTIONS rather than stored, so it cannot
   # disagree with the count beside it. `:read` in both places because neither is
@@ -1860,10 +1881,10 @@ defmodule PeoplemediaWeb.IndexLive do
                            Wider apart it took a name's worth of rail and read as
                            a second heading. --%>
                       <span
-                        :if={item[:letter][:when]}
+                        :if={item_age(item)}
                         class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
                       >
-                        {String.upcase(item.letter.when)}
+                        {item_age(item)}
                       </span>
 
                       <%!-- WHICH WAY THE WORDS HAVE GONE, ON THE HEAD. It sat on
@@ -1947,21 +1968,81 @@ defmodule PeoplemediaWeb.IndexLive do
                         {plate_says(item)}
                       </p>
 
+                      <%!-- PICTURES IN THE ROUND, PILED, JUST BEFORE THE COUNT.
+                           A word is speech plus attached documents and it is the
+                           only thing here that takes an upload; the stack says
+                           there are some without saying how many, which is what a
+                           glance wants — the number belongs to the WORDS and this
+                           belongs to what is in them.
+
+                           SAME SIZE AND SAME LEAN AS THE COUNT, because they are
+                           the same kind of object: a small square standing at the
+                           trailing edge of the block saying what is inside it. A
+                           different size would make one of them furniture. --%>
+                      <span :if={word_images(item) > 0} class="relative ml-auto size-5 shrink-0">
+                        <img
+                          :if={word_images(item) > 1}
+                          src="/images/word-2.svg"
+                          alt=""
+                          class="absolute inset-0 size-full rotate-6 object-cover"
+                        />
+                        <img
+                          src="/images/word-1.svg"
+                          alt=""
+                          class={[
+                            "relative size-full object-cover",
+                            word_images(item) > 1 && "-rotate-6"
+                          ]}
+                        />
+                      </span>
+
                       <%!-- HOW MANY WORDS ARE IN THERE. A word is threaded, so a
                            round is a door onto a stack of them, and the count is
-                           the one thing worth saying about a stack before you
-                           open it: whether there is a conversation in there or
-                           just the sentence you are looking at.
+                           the one thing worth saying about a stack before you open
+                           it: whether there is a conversation in there or just the
+                           sentence you are looking at.
 
-                           ABSENT, NOT ZERO, and never on an off-round plate. A
-                           column of "0" badges is a column reporting an absence —
-                           Law 1 — and a disabled block with a number on it asks
-                           you to act on something that is not there. --%>
+                           MORE THAN ONE AND IT STACKS. The number tells you how
+                           many once you have read it; the pile tells you there is
+                           more than one before you have. They are tilted APART
+                           rather than offset — two upright cards a few pixels
+                           adrift read as one card with a printing error, and two
+                           shapes at different angles can only be two shapes.
+
+                           IT LIGHTS ONLY WHEN A LETTER IS UNOPENED. Grey was
+                           reasoned from "a thread that exists is not a thread
+                           asking for you" — true of the thread, false of the item:
+                           the arrow on the head is already terracotta, and a grey
+                           deck beneath it said the words waiting inside were a
+                           separate, calmer matter. A FILL rather than ink, because
+                           it holds a number and a card that only recoloured its
+                           digit would be the faintest thing on the block.
+
+                           ABSENT, NOT ZERO — Law 1. --%>
                       <span
                         :if={word_count(item) > 0}
-                        class="flex h-5 min-w-5 shrink-0 items-center justify-center bg-primary-600 px-1.5 text-sm tracking-[0.08em] text-light-50 dark:bg-primary-500 dark:text-dark-950"
+                        class={["relative shrink-0", word_images(item) == 0 && "ml-auto"]}
                       >
-                        {word_count(item)}
+                        <span
+                          :if={word_count(item) > 1}
+                          class={[
+                            "absolute inset-0 rotate-6",
+                            (unread?(item) && "bg-primary-400 dark:bg-primary-700") ||
+                              "bg-neutral-300 dark:bg-dark-700"
+                          ]}
+                          aria-hidden="true"
+                        >
+                        </span>
+                        <span class={[
+                          "relative flex h-5 min-w-5 items-center justify-center px-1.5",
+                          "text-sm tracking-[0.08em]",
+                          word_count(item) > 1 && "-rotate-6",
+                          (unread?(item) &&
+                             "bg-primary-600 text-light-50 dark:bg-primary-500 dark:text-dark-950") ||
+                            "bg-neutral-300 text-neutral-600 dark:bg-dark-700 dark:text-dark-200"
+                        ]}>
+                          {word_count(item)}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -2255,7 +2336,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 role="button"
                 tabindex="0"
                 aria-label="Expand the letter"
-                class="letterbox is-empty pointer-events-auto relative flex size-(--band-h) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
+                class="letterbox is-empty pointer-events-auto relative flex size-(--person-frame) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
               >
                 <%!-- The screen is inset from the frame so the brackets bracket the
                    picture rather than cropping it, and square on every corner —

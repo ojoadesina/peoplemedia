@@ -2510,6 +2510,14 @@ textarea {
   --band-h: 3.5rem;
   /* THE TWO BLOCKS UNDER THE HEAD, named so the band's offset can be derived
      from them rather than restated as a number that has to be kept in step. */
+  /* THE PERSON FRAME IS ITS OWN SIZE, not the band's. It wore --band-h, which
+     was fine while a band was a strip across a line of text and the box beside it
+     held a letter's first few words. It is a CAPTURE now — a face, a voice, a
+     still — and 56px is a thumbnail of a person rather than a picture of one.
+     Twice the head, which lines it up with the head and the block under it
+     together: the whole item, which is what a capture of somebody belongs
+     against. */
+  --person-frame: 7.5rem;
   --join-h: 0.5rem;
   --plate-h: 4rem;
   /* FIXED, so the letter box never moves. Most people are around silently, so
@@ -2703,6 +2711,11 @@ textarea {
 
    ml-auto is gone with it: the cluster is placed by these rules and ends on the
    rail, which is the app's right bound and the edge every trailing thing holds. */
+/* IT HANGS OFF THE HEAD'S LINE, and --list-top already is that line: it is
+   --band-top less half a band, and --band-h is the head's height, so the two
+   agree by construction. A margin was added here to correct a drift that turned
+   out to be measured wrong — the box was already level and the correction was
+   what tilted it. Nothing to add. */
 .scope-boxes {
   position: absolute;
   /* THE BAND'S TOP EDGE, NOT ITS CENTRE, and the boxes stand on it. Centred and

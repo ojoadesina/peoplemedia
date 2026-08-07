@@ -13,13 +13,14 @@ defmodule Peoplemedia.Words do
   alias Peoplemedia.Repo
   alias Peoplemedia.Words.Word
 
-  def say(round_id, person_id, body, reply_to_id \\ nil) do
+  def say(round_id, person_id, body, opts \\ []) do
     %Word{}
     |> Word.changeset(%{
       round_id: round_id,
       person_id: person_id,
       body: body,
-      reply_to_id: reply_to_id
+      reply_to_id: opts[:reply_to_id],
+      images: opts[:images] || []
     })
     |> Repo.insert()
   end
@@ -48,6 +49,10 @@ defmodule Peoplemedia.Words do
        %{
          count: length(words),
          last: List.last(words).body,
+         # HOW MANY PICTURES ARE IN THERE, over the whole round rather than on the
+         # last word alone: the item's stack says "there are pictures in this
+         # round", which is a fact about the round the way the count is.
+         images: Enum.sum(Enum.map(words, &length(&1.images))),
          said: Enum.count(words, &(&1.person_id == viewer_id)),
          heard: Enum.count(words, &(&1.person_id != viewer_id))
        }}

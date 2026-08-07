@@ -318,6 +318,17 @@ Peoplemedia.Repo.all(Peoplemedia.Rounds.Round)
   for {body, n} <- Enum.with_index(Enum.at(said, rem(i, length(said)))) do
     # EVERY OTHER ONE IS OJO'S, so both arrows have something to say.
     who = if rem(n, 2) == 1, do: me.id, else: round.person_id
-    {:ok, _} = Words.say(round.id, who, body)
+
+    # SOME WORDS CARRY PICTURES AND MOST DO NOT. The item draws a stack for a
+    # round that has any, so a sheet where every round had them would show
+    # nothing about when the stack appears — which is most of what it says.
+    pictures =
+      case rem(i * 3 + n, 5) do
+        0 -> ["/images/word-1.svg", "/images/word-2.svg"]
+        3 -> ["/images/word-1.svg"]
+        _ -> []
+      end
+
+    {:ok, _} = Words.say(round.id, who, body, images: pictures)
   end
 end)

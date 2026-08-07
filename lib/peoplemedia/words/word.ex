@@ -27,13 +27,17 @@ defmodule Peoplemedia.Words.Word do
     belongs_to(:person, Person)
     belongs_to(:reply_to, __MODULE__)
     field(:body, :string)
+    # SPEECH PLUS ATTACHED DOCUMENTS, which is what a word has always been in the
+    # guide and the only place on this surface uploads are allowed. A frame is
+    # captured; these are attached.
+    field(:images, {:array, :string}, default: [])
 
     timestamps()
   end
 
   def changeset(word, attrs) do
     word
-    |> cast(attrs, [:round_id, :person_id, :reply_to_id, :body])
+    |> cast(attrs, [:round_id, :person_id, :reply_to_id, :body, :images])
     |> validate_required([:round_id, :person_id, :body])
     |> update_change(:body, &String.trim/1)
     # AN EMPTY WORD IS NOT A QUIET WORD, it is a press that should not have

@@ -177,6 +177,16 @@ defmodule Peoplemedia.Letters do
   # HOW LONG AGO, in the compact way a feed reads it: the single largest unit
   # that fits, one letter for it. Months are "mo" so they cannot be mistaken for
   # minutes. Moved here from Directory with the letters it describes.
+  @doc """
+  HOW LONG AGO, IN ONE SHORT TOKEN — `2m`, `3h`, `4d`. Public because a ROUND
+  wants the same answer in the same words: an item's head carries one age, and two
+  clocks written in two vocabularies would read as two different measurements.
+  """
+  def since(%DateTime{} = at),
+    do: relative(max(div(DateTime.diff(DateTime.utc_now(), at), 60), 0))
+
+  def since(%NaiveDateTime{} = at), do: since(DateTime.from_naive!(at, "Etc/UTC"))
+
   defp relative(min) do
     cond do
       min < 60 -> "#{min}m"
