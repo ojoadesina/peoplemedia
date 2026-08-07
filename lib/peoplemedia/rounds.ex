@@ -241,24 +241,18 @@ defmodule Peoplemedia.Rounds do
   @doc "How long a round surfaces somebody past their last contact, in minutes."
   def minutes, do: @minutes
 
-  def moods, do: Round.moods()
   def audiences, do: Round.audiences()
   def doing_limit, do: Round.doing_limit()
-  def mood_families, do: Round.mood_families()
-  def family_of(mood), do: Round.family_of(mood)
 
-  # WHAT A SURFACE IS HANDED. The row's own keys plus the two things every caller
-  # would otherwise work out for itself — whether it is still up, and which
-  # family the mood belongs to. Both are derived: a column for either would let a
-  # row disagree with the vocabulary or with the clock.
+  # WHAT A SURFACE IS HANDED. The row's own keys plus the one thing every caller
+  # would otherwise work out for itself — whether it is still up. Derived, because
+  # a column for it would let a row disagree with the clock.
   defp read(%Round{} = r) do
     %{
       id: r.id,
       number: r.number,
       person_id: r.person_id,
       target_id: r.target_id,
-      mood: r.mood,
-      family: Round.family_of(r.mood),
       doing: r.doing,
       audience: r.audience,
       # A ROUND BETWEEN TWO PEOPLE IS A DIFFERENT KIND OF THING from one going
@@ -271,9 +265,9 @@ defmodule Peoplemedia.Rounds do
     }
   end
 
-  # A FIELD SOMEBODY CLEARED IS A FIELD WITH NOTHING IN IT, and "" is not a mood.
-  # A form sends empty strings for untouched controls, and the closed-set
-  # validation would call them invalid rather than absent.
+  # A FIELD SOMEBODY CLEARED IS A FIELD WITH NOTHING IN IT. A form sends empty
+  # strings for untouched controls, and everything on a round is optional — so an
+  # empty one has to arrive as absent rather than as a blank somebody typed.
   defp blank_to_nil(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil

@@ -9,7 +9,7 @@ defmodule Peoplemedia.Rounds.Round do
 
   ## EVERYTHING ON IT IS OPTIONAL
 
-  A doing and a mood, both nullable, and that is the design rather than laxness:
+  A doing, nullable, and that is the design rather than laxness:
   a round with nothing on it is somebody saying "I am here and open to being
   joined", which is the smallest true thing this app exists to let anybody say.
   Filling it in is how you say more.
@@ -32,41 +32,12 @@ defmodule Peoplemedia.Rounds.Round do
 
   alias Peoplemedia.People.Person
 
-  # ── HOW YOU ARE ─────────────────────────────────────────────────────────────
-  # WORDS, NOT PICTURES, and the size of this list is the argument. `heartbroken`
-  # and `disappointed` are different things and no pair of icons reliably says
-  # which is which; drawn as faces they collapse into the same face, which is
-  # exactly the distinction worth showing.
-  #
-  # SEVEN FAMILIES, AND THE FAMILY CARRIES THE COLOUR. One colour per mood would
-  # be forty-eight hues nobody could learn; one per family is seven, and inside a
-  # family the words differ by INTENSITY — annoyed, irritated, furious — so the
-  # colour tells you the weather and the word tells you the temperature.
-  @mood_families [
-    {"joy", ~w(happy cheerful excited amused proud relieved grateful hopeful)},
-    {"calm", ~w(calm content relaxed steady peaceful rested satisfactory)},
-    {"love", ~w(loving caring adoring missing thankful soft)},
-    {"anger", ~w(angry furious annoyed irritated frustrated bitter jealous done)},
-    {"sorrow", ~w(sad lonely empty miserable heartbroken ashamed disappointed sorry)},
-    {"flat", ~w(tired bored meh numb lazy sleepy sick exhausted)},
-    {"fear", ~w(restless anxious nervous unsure overwhelmed scared)}
-  ]
-
-  @moods Enum.flat_map(@mood_families, fn {_family, words} -> words end)
-  @family_of @mood_families
-             |> Enum.flat_map(fn {family, words} -> Enum.map(words, &{&1, family}) end)
-             |> Map.new()
-
   # WHAT YOU ARE DOING IS WHAT YOU TYPE. It was a closed set of fourteen with a
   # free line beneath it, and the two overlapped so badly that "the witchers,
   # finally" / `movie` / "the witchers" was one thought said three times. A
   # vocabulary of doings is either redundant beside a sentence somebody wrote or
   # it is the thing stopping them writing it.
-  #
-  # MOOD KEEPS ITS SET, and the difference is the whole reason. A mood is drawn
-  # as a COLOUR and a colour needs a family to belong to; a doing is drawn as
-  # itself. Closing a set is worth it when something has to be looked up, and a
-  # cost when nothing does.
+
   @doing_limit 80
 
   # PUBLIC IS EVERYONE. PRIVATE IS THE PEOPLE YOU HOLD — or one of them, when a
@@ -77,7 +48,6 @@ defmodule Peoplemedia.Rounds.Round do
   schema "rounds" do
     belongs_to(:person, Person)
     belongs_to(:target, Person)
-    field(:mood, :string)
     field(:doing, :string)
     # PER CREATOR, INCREASING. Names repeat and names are optional; a number is
     # neither, so it is what a word hangs off and what a page lists by.
@@ -90,10 +60,9 @@ defmodule Peoplemedia.Rounds.Round do
 
   def changeset(round, attrs) do
     round
-    |> cast(attrs, [:person_id, :target_id, :mood, :doing, :audience, :expires_at, :number])
+    |> cast(attrs, [:person_id, :target_id, :doing, :audience, :expires_at, :number])
     |> validate_required([:person_id, :audience, :expires_at, :number])
     |> validate_inclusion(:audience, @audiences)
-    |> validate_inclusion(:mood, @moods)
     # SHORT BY CONSTRUCTION. It rides in a box beside the band, so a paragraph
     # set there would either overrun the rail or truncate into nonsense.
     |> validate_length(:doing, max: @doing_limit)
@@ -118,25 +87,6 @@ defmodule Peoplemedia.Rounds.Round do
     end
   end
 
-  def moods, do: @moods
   def audiences, do: @audiences
   def doing_limit, do: @doing_limit
-
-  @doc """
-  The moods, in their families and in order — `[{family, words}]`.
-
-  A LIST AND NOT A MAP, because the order is part of the answer. The families run
-  warm to cold and the words inside each run mild to strong, which is what makes
-  a grid of forty-eight readable at all: you find the weather first and the
-  temperature second.
-  """
-  def mood_families, do: @mood_families
-
-  @doc """
-  Which family a mood belongs to, or nil. The COLOUR hangs off this rather than
-  off the mood itself — one hue per family is seven to learn, one per mood would
-  be forty-eight nobody could.
-  """
-  def family_of(nil), do: nil
-  def family_of(mood), do: Map.get(@family_of, mood)
 end

@@ -81,7 +81,7 @@ defmodule PeoplemediaWeb.RoundTest do
     # is still here; somebody who left is not, whatever they were round with.
     test "a round running out does not make them absent", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
-      round(them, %{mood: "happy"})
+      round(them, %{doing: "something"})
 
       {:ok, live, _} = live(conn, ~p"/")
       Rounds.stop(them.id)
@@ -97,7 +97,7 @@ defmodule PeoplemediaWeb.RoundTest do
 
     test "leaving does", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
-      round(them, %{mood: "happy"})
+      round(them, %{doing: "something"})
 
       {:ok, live, _} = live(conn, ~p"/")
       Presence.leave(them.id)
@@ -233,8 +233,7 @@ defmodule PeoplemediaWeb.RoundTest do
   end
 
   describe "going round" do
-    test "the form takes the band's line, in place, with no panel",
-         %{conn: conn, me: me} do
+    test "the form is the shape of what it makes", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
       refute has_element?(live, "#round-form")
 
@@ -245,38 +244,46 @@ defmodule PeoplemediaWeb.RoundTest do
       assert has_element?(live, "#round-form")
       assert has_element?(live, ".scopes-item")
 
-      # THE BOXES ARE THE FIELDS. They had labels over them — DOING, MOOD —
-      # which named what the box obviously was and left the answer squeezed
-      # underneath. The placeholder does that job and leaves when answered.
+      # TWO FIELDS, AND THEY ARE THE TWO BLOCKS AN ITEM IS MADE OF: the round's
+      # name where the head will be, the first word where the word block will be.
+      # Nothing moves between filling it in and reading it back.
       room = render(live)
-      assert room =~ "WHAT ARE YOU UP TO?"
-      refute room =~ ">DOING<"
-      refute room =~ ">MOOD<"
+      assert room =~ "WHAT IS THIS ROUND?"
+      assert room =~ "SAY SOMETHING"
+      assert has_element?(live, "#round-name")
+      assert has_element?(live, "#round-word")
 
-      # A box opens onto everything it could hold — the moods in their families,
-      # coloured by the family rather than by the word.
-      live |> element(~s(button[phx-click="pick_open"][phx-value-which="mood"])) |> render_click()
-      open = render(live)
-      assert open =~ "HEARTBROKEN"
-      assert open =~ "SORROW"
-      assert open =~ ~s(data-family="sorrow")
+      # AND NO MOOD, ANYWHERE. Forty-eight words in seven coloured families, a
+      # grid to pick them from, and a box on the rail to open it — all of it gone,
+      # because the words people actually say answer the question better.
+      refute room =~ "HEARTBROKEN"
+      refute has_element?(live, ~s(button[phx-click="pick_open"]))
 
-      live |> element(~s(button[phx-value-which="mood"][phx-value-word="calm"])) |> render_click()
-      assert render(live) =~ "CALM"
+      render_submit(live, :round_send, %{
+        "doing" => "mending the fence",
+        "word" => "third attempt at this"
+      })
 
-      # THE WAY OUT OF AN OPEN BOX IS THE BOX. Pressing the one that is open
-      # closes it, so the gesture that reveals a choice is the same one that
-      # abandons it — and there is no second control to find.
-      live |> element(~s(button[phx-click="pick_open"][phx-value-which="mood"])) |> render_click()
-      assert render(live) =~ "HEARTBROKEN"
-      live |> element(~s(button[phx-click="pick_open"][phx-value-which="mood"])) |> render_click()
-      refute render(live) =~ "HEARTBROKEN"
-
-      # A MOOD ON ITS OWN IS A COMPLETE THING TO SAY, and so is nothing at all.
-      render_submit(live, :round_send, %{"mood" => "calm"})
-
-      assert %{mood: "calm"} = Rounds.live(me.id)
+      # THE ROUND AND ITS FIRST WORD IN ONE PRESS. Going round and then saying
+      # something were two acts a moment apart, and the second is the reason for
+      # the first.
+      round = Rounds.live(me.id)
+      assert %{doing: "mending the fence"} = round
+      assert [%{body: "third attempt at this"}] = Peoplemedia.Words.thread(round.id)
       refute has_element?(live, "#round-form"), "sending closes the form"
+    end
+
+    # LEFT BLANK, IT STILL MAKES THE ROUND. "I am here" is the smallest true
+    # thing this app exists to let anybody say, and a round with nothing said in
+    # it yet is the commonest state there is.
+    test "and the first word is optional", %{conn: conn, me: me} do
+      {:ok, live, _} = live(conn, ~p"/")
+      live |> element("#act") |> render_click()
+      render_submit(live, :round_send, %{"doing" => "just about", "word" => "   "})
+
+      round = Rounds.live(me.id)
+      assert %{doing: "just about"} = round
+      assert Peoplemedia.Words.thread(round.id) == []
     end
 
     # EVERY FIELD IS OPTIONAL, so there is nothing to refuse. An empty round is
@@ -287,7 +294,7 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
       render_submit(live, :round_send, %{})
 
-      assert %{mood: nil, doing: nil} = Rounds.live(me.id)
+      assert %{doing: nil} = Rounds.live(me.id)
     end
 
     # MANUAL CANCEL, and it is the only way out that changes nothing.
@@ -300,19 +307,15 @@ defmodule PeoplemediaWeb.RoundTest do
       assert Rounds.live(me.id) == nil
     end
 
-    test "a doing and a mood, and the round is numbered", %{conn: conn, me: me} do
+    test "a doing, and the round is numbered", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
       live |> element("#act") |> render_click()
 
-      render_submit(live, :round_send, %{
-        "doing" => "fixing the bike before it rains",
-        "mood" => "happy"
-      })
+      render_submit(live, :round_send, %{"doing" => "fixing the bike before it rains"})
 
       # THE NUMBER IS WHAT IT IS KNOWN BY. Per creator, increasing — a name
       # repeats and is optional, and no two people's are comparable.
-      assert %{doing: "fixing the bike before it rains", mood: "happy", number: 1} =
-               Rounds.live(me.id)
+      assert %{doing: "fixing the bike before it rains", number: 1} = Rounds.live(me.id)
     end
 
     # GOING ROUND IS A NEW ROW EVERY TIME. The old one keeps its words and its
@@ -321,13 +324,13 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, _} = live(conn, ~p"/")
 
       live |> element("#act") |> render_click()
-      render_submit(live, :round_send, %{"mood" => "tired"})
+      render_submit(live, :round_send, %{})
 
       live |> element("#act") |> render_click()
-      render_submit(live, :round_send, %{"mood" => "hopeful"})
+      render_submit(live, :round_send, %{})
 
-      assert %{mood: "hopeful", number: 2} = Rounds.live(me.id)
-      assert [%{mood: "hopeful", number: 2}, %{mood: "tired", number: 1}] = Rounds.history(me.id)
+      assert %{number: 2} = Rounds.live(me.id)
+      assert [%{number: 2}, %{number: 1}] = Rounds.history(me.id)
     end
 
     # THE AUDIENCE IS THE TAB YOU ARE STANDING ON, never a question. PEOPLE is
@@ -339,7 +342,7 @@ defmodule PeoplemediaWeb.RoundTest do
       assert render(live) =~ "PEOPLE"
 
       live |> element("#act") |> render_click()
-      render_submit(live, :round_send, %{"mood" => "calm"})
+      render_submit(live, :round_send, %{})
 
       assert %{audience: "public", target_id: nil} = Rounds.live(me.id)
     end
@@ -350,18 +353,9 @@ defmodule PeoplemediaWeb.RoundTest do
       assert render(live) =~ "RELATIONSHIPS"
 
       live |> element("#act") |> render_click()
-      render_submit(live, :round_send, %{"mood" => "calm"})
+      render_submit(live, :round_send, %{})
 
       assert %{audience: "private", target_id: nil} = Rounds.live(me.id)
-    end
-
-    test "a mood outside the vocabulary makes no round", %{conn: conn, me: me} do
-      {:ok, live, _} = live(conn, ~p"/")
-      live |> element("#act") |> render_click()
-
-      render_submit(live, :round_send, %{"mood" => "peckish"})
-
-      assert Rounds.live(me.id) == nil
     end
   end
 
@@ -471,8 +465,8 @@ defmodule PeoplemediaWeb.RoundTest do
     test "the newest round leads, and expiry does not demote", %{conn: conn, me: me} do
       [{_a, first}, {second_scope, second} | _] = Relationships.held_by(me.id)
 
-      round(first, %{mood: "calm"})
-      round(second, %{mood: "happy"})
+      round(first, %{doing: "something"})
+      round(second, %{doing: "something"})
 
       {:ok, live, _} = live(conn, ~p"/")
       # THE LABEL, not the name. A row shows one word for a person now — the one
@@ -490,7 +484,7 @@ defmodule PeoplemediaWeb.RoundTest do
     test "hidden removes the round while leaving them in the list", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
       [{scope, _} | _] = Relationships.held_by(me.id)
-      round(them, %{mood: "happy", doing: "reading"})
+      round(them, %{doing: "reading"})
       {:ok, _} = People.set_around_hidden(them, true)
 
       {:ok, live, html} = live(conn, ~p"/")

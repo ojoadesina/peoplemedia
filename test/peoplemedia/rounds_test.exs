@@ -30,16 +30,19 @@ defmodule Peoplemedia.RoundsTest do
       me = person("OJO")
 
       assert {:ok, _} = Rounds.go(me.id)
-      assert %{mood: nil, doing: nil, live: true} = Rounds.live(me.id)
+      assert %{doing: nil, live: true} = Rounds.live(me.id)
     end
 
-    test "and with both of them" do
+    # A DOING IS FREE TEXT AND IT IS THE ONLY THING ON A ROUND. A mood sat beside
+    # it for a while — a closed set of forty-eight words in seven coloured
+    # families — and what it did was put a second thing to read on every block
+    # that answers one question. The WORDS say it now.
+    test "and with a doing on it" do
       me = person("OJO")
 
-      {:ok, _} = Rounds.go(me.id, %{doing: "the witchers, finally", mood: "happy"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "the witchers, finally"})
 
-      assert %{doing: "the witchers, finally", mood: "happy", family: "joy", number: 1} =
-               Rounds.live(me.id)
+      assert %{doing: "the witchers, finally", number: 1} = Rounds.live(me.id)
     end
 
     # PER CREATOR, INCREASING, and it never moves. Your third round stays your
@@ -72,23 +75,11 @@ defmodule Peoplemedia.RoundsTest do
       assert %{doing: "second"} = Rounds.live(me.id)
     end
 
-    # THE MOOD KEEPS ITS SET AND THE DOING DOES NOT, and the difference is the
-    # whole reason: a mood is drawn as a COLOUR and a colour needs a family to
-    # belong to. A doing is drawn as itself, so anything you can type is one.
-    test "a mood outside the vocabulary is refused, and a doing never is" do
-      me = person("OJO")
-
-      assert {:error, mood} = Rounds.go(me.id, %{mood: "peckish"})
-      assert "is invalid" in errors_on(mood).mood
-
-      assert {:ok, _} = Rounds.go(me.id, %{doing: "vibing, honestly"})
-    end
-
     test "an empty field is absent, not invalid" do
       me = person("OJO")
 
-      assert {:ok, _} = Rounds.go(me.id, %{doing: "", mood: ""})
-      assert %{mood: nil, doing: nil} = Rounds.live(me.id)
+      assert {:ok, _} = Rounds.go(me.id, %{doing: ""})
+      assert %{doing: nil} = Rounds.live(me.id)
     end
 
     test "a doing longer than the box can hold is refused" do
@@ -198,19 +189,19 @@ defmodule Peoplemedia.RoundsTest do
       over = person("OVER")
       never = person("NEVER")
 
-      {:ok, _} = Rounds.go(up.id, %{mood: "content"})
+      {:ok, _} = Rounds.go(up.id, %{doing: "something"})
       {:ok, _} = Rounds.go(over.id)
       expire(over)
 
       live = Rounds.live_for([up.id, over.id, never.id])
 
       assert Map.keys(live) == [up.id]
-      assert %{mood: "content"} = live[up.id]
+      assert %{doing: "something"} = live[up.id]
     end
 
     test "a hidden person is not round even while their round is good" do
       me = person("OJO")
-      {:ok, _} = Rounds.go(me.id, %{mood: "happy"})
+      {:ok, _} = Rounds.go(me.id, %{doing: "something"})
       {:ok, _} = Peoplemedia.People.set_around_hidden(me, true)
 
       assert Rounds.live(me.id) == nil
@@ -251,7 +242,7 @@ defmodule Peoplemedia.RoundsTest do
     test "a private round is not visible to a stranger" do
       me = cast()
       stranger = person("NOBODY")
-      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+      {:ok, _} = Rounds.go(me.id, %{audience: "private"})
 
       assert Rounds.live_for([me.id], stranger.id) == %{}
       assert Rounds.live_for([me.id], nil) == %{}, "a visitor least of all"
@@ -260,9 +251,9 @@ defmodule Peoplemedia.RoundsTest do
     test "but it is visible to the people you hold" do
       me = cast()
       [{_scope, them} | _] = Relationships.held_by(me.id)
-      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+      {:ok, _} = Rounds.go(me.id, %{audience: "private"})
 
-      assert %{mood: "calm"} = Rounds.live_for([me.id], them.id)[me.id]
+      assert Rounds.live_for([me.id], them.id)[me.id]
     end
 
     # HOLDING SOMEBODY IS NOT BEING HELD BY THEM. The audience of a private round
@@ -274,7 +265,7 @@ defmodule Peoplemedia.RoundsTest do
       {:ok, _} = Relationships.scope_back(me.id, onlooker.id, "THEM")
       {:ok, _} = Relationships.accept(onlooker.id, me.id)
 
-      {:ok, _} = Rounds.go(onlooker.id, %{audience: "private", mood: "calm"})
+      {:ok, _} = Rounds.go(onlooker.id, %{audience: "private"})
 
       # The onlooker holds me, so I am in THEIR audience.
       assert Rounds.live_for([onlooker.id], me.id)[onlooker.id]
@@ -285,7 +276,7 @@ defmodule Peoplemedia.RoundsTest do
     test "a private round aimed at one person reaches only them" do
       me = cast()
       [{_a, them}, {_b, other} | _] = Relationships.held_by(me.id)
-      {:ok, _} = Rounds.go(me.id, %{audience: "private", target_id: them.id, mood: "calm"})
+      {:ok, _} = Rounds.go(me.id, %{audience: "private", target_id: them.id})
 
       assert Rounds.live_for([me.id], them.id)[me.id]
       assert Rounds.live_for([me.id], other.id) == %{}
@@ -293,7 +284,7 @@ defmodule Peoplemedia.RoundsTest do
 
     test "a public round reaches everybody, passport or not" do
       me = cast()
-      {:ok, _} = Rounds.go(me.id, %{audience: "public", mood: "calm"})
+      {:ok, _} = Rounds.go(me.id, %{audience: "public"})
 
       assert Rounds.live_for([me.id], person("ANYONE").id)[me.id]
       assert Rounds.live_for([me.id], nil)[me.id]
@@ -301,9 +292,9 @@ defmodule Peoplemedia.RoundsTest do
 
     test "and your own is always yours to see, whoever it is for" do
       me = cast()
-      {:ok, _} = Rounds.go(me.id, %{audience: "private", mood: "calm"})
+      {:ok, _} = Rounds.go(me.id, %{audience: "private"})
 
-      assert %{mood: "calm"} = Rounds.live(me.id)
+      assert Rounds.live(me.id)
     end
   end
 
