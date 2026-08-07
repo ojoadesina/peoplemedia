@@ -1665,7 +1665,7 @@ defmodule PeoplemediaWeb.IndexLive do
                from either side and neither side is more chosen than the other;
                the place can be OPEN, with the roll of the world under the band,
                and that is a state worth a colour. --%>
-          <div class="list-tags pointer-events-none absolute top-(--tags-under) left-0 z-20 flex items-baseline gap-3">
+          <div class="list-tags pointer-events-none absolute top-(--tags-top) left-0 z-20 flex items-baseline gap-3">
             <%!-- WHICH POPULATION, AND THAT IS ALL THAT IS LEFT OF THIS LINE. A
                  PLACE stood beside it — a country, with the whole roll of the
                  world scrolling under the band when you pressed it. It answered a
@@ -1832,11 +1832,15 @@ defmodule PeoplemediaWeb.IndexLive do
                        THE WORD IS WHAT WAS SAID. Two blocks, joined by a stroke
                        in the gap, and the pair is one item. --%>
                   <div class="flex h-full w-full shrink-0 snap-start flex-col justify-center">
-                    <div class={[
-                      "frame relative flex h-14 items-center gap-3 overflow-hidden",
-                      "px-(--list-pad) text-md",
-                      (pictured(item) && "text-light-50") || "bg-neutral-100 dark:bg-dark-900"
-                    ]}>
+                    <div
+                      id={pictured(item) && "capture-#{item[:id]}"}
+                      phx-hook={pictured(item) && "Capture"}
+                      phx-mounted={pictured(item) && JS.ignore_attributes(["class"])}
+                      class={[
+                        "frame relative flex h-14 items-center gap-3 overflow-hidden",
+                        "px-(--list-pad) text-md bg-neutral-100 dark:bg-dark-900"
+                      ]}
+                    >
                       <%!-- A FACE FRAME IS THE CAPTURE. Not a panel with a
                            thumbnail in it — the whole block is the video, edge to
                            edge, with everything the frame says laid over it. A
@@ -1870,7 +1874,7 @@ defmodule PeoplemediaWeb.IndexLive do
                            dark where a word happens to fall. --%>
                       <span
                         :if={pictured(item)}
-                        class="absolute inset-0 bg-linear-to-b from-black/65 via-black/35 to-black/25"
+                        class="capture-scrim absolute inset-0 bg-linear-to-b from-black/65 via-black/35 to-black/25"
                         aria-hidden="true"
                       >
                       </span>
@@ -1901,10 +1905,7 @@ defmodule PeoplemediaWeb.IndexLive do
                       >
                       </span>
 
-                      <p class={[
-                        "scopes-line relative min-w-0 flex-1 truncate tracking-[0.1em]",
-                        pictured(item) && "on-capture"
-                      ]}>
+                      <p class="scopes-line relative min-w-0 flex-1 truncate tracking-[0.1em]">
                         {String.upcase(item[:label] || item[:name])}
                       </p>
 
@@ -1922,7 +1923,7 @@ defmodule PeoplemediaWeb.IndexLive do
                       <.letter_flow
                         :if={word_flow(item)}
                         letter={word_flow(item)}
-                        class={["relative shrink-0 text-xl", pictured(item) && "on-capture-mark"]}
+                        class="relative shrink-0 text-xl"
                       />
 
                       <%!-- AND HOW MANY WORDS ARE IN THERE. It sat on the word

@@ -2634,7 +2634,12 @@ textarea {
 
      HALF A ROW OF CLEARANCE, so it is plainly in the gap between the band and the
      first item rather than sitting on either. */
-  --tags-under: calc(var(--band-top) + var(--band-h) / 2 + 0.9rem);
+  /* ABOVE THE BAND AGAIN, AND AS CLOSE TO IT AS IT WAS BELOW. It read better
+     tucked under than it did floating three rems over the top — what made it
+     work was the CLOSENESS, not the side. So it keeps the short gap and goes
+     back over, where a caption belongs: a line you read before the thing it
+     captions rather than after it. */
+  --tags-top: calc(var(--band-top) - var(--band-h) / 2 - 1.6rem);
   /* HOW FAR UNDER THE FORM ITS OWN GRID OPENS. One band's height on a wide
      screen, where the form is a single row; on a phone the boxes wrap beneath
      the name bar, so the grid has to clear two. */
@@ -3124,4 +3129,30 @@ textarea {
    rest of the column is drawn in exactly one other. */
 .scopes-item.is-focused .frame {
   background-color: transparent;
+}
+
+
+/* ── A CAPTURE ARRIVES, OR IT DOES NOT ─────────────────────────────────────────
+   THE SCRIM AND THE LIGHT INK WAIT FOR A PICTURE. Both were applied the moment
+   the server said somebody had a face, which is a claim about the database — a
+   clip that is slow, blocked or gone left a black ramp lying on nothing, and the
+   block read as neither a capture nor an ordinary empty frame. `is-ready` is the
+   client's answer, set when the media has actually decoded a frame; see the
+   Capture hook.
+
+   UNTIL THEN THE FRAME IS EXACTLY WHAT AN UNCAPTURED FRAME IS, which is the
+   honest thing for it to be — and it is also what makes the failure safe: the
+   name is drawn in the ordinary ink on the ordinary ground, so nothing can go
+   white on a background that never came. */
+.capture-scrim {
+  opacity: 0;
+  transition: opacity 320ms ease-out;
+}
+.frame.is-ready .capture-scrim {
+  opacity: 1;
+}
+.frame.is-ready .scopes-line,
+.frame.is-ready .letter-flow {
+  color: var(--color-light-50);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
 }
