@@ -1032,12 +1032,15 @@ defmodule PeoplemediaWeb.IndexLive do
   # A VOICE IS A CAPTURE WITH NO PICTURE, which is why it answers here without a
   # `media` of its own: what it draws is a track rather than a frame full of
   # something.
-  defp capture(%{frame: "voice"}), do: "voice"
-
-  defp capture(%{frame: kind, media: media}) when kind in ~w(face still) and not is_nil(media),
-    do: kind
+  defp capture(%{capture_kind: kind, capture: file})
+       when kind in ~w(face voice still) and not is_nil(file),
+       do: kind
 
   defp capture(_nothing), do: nil
+
+  # AND THE FILE IT DRAWS, kept beside the kind rather than reached for inline so
+  # the two can never come from different places.
+  defp capture_src(item), do: item[:capture]
 
   # ONLY A FACE OR A STILL PUTS A PICTURE UNDER THE TYPE, and only that changes
   # how the type is drawn. A VOICE is a capture with nothing to look at: it keeps
@@ -1905,7 +1908,7 @@ defmodule PeoplemediaWeb.IndexLive do
                            taking it fullscreen the moment it starts. --%>
                       <video
                         :if={capture(item) == "face"}
-                        src={item[:media]}
+                        src={capture_src(item)}
                         autoplay
                         muted
                         loop
@@ -1916,7 +1919,7 @@ defmodule PeoplemediaWeb.IndexLive do
                       </video>
                       <img
                         :if={capture(item) == "still"}
-                        src={item[:media]}
+                        src={capture_src(item)}
                         alt=""
                         class="absolute inset-0 size-full object-cover"
                       />

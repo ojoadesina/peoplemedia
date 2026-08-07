@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <!-- A STAND-IN FOR A CAPTURED STILL: colour and blur only, no shapes. An
+       illustration is a kind of content, and the moment a placeholder looks like
+       content it stops standing in for it. Goes when captures arrive. -->
+  <defs>
+    <linearGradient id="s2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7d8a72"/>
+      <stop offset="0.6" stop-color="#8a7f8e"/>
+      <stop offset="1" stop-color="#3d4144"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#s2)"/>
+</svg>

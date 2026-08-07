@@ -88,6 +88,42 @@ threads = [
   [{:you, true, "text"}]
 ]
 
+# ── AND WHAT THEY CAPTURED OF THEMSELVES ─────────────────────────────────────
+# A face, a voice or a still, on the PERSON — theirs, and the same whoever is
+# looking. It hung off the last letter for a while, which made a stranger's frame
+# empty by definition and left most of the column showing nothing at all.
+#
+# MOST PEOPLE HAVE CAPTURED NOTHING, which is the resting state and has to be on
+# the sheet or the design is only ever judged against a full column.
+#
+# BORROWED AND PUBLIC, and they go the day this app can capture anything itself:
+# small CC-licensed clips from test-videos.co.uk, and a still drawn here.
+face_clip = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
+voice_clip = "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"
+
+captures = [
+  {"face", face_clip},
+  {nil, nil},
+  {"voice", voice_clip},
+  {"still", "/images/still-1.svg"},
+  {nil, nil},
+  {"face", face_clip},
+  {nil, nil},
+  {"still", "/images/still-2.svg"},
+  {"voice", voice_clip},
+  {nil, nil}
+]
+
+Repo.all(Person)
+|> Enum.with_index()
+|> Enum.each(fn {person, i} ->
+  {kind, file} = Enum.at(captures, rem(i, length(captures)))
+
+  person
+  |> Ecto.Changeset.change(%{capture_kind: kind, capture: file})
+  |> Repo.update!()
+end)
+
 # ── WHAT THEY ARE UP TO WHEN THEY ARE NOT ROUND ──────────────────────────────
 # Most people are not in a round most of the time, and their item's second block
 # holds this instead. Short, standing, and plainly not an invitation — a status

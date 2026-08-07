@@ -29,13 +29,18 @@ defmodule Peoplemedia.People.Person do
     # is. See the migration for why the two can share a block without being
     # mistaken for one another.
     field(:status, :string)
+    # WHAT THEY CAPTURED OF THEMSELVES — a face, a voice or a still. Theirs, and
+    # the same whoever is looking, which is why it hangs off the person rather
+    # than off a correspondence. See the migration.
+    field(:capture_kind, :string)
+    field(:capture, :string)
 
     timestamps()
   end
 
   def changeset(person, attrs) do
     person
-    |> cast(attrs, [:name, :country, :status])
+    |> cast(attrs, [:name, :country, :status, :capture_kind, :capture])
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 60)
   end

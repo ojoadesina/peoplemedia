@@ -194,11 +194,13 @@ defmodule Peoplemedia.Directory do
     # to be drawn on.
     words = Peoplemedia.Words.for_rounds(Enum.map(Map.values(rounds), & &1.id), viewer_id)
 
-    statuses =
+    # STATUS AND CAPTURE COME OFF THE SAME PASS, because they are both columns on
+    # the person and asking twice would be two selects for one row.
+    people =
       Person
       |> Repo.all()
       |> Enum.filter(&(&1.id in ids))
-      |> Map.new(&{&1.id, &1.status})
+      |> Map.new(&{&1.id, &1})
 
     Map.new(ids, fn id ->
       {id,
@@ -208,7 +210,12 @@ defmodule Peoplemedia.Directory do
          # and not an invitation. It rides beside the round rather than being
          # folded into it: a caller that could not tell them apart would show a
          # status where a round belongs the first time somebody went quiet.
-         status: statuses[id],
+         status: people[id] && people[id].status,
+         # THE FRAME'S OWN TWO, and they beat anything a letter carries: a capture
+         # is a fact about them, and the letterbox below is a fact about the two
+         # of you.
+         capture_kind: people[id] && people[id].capture_kind,
+         capture: people[id] && people[id].capture,
          # THE WORDS RIDE WITH THE ROUND THEY ARE IN, so a caller that has one has
          # the other — the item draws them on the same block and would otherwise
          # be reaching into two answers to fill one.
