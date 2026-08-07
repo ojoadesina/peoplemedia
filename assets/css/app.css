@@ -1093,15 +1093,12 @@ html[data-theme="dark"] {
    than overhang. Nothing in here is taller than --band-h. The FORM is the
    exception and it is not in here — it is the bar's sibling, positioned on the
    same line, which is why it can grow downward as you write. */
-/* THE BAND RIDES ON THE HEAD, NOT ON THE ROW'S MIDDLE. The scroller centres a
-   ROW on --band-top, and a row is now a head, a join and a plate — so the middle
-   of it falls in the join, and brackets sized to the head landed across the gap
-   between the two blocks. Lifted by half of what hangs below the head — the
-   0.5rem join and the 4rem plate — the brackets sit on the head while the
-   scroller goes on aligning rows exactly as it did. One offset, derived from the
-   two numbers it is made of, so it cannot drift from them. */
+/* THE BAND DOES NOT MOVE TO MEET THE HEAD — the head is aimed at instead. This
+   carried `margin-top: -(join + plate)/2` for a pass, which did nothing at all:
+   the scroller measures its lead FROM the band, so lifting the band lifts every
+   row with it and the two stay exactly as misaligned as they were. See `aim` in
+   scopes.ts, which asks a row where its head is. */
 .bar {
-  margin-top: calc((var(--join-h) + var(--plate-h)) / -2);
   transition: transform 640ms cubic-bezier(0.22, 0.61, 0.24, 1);
   overflow-x: auto;
   overscroll-behavior-x: contain;

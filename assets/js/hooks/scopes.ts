@@ -290,14 +290,36 @@ export const Scopes = {
       return r.top + r.height * 0.34;
     };
 
+    // WHAT THE BAND CAPTURES IS THE HEAD, NOT THE MIDDLE OF THE ROW. A row was a
+    // line of text and its middle was the only point it had; it is a round frame
+    // now — a HEAD, a join and a PLATE — and centring the row put the brackets
+    // across the gap between the two blocks, holding half of one and half of the
+    // other.
+    //
+    // A CSS OFFSET CANNOT FIX THIS, and trying one is how the fault survived a
+    // pass: the lead is measured FROM the band, so moving the band moves every
+    // row with it and the two stay exactly as misaligned as they were. What has
+    // to change is which part of a row is being aimed at.
+    //
+    // IT ASKS THE ROW WHERE ITS HEAD IS rather than being told the height. The
+    // head is a real element with a real box, so a design that gives it a
+    // different height tomorrow needs nothing here; a number copied out of the
+    // stylesheet would be a second opinion about the same measurement.
+    const aim = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      const head = el.querySelector<HTMLElement>(".frame-head");
+      if (!head) return r.top + r.height / 2;
+      const h = head.getBoundingClientRect();
+      return h.top + h.height / 2;
+    };
+
     // The nearest row and how far it is from the band, signed: positive means
     // the row sits below the band, so scrolling down by that much lifts it in.
     const nearest = (): { el: HTMLElement; delta: number } | null => {
       const centre = bandCentre();
       let best: { el: HTMLElement; delta: number } | null = null;
       for (const el of rows()) {
-        const r = el.getBoundingClientRect();
-        const delta = r.top + r.height / 2 - centre;
+        const delta = aim(el) - centre;
         if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { el, delta };
       }
       return best;

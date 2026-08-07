@@ -1896,33 +1896,47 @@ defmodule PeoplemediaWeb.IndexLive do
                          AND THE MOOD IS GONE FROM HERE. It was a coloured chip at
                          the trailing edge, which put a second thing to read on a
                          block that answers one question. --%>
-                    <div class="frame-plate flex h-16 items-center gap-3 bg-neutral-100 px-(--list-pad) dark:bg-dark-900">
-                      <p
-                        :if={round_name(item)}
-                        class="min-w-0 truncate text-md tracking-[0.08em] text-neutral-900 dark:text-dark-100"
-                      >
-                        {round_name(item)}
+                    <div class={[
+                      "frame-plate flex h-16 items-center gap-3 px-(--list-pad)",
+                      (round_name(item) && "bg-neutral-100 dark:bg-dark-900") ||
+                        "bg-neutral-100/60 dark:bg-dark-900/50"
+                    ]}>
+                      <%!-- OFF-ROUND, THE PLATE IS TURNED DOWN RATHER THAN
+                           FILLED. It held a badge for a while, which was the
+                           wrong drawing twice over: a badge is a thing added to a
+                           block, and what is actually happening is that the block
+                           itself is INERT — nobody is round, there is nothing to
+                           join, and the standing status is a label on that state
+                           rather than an object sitting in it.
+
+                           SO IT IS THE SAME BLOCK, DISABLED. Same height, same
+                           inset, same word — held back in ground and in ink, and
+                           carrying no count, because a disabled thing with a
+                           number on it is asking you to act on something that is
+                           not there. A round's plate and an off-round plate are
+                           one object in two states, which is what makes the
+                           difference readable without either of them explaining
+                           itself. --%>
+                      <p class={[
+                        "min-w-0 truncate text-md tracking-[0.08em]",
+                        (round_name(item) && "text-neutral-900 dark:text-dark-100") ||
+                          "text-neutral-400 dark:text-neutral-600"
+                      ]}>
+                        {round_name(item) || (item[:status] && String.upcase(item.status))}
                       </p>
 
-                      <span
-                        :if={!round_name(item) && item[:status]}
-                        class="flex h-5 shrink-0 items-center bg-neutral-200 px-2 text-sm tracking-[0.08em] text-neutral-500 dark:bg-dark-800 dark:text-neutral-400"
-                      >
-                        {String.upcase(item.status)}
-                      </span>
-
-                      <%!-- HOW MUCH IS WAITING, at the trailing edge. It counts
-                           what has come IN and not been opened — the one thing a
-                           row can be asking of you — so it takes terracotta as a
-                           GROUND rather than as ink: it holds a number, and a
-                           badge that only recoloured its digit would be the
-                           faintest thing on the block.
+                      <%!-- HOW MUCH IS WAITING, at the trailing edge, and only on
+                           a live round. It counts what has come IN and not been
+                           opened — the one thing a row can be asking of you — so
+                           it takes terracotta as a GROUND rather than as ink: it
+                           holds a number, and a badge that only recoloured its
+                           digit would be the faintest thing on the block.
 
                            ABSENT, NOT ZERO. A column of "0" badges is a column
                            reporting an absence, and Law 1 is that absence is
                            silent. --%>
                       <span
-                        :if={item[:letter][:waiting] && item.letter.waiting > 0}
+                        :if={round_name(item) && (item[:letter][:waiting] || 0) > 0}
                         class="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center bg-primary-600 px-1.5 text-sm tracking-[0.08em] text-light-50 dark:bg-primary-500 dark:text-dark-950"
                       >
                         {item.letter.waiting}
