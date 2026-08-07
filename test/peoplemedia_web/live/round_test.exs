@@ -33,6 +33,8 @@ defmodule PeoplemediaWeb.RoundTest do
     render_hook(live, "select", %{"index" => index})
   end
 
+  defp boxes(live), do: live |> element(".scope-boxes") |> render()
+
   describe "opening the app" do
     # THERE IS NO PRESS FOR PRESENCE. Being here is what having the surface open
     # MEANS. Going round is the opposite — deliberate — so mounting must NOT make
@@ -103,10 +105,101 @@ defmodule PeoplemediaWeb.RoundTest do
     end
   end
 
-  # THE BOXES ARE GONE, AND SO IS THE BAND THEY ANSWERED. A mood now rides at the
-  # trailing edge of the ROUND block, and a capture fills the frame itself rather
-  # than being named in a box beside it — so what these guarded is guarded where
-  # it now lives, in "the item" below.
+  describe "the boxes beside the band" do
+    # TWO BOXES, NOT THREE, and the doing is not one of them. A sentence set in a
+    # ten-rem box beside the band is a sentence you have to work to read; it is
+    # carried on the person's PAGE instead, beside LETTERS, at a size that suits
+    # it. What is left on the rail is what neither a line nor a page-heading does
+    # well: a colour, and a frame.
+    test "hold what a row cannot: a colour and a frame", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "MUM")
+
+      said = boxes(live)
+      assert said =~ "HAPPY"
+      assert said =~ ~s(data-family="joy")
+      refute said =~ "THE WITCHERS, FINALLY"
+    end
+
+    # AND THE DOING IS ON NEITHER — NOT THE ROW, NOT THE RAIL.
+    #
+    # It spent a while on the ROW, on the argument that boxes answer one person
+    # at a time and nobody should have to settle somebody to learn anything.
+    # That argument is true and it lost anyway: a sentence under every name is a
+    # FEED however fresh the sentence is, and this list is people-first or it is
+    # nothing. The row keeps two GLYPHS, which are marks rather than words.
+    #
+    # SO IT IS ONE STEP FURTHER IN THAN IT WAS. Not settled — OPENED. The panel
+    # carries it beside LETTERS and always has, which is also the only place your
+    # own round is visible to you, since you have no row in your own list.
+    test "and the doing is on their page, not on the row or the rail", %{conn: conn} do
+      {:ok, live, html} = live(conn, ~p"/")
+
+      rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+      refute rows =~ "THE WITCHERS, FINALLY"
+      refute rows =~ "scopes-doing"
+
+      settle(live, "MUM")
+      refute boxes(live) =~ "THE WITCHERS, FINALLY"
+
+      # Opened, it is there — with the mood it was made in.
+      assert render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
+    end
+
+    # THEY SIT ON A TRACK, AND THE TRACK IS WHAT MAKES THEM FIT ANYWHERE. Below
+    # about 66rem the rail cannot hold the band and both boxes, and the answer
+    # used to be a second layout that stacked them ABOVE the band — a row of grey
+    # rectangles over the top of the list, answering a band they were no longer
+    # beside. Now the cluster overflows instead of moving: `.boxes-lead` holds the
+    # band's column and grows into whatever rail is spare, so a wide screen has
+    # nothing to scroll and a phone shows the first box at its edge.
+    #
+    # THE NESTING IS THE LOAD-BEARING PART, which is why it is asserted rather
+    # than left to the stylesheet. Two rules — the fade when a panel opens, and
+    # the one that clears the rail for an expanded box — were written as DIRECT
+    # children of the cluster, and both broke silently when the run went in
+    # between: the second hid the run itself, and a box opening inside a hidden
+    # parent measured zero and drew nothing.
+    test "on a track, with the band's column held open in front of them", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "MUM")
+
+      said = boxes(live)
+      assert said =~ "boxes-lead", "without the lead the boxes sit on top of the band"
+      assert said =~ "boxes-run"
+
+      # The lead comes first, and every box is inside the run behind it.
+      [_before, after_lead] = String.split(said, "boxes-lead", parts: 2)
+      assert after_lead =~ "boxes-run"
+      [_outside, inside_run] = String.split(said, "boxes-run", parts: 2)
+      assert inside_run =~ "around-box"
+      assert inside_run =~ "letterbox"
+    end
+
+    # THE SLOTS STAY so the letter box, which is anchored to the app's right
+    # edge, does not slide sideways every time somebody with no round passes
+    # under the band.
+    test "and hold nothing, but keep their slot, for somebody merely here", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "DAD")
+
+      said = boxes(live)
+      refute said =~ "HAPPY"
+      refute said =~ "THE WITCHERS"
+      assert said =~ "around-box", "an empty box keeps its slot or the letter box moves"
+      refute said =~ ~s(data-family=")
+    end
+
+    test "nothing at all for somebody who is not here", %{conn: conn} do
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "COACH")
+
+      said = boxes(live)
+      refute said =~ "HAPPY"
+      assert said =~ "around-box"
+    end
+  end
+
   describe "the head of the list" do
     test "carries the two facts that are about the list, and the rail does not",
          %{conn: conn} do
@@ -121,12 +214,8 @@ defmodule PeoplemediaWeb.RoundTest do
       assert tags =~ "FINLAND"
       assert tags =~ "RELATIONSHIPS"
 
-      # AND NOWHERE ELSE. They were on the right rail once, beside a band, where
-      # they read as answers about whoever had scrolled in — which they never
-      # were. A place and a population are facts about the LIST.
-      item = render(live) |> String.split(~s(class="scopes-item)) |> tl() |> hd()
-      refute item =~ "FINLAND"
-      refute item =~ "RELATIONSHIPS"
+      refute boxes(live) =~ "FINLAND"
+      refute boxes(live) =~ "RELATIONSHIPS"
     end
   end
 
@@ -394,16 +483,10 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, html} = live(conn, ~p"/")
       assert html =~ scope.name
 
-      # HIDDEN MEANS NO ROUND, so there is no round block under their frame and
-      # nothing of what they were up to anywhere on the item.
-      item =
-        render(live)
-        |> String.split(~s(class="scopes-item))
-        |> tl()
-        |> Enum.find(&(&1 =~ scope.name))
-
-      refute item =~ "HAPPY"
-      refute item =~ "READING"
+      settle(live, scope.name)
+      said = boxes(live)
+      refute said =~ "HAPPY"
+      refute said =~ "READING"
     end
 
     test "the passport room is where you turn it off", %{conn: conn} do

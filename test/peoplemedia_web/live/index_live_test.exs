@@ -20,9 +20,9 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # the label leads, their own name follows it
     assert html =~ "MUM"
     assert html =~ "SARAH"
-    # one item per person, and no band for them to pass through
+    # one row per person, and a band for them to pass through
     assert html |> String.split(~s(class="scopes-item)) |> length() == held_count() + 1
-    assert html =~ "scopes-item"
+    assert html =~ "focus-box"
   end
 
   # ONE NAME AND TWO MARKS, AND THE MARKS ARE NOT WORDS.
@@ -56,6 +56,50 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute rows =~ "scopes-doing"
   end
 
+  # TWO MARKS, AND THEY ANSWER DIFFERENT QUESTIONS. On the left, whether they are
+  # ROUND — a fact about them, which everybody has an answer to at every moment.
+  # On the right, which way the last letter went — a fact about the two of you.
+  #
+  # THE LEFT ONE USED TO BE A LETTER'S KIND TOO, and that is what made it useless:
+  # a correspondence is something only the two of you have, so a visitor's list
+  # could not carry a single mark, the PEOPLE tab could not either, and even a
+  # busy thread went blank the moment nothing was new. A column that is empty for
+  # most rows most of the time is not a column.
+  test "a row carries the round mark and the flow", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+    rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+
+    assert rows =~ "letter-glyph"
+    assert rows =~ "letter-flow"
+    refute rows =~ "tabular-nums"
+    refute rows =~ "scopes-name"
+    refute rows =~ "scopes-when"
+
+    # ONE RECTANGLE AT FOUR ANGLES. Level is a mouth, struck through at 45° is
+    # words with no face and no voice, upright is that mouth shut — not around.
+    assert rows =~ "rotate(-45 12 12)", "somebody round, with words"
+    assert rows =~ "rotate(-90 12 12)", "somebody who is not round"
+
+    # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
+    # letters: they have no correspondence at all and they are still either round
+    # or not.
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    assert unscoped =~ "letter-glyph"
+    refute unscoped =~ "letter-flow", "no correspondence, so no direction to show"
+  end
+
+  # NEVER LIT. Terracotta is spent on the one thing asking something of you, and
+  # being round is an invitation rather than a demand — Law 1 says absence is
+  # silent, and its opposite is not a summons either.
+  test "and the round mark never takes the attention colour", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+    rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
+
+    for glyph <- rows |> String.split(~s(class="letter-glyph)) |> tl() do
+      refute glyph |> String.split("</span>") |> hd() =~ "is-lit"
+    end
+  end
+
   test "the rail is the only measure the page uses", %{conn: conn} do
     {:ok, _live, html} = live(conn, ~p"/")
 
@@ -70,17 +114,80 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ "px-[1.95rem]"
   end
 
-  # ONE PRESS, NOT TWO. It used to take a scroll and then a press: the column was
-  # small rows and a BAND, and a band needs one of them nominated before it can
-  # be pressed. An item the size of what it is about needs no nominating, so the
-  # press that opens somebody is the only press there is.
-  test "pressing a person opens their page", %{conn: conn} do
+  test "the letter box holds the last letter they sent, and nothing when there is none",
+       %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+
+    # THE ROW CARRIES THE BOX AS DATA and always has — the hook reads these on
+    # settle. What is in it is the newest INCOMING letter's kind, because the
+    # box is the one thing on this surface that answers you; a box holding the
+    # thread's newest entry would as often hold your own letter back at you.
+    #
+    # The cast is written so this cannot pass by accident: two of the six
+    # threads end on a letter of THEIRS that is not text.
+    kinds =
+      Regex.scan(~r/data-letter-kind="(\w+)"/, html, capture: :all_but_first) |> List.flatten()
+
+    assert "voice" in kinds
+    assert "face" in kinds
+
+    # A THREAD THAT ONLY EVER WENT ONE WAY HAS NOTHING TO SHOW, and neither does
+    # a person you do not hold — a letter is written to a scope, so a stranger's
+    # thread is not empty, it does not exist. Both arrive as "empty", and the
+    # hook draws nothing for it.
+    assert "empty" in kinds
+
+    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+    strangers = Regex.scan(~r/data-letter-kind="(\w+)"/, unscoped, capture: :all_but_first)
+    assert Enum.all?(List.flatten(strangers), &(&1 == "empty"))
+
+    # PRESENCE IS READ OFF A REAL AROUND NOW, and both answers are in the cast —
+    # `present` used to be hardcoded for everybody, so this assertion passed on a
+    # placeholder and could never have caught it going wrong.
+    assert html =~ ~s(data-state="present")
+    assert html =~ ~s(data-state="absent")
+    # AND `live` IS NOT AROUND'S TO SET. It means a face or a voice actually
+    # running, which is one thing somebody might be doing inside an around
+    # rather than what being around is.
+    refute html =~ ~s(data-state="live")
+  end
+
+  test "the row hands the box the words, and the hook reads the name it is given",
+       %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # THE WORDS TRAVEL WITH THE KIND. A text letter is the only kind anyone can
+    # write yet, so a box that could only hold the two that play was a box for
+    # recordings.
+    assert html =~ ~s(data-body="hello")
+
+    # AND THE HOOK MUST READ THE ATTRIBUTE THAT IS ACTUALLY THERE. This is not
+    # paranoia about a typo — renaming the frame to the letter box rewrote
+    # `dataset.frame` into `dataset.letterbox` while the markup kept
+    # `data-letter-kind`, so the box showed nothing at all for a whole release
+    # and every server-side assertion above still passed. A string that crosses
+    # from Elixir to TypeScript has to be checked on both sides or neither.
+    hook = File.read!("assets/js/hooks/scopes.ts")
+    assert hook =~ "dataset.letterKind", "the hook reads a data attribute the row does not carry"
+    assert hook =~ "dataset.body"
+  end
+
+  test "picking a person lifts them into a header and opens the panel", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
     refute html =~ "id=\"panel\""
-    refute has_element?(live, "#panel")
+    refute has_element?(live, "#bar.is-picked")
 
-    opened = render_click(live, "open_item", %{"id" => second_held_id()})
+    # Pressing the band with nothing selected must be inert.
+    live |> element(".focus-box") |> render_click()
+    refute has_element?(live, "#bar.is-picked")
+
+    # The hook decides WHO; here we stand in for it.
+    render_hook(live, "select", %{"index" => 1})
+    refute has_element?(live, "#bar.is-picked")
+
+    opened = live |> element(".focus-box") |> render_click()
+    assert has_element?(live, "#bar.is-picked")
     assert has_element?(live, "#scopes.is-open")
     assert has_element?(live, "#panel")
     assert opened =~ "DAD"
@@ -91,14 +198,15 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert opened =~ "LIVE"
     refute opened =~ "RECORD"
 
-    render_click(live, "toggle_open")
+    live |> element(".focus-box") |> render_click()
     refute has_element?(live, "#panel")
   end
 
   test "the panel is named for what it is, in markup as well as on screen", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
     # A thread with a text letter in it, so the third kind reaches the panel too.
-    opened = render_click(live, "open_item", %{"id" => nth_held_id(4)})
+    render_hook(live, "select", %{"index" => 4})
+    opened = live |> element(".focus-box") |> render_click()
 
     # "presence" named the medium, which made a written letter unnameable. The
     # ids, the classes and the hook say panel now, not just the heading.
@@ -111,6 +219,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     # The panel's own empty band is the same ellipsis the list's is.
     assert opened =~ "focus-dot"
+    assert opened =~ "rotate(-45 12 12)"
 
     # THE FRAME IS HIDDEN BUT NOT REMOVED, and that is load-bearing rather than
     # incidental. app.css takes it out of sight when the panel opens — it
@@ -118,13 +227,14 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # to stay, because hiding a media element does not silence it and only
     # scopes.ts can tear the media down. Render it conditionally and a voice
     # goes on playing over an open panel from a box nobody can see or press.
+    assert opened =~ ~s(id="letterbox")
   end
 
   test "losing the selection closes the panel with it", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
 
     render_hook(live, "select", %{"index" => 0})
-    render_click(live, "toggle_open")
+    live |> element(".focus-box") |> render_click()
     assert has_element?(live, "#panel")
 
     render_hook(live, "deselect", %{})
@@ -149,10 +259,12 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # it used to have to name the count as well, because "UNSCOPES" contains
     # "SCOPES" and the plain refute passed for the wrong reason.
     refute tags_say(live) =~ "RELATIONSHIPS"
+    assert has_element?(live, "#letterbox")
 
     # THE PLACE BOX SWAPS WHAT THE LIST HOLDS. The roll opens unselected, so the
     # box reads WORLD — no country chosen — and the world's own totals with it.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
+    refute has_element?(live, "#letterbox")
     assert tags_say(live) =~ "WORLD"
     # EVERYWHERE IS THE SUM OF THE PLACES, and the whole cast lives in one, so
     # the world says exactly what Finland said.
@@ -192,10 +304,12 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     # Still in the world. The band alone commits nothing, and neither does the
     # band's own press.
-    render_click(live, "toggle_open")
+    live |> element(".focus-box") |> render_click()
+    refute has_element?(live, "#letterbox")
 
     # AND THE WAY OUT THAT CHANGES NOTHING leaves with what you came in with.
     render_hook(live, "cancel_place", %{})
+    assert has_element?(live, "#letterbox")
     assert tags_say(live) =~ "FINLAND"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
   end
@@ -238,11 +352,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # server keeps `cancel_place` for the hook to call rather than for a button.
   test "the drawer being open is what says the roll of places is open", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
-    refute has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+    assert html =~ ~s(data-place-open="false")
     refute has_element?(live, ~s(button[phx-click="cancel_place"]))
 
     opened = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+    assert opened =~ ~s(data-place-open="true")
     assert has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
     refute has_element?(live, ~s(button[phx-click="cancel_place"])), "the swipe out is the cancel"
 
@@ -251,12 +365,49 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
     assert tags_say(live) =~ "WORLD"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
-    refute has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+    assert render(live) =~ ~s(data-place-open="false")
 
     # And leaving without choosing is the same event, sent by the hook.
     live |> element(~s(button[phx-click="place_box"])) |> render_click()
     render_hook(live, "cancel_place", %{})
-    refute has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
+    assert render(live) =~ ~s(data-place-open="false")
+  end
+
+  test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do
+    {:ok, _live, html} = live(conn, ~p"/")
+
+    # AN ELLIPSIS, NOT "--". The app's mark is a pair of dashes and the voice
+    # glyph is one bar, so two dashes in terracotta at the head of the list read
+    # as the logo turning up in the middle of the page.
+    #
+    # THREE ELEMENTS RATHER THAN THREE CHARACTERS — first so they can run in turn
+    # when the list is live, and then because a typed period is whatever size the
+    # font says it is: about four pixels of ink at the band's own type, which is
+    # too small to be a signal even while it is moving. A drawn dot takes the size
+    # it is given.
+    assert html =~ "focus-empty"
+
+    dots = html |> String.split(~s(class="focus-empty)) |> tl() |> hd()
+    assert length(String.split(dots, "focus-dot")) - 1 == 3
+    refute html |> String.replace(~r/<[^>]*>/, " ") =~ ~r/(?<!\.)--(?!-)/
+  end
+
+  # WHETHER THE LIST MOVES IS SHOWN ON THE BAND, and nowhere else. It was the
+  # word LIVE beside the word PAUSED — same length, same weight, same place, so
+  # you had to read the letters to know which state you were in — then a lamp in
+  # the settings, and now not a control at all: pausing is held back, the list is
+  # always live, and the three dots in the band report it where you are already
+  # looking rather than where you would have gone to change it.
+  test "live is on the band's own mark, not in a word", %{conn: conn} do
+    {:ok, live, html} = live(conn, ~p"/")
+
+    refute html =~ "live-lamp"
+    refute tags_say(live) =~ "PAUSED"
+    refute tags_say(live) =~ "LIVE"
+    refute has_element?(live, ~s(button[phx-click="toggle_live"]))
+
+    assert has_element?(live, ~s(#bar.is-live))
+    assert html =~ "focus-dot"
   end
 
   test "only the place lights, and only while the world is open", %{conn: conn} do
@@ -284,9 +435,36 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert Regex.scan(lit, tags.(), capture: :all_but_first) == []
   end
 
+  test "the rail answers the band, and the head of the list answers the list", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/")
+
+    # The cluster is placed by app.css against the stage box, so it carries no
+    # position and no width of its own — either here would be a second opinion
+    # about where the rail is. Its OWN class attribute, not the subtree: the
+    # frame's replay control is legitimately absolute inside it.
+    boxes = boxes_html(live)
+    own = Regex.run(~r/<div class="(scope-boxes[^"]*)"/, boxes, capture: :all_but_first)
+    refute hd(own) =~ "absolute"
+    refute hd(own) =~ "ml-auto"
+    refute hd(own) =~ "--list-w"
+
+    # THE SPLIT IS THE POINT. The cluster's own comment used to claim all three
+    # boxes "answered the band" while two of them answered the LIST — the same
+    # whichever name had scrolled in. Those two are a caption at the head now,
+    # and what is left on the rail genuinely is about the person under the band.
+    assert boxes =~ ~s(id="letterbox")
+    refute boxes =~ "list-place"
+    refute boxes =~ "list-scope"
+
+    tags = tags_html(live)
+    assert tags =~ "list-place"
+    assert tags =~ "list-scope"
+    refute tags =~ "letterbox"
+  end
+
   test "a place is one line, shouted, and its rows close up to suit", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
-    assert html =~ "scopes-item"
+    assert html =~ "h-(--row-h)"
 
     places = live |> element(~s(button[phx-click="place_box"])) |> render_click()
 
@@ -297,7 +475,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     # And a shorter row, because a place has no age hung under it. At the
     # people row's height the words sat further apart than the band is tall.
-    assert places =~ "scopes-item"
+    assert places =~ "h-(--place-h)"
     refute places =~ "h-(--row-h)"
   end
 
@@ -419,18 +597,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
   # TWO DRAWERS, ONE READING. The list's settings used to share a line and now
   # share a track — one page for WHERE and one for WHO — so anything asking what
   # the head of the list says has to ask both.
-  # THE OLD SETTLE SPOKE IN INDEXES because the band was a position in a column.
-  # A press names WHO, so the tests do too.
-  defp held_ids do
-    Peoplemedia.Relationships.held_by(
-      Peoplemedia.Repo.get_by!(Peoplemedia.People.Person, name: "ojo").id
-    )
-    |> Enum.map(fn {_scope, person} -> person.id end)
-  end
-
-  defp nth_held_id(n), do: held_ids() |> Enum.at(n)
-  defp second_held_id, do: nth_held_id(1)
-
   defp tags_html(live) do
     render(live)
     |> String.split(~s(class="list-tags))

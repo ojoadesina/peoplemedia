@@ -1892,28 +1892,6 @@ html:not([data-theme]) .presence-row .stream-name {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.9));
 }
 
-/* THE SAME TWO RULES, LOOSE, FOR ANYTHING STANDING ON A CAPTURE. The pair above
-   is welded to `.panel-item` and the frame at /ui needs exactly them on markup
-   that is not a panel item — a whole block whose background IS the video, with
-   the name and the marks over it.
-
-   THEY ARE WRITTEN HERE RATHER THAN INLINE because Tailwind's scanner will not
-   take an arbitrary property whose value carries nested parens and commas:
-   `[text-shadow:0_1px_3px_rgb(0_0_0/0.9),...]` is read as no candidate at all
-   and silently generates nothing, which on a page like this fails as unreadable
-   type over a moving picture rather than as an error.
-
-   SET AND DRAWN ARE STILL TWO DIFFERENT PROBLEMS, and that is why this is two
-   classes rather than one. A text-shadow does nothing whatever to an SVG. */
-.on-capture {
-  text-shadow:
-    0 1px 3px rgb(0 0 0 / 0.9),
-    0 0 12px rgb(0 0 0 / 0.7);
-}
-.on-capture-mark {
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.9));
-}
-
 /* COMMIT grows the box to full height to match the row that opened beneath it.
    The box is top-anchored (translated up by a constant half-row, not by half
    of ITSELF) so it grows DOWNWARD in step with the row rather than reopening
