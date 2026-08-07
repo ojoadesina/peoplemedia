@@ -307,7 +307,7 @@ export const Scopes = {
     // stylesheet would be a second opinion about the same measurement.
     const aim = (el: HTMLElement) => {
       const r = el.getBoundingClientRect();
-      const head = el.querySelector<HTMLElement>(".frame-head");
+      const head = el.querySelector<HTMLElement>(".frame");
       if (!head) return r.top + r.height / 2;
       const h = head.getBoundingClientRect();
       return h.top + h.height / 2;

@@ -131,7 +131,7 @@ defmodule PeoplemediaWeb.RoundTest do
       # before anybody had spoken, which is the least informed sentence in the
       # round given its most prominent line.
       item = item_for(live, "MUM")
-      assert item =~ "frame-plate"
+      assert item =~ "word"
       refute item =~ "HAPPY"
       refute item =~ ~s(data-family="joy")
     end
@@ -150,7 +150,7 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, html} = live(conn, ~p"/")
 
       rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      assert rows =~ "frame-plate"
+      assert rows =~ "word"
       refute rows =~ "THE WITCHERS, FINALLY"
 
       settle(live, "MUM")
@@ -200,7 +200,7 @@ defmodule PeoplemediaWeb.RoundTest do
       item = item_for(live, "DAD")
       refute item =~ "HAPPY"
       refute item =~ "THE WITCHERS"
-      assert item =~ "frame-plate"
+      assert item =~ "word"
       refute item =~ ~s(data-family=")
     end
 
@@ -210,7 +210,7 @@ defmodule PeoplemediaWeb.RoundTest do
 
       item = item_for(live, "COACH")
       refute item =~ "HAPPY"
-      assert item =~ "frame-plate"
+      assert item =~ "word"
     end
   end
 

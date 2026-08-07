@@ -69,7 +69,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     {:ok, live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    assert rows =~ "frame-head"
+    assert rows =~ "frame"
     refute rows =~ "tabular-nums"
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
@@ -77,7 +77,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # THE PLATE SAYS WHAT THE MARK USED TO. A mark that named what a frame held
     # was a caption on a picture; the frame shows what it holds, and the plate
     # says what they are round with in their own words.
-    assert rows =~ "frame-plate"
+    assert rows =~ "word"
 
     # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
     # letters: they have no correspondence at all and they are still either round
@@ -85,8 +85,8 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # THE FLOW IS ABOUT WORDS NOW, so it is drawn on the block that holds them and
     # only where a round has any. A stranger with no round has neither.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert unscoped =~ "frame-head"
-    assert unscoped =~ "frame-plate", "no correspondence, so no direction to show"
+    assert unscoped =~ "frame"
+    assert unscoped =~ "word", "no correspondence, so no direction to show"
   end
 
   # NEVER LIT. Terracotta is spent on the one thing asking something of you, and

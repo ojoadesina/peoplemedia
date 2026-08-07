@@ -3090,6 +3090,6 @@ textarea {
    surface too many. With the head transparent the band's wash is the only one
    there, so the thing you have hold of is drawn in exactly one colour and the
    rest of the column is drawn in exactly one other. */
-.scopes-item.is-focused .frame-head {
+.scopes-item.is-focused .frame {
   background-color: transparent;
 }

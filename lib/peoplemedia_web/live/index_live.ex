@@ -1024,6 +1024,29 @@ defmodule PeoplemediaWeb.IndexLive do
     end
   end
 
+  # WHAT THE FRAME IS SHOWING, and only when there is a file behind it. Frames are
+  # CAPTURED and there is nothing to capture with yet, so most of these are a kind
+  # with no clip — and a frame styled for a video it does not have is a black block
+  # with white type standing on the page's own colour.
+  #
+  # A VOICE IS A CAPTURE WITH NO PICTURE, which is why it answers here without a
+  # `media` of its own: what it draws is a track rather than a frame full of
+  # something.
+  defp capture(%{frame: "voice"}), do: "voice"
+
+  defp capture(%{frame: kind, media: media}) when kind in ~w(face still) and not is_nil(media),
+    do: kind
+
+  defp capture(_nothing), do: nil
+
+  # ONLY A FACE OR A STILL PUTS A PICTURE UNDER THE TYPE, and only that changes
+  # how the type is drawn. A VOICE is a capture with nothing to look at: it keeps
+  # the block's ordinary ground and ordinary ink and reports itself with a track.
+  # Lumping the three together took the ground out from under every voice frame
+  # and left a white name on the page's own colour — a row that had simply lost
+  # its name.
+  defp pictured(item), do: capture(item) in ~w(face still)
+
   defp word_count(item), do: item[:round][:words][:count] || 0
   defp word_images(item), do: item[:round][:words][:images] || 0
 
@@ -1857,172 +1880,129 @@ defmodule PeoplemediaWeb.IndexLive do
                        gutter in, where the name above it and the doing below it
                        both start, so it reads as belonging to the words rather
                        than to the box. --%>
+                  <%!-- ── AN ITEM IS A FRAME AND A WORD ─────────────────────
+                       THE FRAME IS THE PERSON AND WHAT THEY CAPTURED. It was
+                       called the frame HEAD while it was the top half of
+                       something; it is not a half, it is the frame — the same
+                       object the rail has been holding a place for, and what
+                       goes in it is a face, a voice or a still.
+
+                       THE WORD IS WHAT WAS SAID. Two blocks, joined by a stroke
+                       in the gap, and the pair is one item. --%>
                   <div class="flex h-full w-full shrink-0 snap-start flex-col justify-center">
                     <div class={[
-                      "frame-head relative flex h-14 items-center gap-3 overflow-hidden",
-                      "px-(--list-pad) text-md bg-neutral-100 dark:bg-dark-900"
+                      "frame relative flex h-14 items-center gap-3 overflow-hidden",
+                      "px-(--list-pad) text-md",
+                      (pictured(item) && "text-light-50") || "bg-neutral-100 dark:bg-dark-900"
                     ]}>
-                      <p class="scopes-line min-w-0 flex-1 truncate tracking-[0.1em]">
+                      <%!-- A FACE FRAME IS THE CAPTURE. Not a panel with a
+                           thumbnail in it — the whole block is the video, edge to
+                           edge, with everything the frame says laid over it. A
+                           face is what somebody captured OF themselves, so on
+                           their own frame it is the substrate rather than an
+                           attachment to one. Muted and looped because the point
+                           is that it moves; `playsinline` is what stops iOS
+                           taking it fullscreen the moment it starts. --%>
+                      <video
+                        :if={capture(item) == "face"}
+                        src={item[:media]}
+                        autoplay
+                        muted
+                        loop
+                        playsinline
+                        aria-hidden="true"
+                        class="absolute inset-0 size-full object-cover"
+                      >
+                      </video>
+                      <img
+                        :if={capture(item) == "still"}
+                        src={item[:media]}
+                        alt=""
+                        class="absolute inset-0 size-full object-cover"
+                      />
+                      <%!-- THE SCRIM AND THE SHADOW BOTH — the app's own answer,
+                           copied rather than reinvented. The wash holds the light
+                           end of the picture down and the shadow holds the type up
+                           over whatever the wash misses; a video is a moving
+                           background, so nothing static can be relied on to be
+                           dark where a word happens to fall. --%>
+                      <span
+                        :if={pictured(item)}
+                        class="absolute inset-0 bg-linear-to-b from-black/65 via-black/35 to-black/25"
+                        aria-hidden="true"
+                      >
+                      </span>
+
+                      <%!-- A VOICE HAS NO PICTURE, so the FRAME is what reports
+                           it. Not a scrubber on the bottom edge — a scrubber is a
+                           control drawn small because it is furniture, and there
+                           is nothing here to drag. The played part of the voice is
+                           the filled part of the block, left to right, read the
+                           way you read a glass rather than a dial.
+
+                           SAGE, BECAUSE IT REPORTS. Warm asks and cool reports,
+                           and progress is a statement rather than a request. At
+                           15%, the strength every wash on this surface is held at,
+                           because it spans the whole block and anything stronger
+                           would make the name readable on one half and not the
+                           other.
+
+                           IT IS AN EMPTY TRACK UNTIL THERE IS PLAYBACK TO REPORT.
+                           Nothing on the list knows how far into a voice anybody
+                           has got yet, so the bar stands at zero — which is
+                           honest, and is what tells a voice from an empty frame
+                           until the number arrives. --%>
+                      <span
+                        :if={capture(item) == "voice"}
+                        class="absolute inset-x-0 bottom-0 h-1 bg-secondary-600/15 dark:bg-secondary-400/15"
+                        aria-hidden="true"
+                      >
+                      </span>
+
+                      <p class={[
+                        "scopes-line relative min-w-0 flex-1 truncate tracking-[0.1em]",
+                        pictured(item) && "on-capture"
+                      ]}>
                         {String.upcase(item[:label] || item[:name])}
                       </p>
 
-                      <%!-- A COUNTRY CARRIES ITS TWO COUNTS where a person
-                           carries their age: how many there you hold, and how
-                           many you do not. --%>
                       <span
                         :if={@list_mode == :location}
-                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                        class="relative shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
                       >
                         {item.scopes} · {item.unscopes}
                       </span>
 
-                      <%!-- AN AGE IS AN ASIDE and is drawn like one: enough
-                           tracking to keep capitals from touching, and no more.
-                           Wider apart it took a name's worth of rail and read as
-                           a second heading. --%>
-                      <span
-                        :if={item_age(item)}
-                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
-                      >
-                        {item_age(item)}
-                      </span>
-
-                      <%!-- WHICH WAY THE WORDS HAVE GONE, ON THE HEAD. It sat on
-                           the word block for a while, on the reasoning that a
-                           word is a fact about the ROUND and the block is what
-                           holds the words. True, and it put the pair on the one
-                           part of an item that is not always there: a person with
-                           no round has no word block, so their flow had nowhere to
-                           be drawn and half the column carried no marks at all.
-
-                           THE HEAD IS ALWAYS THERE. It is the person, and how a
-                           conversation stands between you is a fact about the
-                           person — which is where you look for it, on the line
-                           with their name.
-
-                           BOTH QUIET. An unopened letter is asking for you and
-                           lights; a round you have spoken in is not asking
-                           anything, it is telling you where you stand in it. --%>
+                      <%!-- WHICH WAY THE WORDS HAVE GONE, on the person rather
+                           than on what they said. The head is always there; a word
+                           block is not, so a pair drawn on it left half the column
+                           carrying no marks at all. --%>
                       <.letter_flow
                         :if={word_flow(item)}
                         letter={word_flow(item)}
-                        class="shrink-0 text-xl"
+                        class={["relative shrink-0 text-xl", pictured(item) && "on-capture-mark"]}
                       />
-                    </div>
 
-                    <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
-                      <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
-                    </div>
-
-                    <%!-- THE PLATE SAYS ONE OF TWO THINGS, AND NEVER NOTHING.
-                         A ROUND'S NAME when they are in one — a room's name,
-                         short and given deliberately, the thing you would say to
-                         tell somebody which round you meant.
-
-                         A STANDING STATUS WHEN THEY ARE NOT. Most people are not
-                         round most of the time, and an empty panel under every
-                         second name is the column reporting an absence over and
-                         over. A status is the opposite of a round in every way
-                         that matters — standing rather than made, unexpiring, and
-                         not an invitation — which is why it can take the same
-                         place without ever being mistaken for one. It is drawn as
-                         a BADGE rather than as a line, because a badge is plainly
-                         a label on a person and a line reads as something they
-                         are saying.
-
-                         AND THE MOOD IS GONE FROM HERE. It was a coloured chip at
-                         the trailing edge, which put a second thing to read on a
-                         block that answers one question. --%>
-                    <%!-- ── THE WORD BLOCK ────────────────────────────────
-                         WHAT WAS LAST SAID IN THE ROUND, on one line. A round
-                         surfaces a person and names what it is about; this is
-                         what has actually been said once they were surfaced, and
-                         it is the reason to open it rather than a description of
-                         it. Where nothing has been said yet the block falls back
-                         to the round's own name, because a round with no words in
-                         it is still a round.
-
-                         ONE LINE AND TRUNCATED. A word is said into a room
-                         somebody is standing in, not sat down and composed; the
-                         block is the glimpse and opening the round is what asks
-                         for the rest.
-
-                         OFF-ROUND IT IS THE SAME BLOCK, TURNED DOWN. Not a badge
-                         — a badge is a thing ADDED to a block, and what is
-                         happening is that the block is INERT: nobody is round,
-                         there is nothing to join. Held back in its ground, and in
-                         its ink only as far as it can go while staying READABLE.
-                         Disabled is a state you can see, not a thing you have to
-                         squint at; the last pass took the ink so far down that
-                         the status was gone rather than quiet. --%>
-                    <div class={[
-                      "frame-plate flex h-16 items-center gap-3 px-(--list-pad)",
-                      (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
-                        "bg-neutral-100/50 dark:bg-dark-900/40"
-                    ]}>
-                      <p class={[
-                        "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
-                        (item[:round] && "text-neutral-900 dark:text-dark-100") ||
-                          "text-neutral-500 dark:text-neutral-400"
-                      ]}>
-                        {plate_says(item)}
-                      </p>
-
-                      <%!-- PICTURES IN THE ROUND, PILED, JUST BEFORE THE COUNT.
-                           A word is speech plus attached documents and it is the
-                           only thing here that takes an upload; the stack says
-                           there are some without saying how many, which is what a
-                           glance wants — the number belongs to the WORDS and this
-                           belongs to what is in them.
-
-                           SAME SIZE AND SAME LEAN AS THE COUNT, because they are
-                           the same kind of object: a small square standing at the
-                           trailing edge of the block saying what is inside it. A
-                           different size would make one of them furniture. --%>
-                      <span :if={word_images(item) > 0} class="relative ml-auto size-5 shrink-0">
-                        <img
-                          :if={word_images(item) > 1}
-                          src="/images/word-2.svg"
-                          alt=""
-                          class="absolute inset-0 size-full rotate-6 object-cover"
-                        />
-                        <img
-                          src="/images/word-1.svg"
-                          alt=""
-                          class={[
-                            "relative size-full object-cover",
-                            word_images(item) > 1 && "-rotate-6"
-                          ]}
-                        />
-                      </span>
-
-                      <%!-- HOW MANY WORDS ARE IN THERE. A word is threaded, so a
-                           round is a door onto a stack of them, and the count is
-                           the one thing worth saying about a stack before you open
-                           it: whether there is a conversation in there or just the
-                           sentence you are looking at.
+                      <%!-- AND HOW MANY WORDS ARE IN THERE. It sat on the word
+                           block, which is where the words are — and the count is
+                           not about the words, it is about the ROUND: whether
+                           there is a conversation in there or just the sentence
+                           you are looking at. That is a fact about the person you
+                           are deciding whether to open, so it belongs on the line
+                           you decide from.
 
                            MORE THAN ONE AND IT STACKS. The number tells you how
                            many once you have read it; the pile tells you there is
-                           more than one before you have. They are tilted APART
-                           rather than offset — two upright cards a few pixels
-                           adrift read as one card with a printing error, and two
-                           shapes at different angles can only be two shapes.
+                           more than one before you have. Tilted APART rather than
+                           offset — two upright cards a few pixels adrift read as
+                           one card with a printing error.
 
-                           IT LIGHTS ONLY WHEN A LETTER IS UNOPENED. Grey was
-                           reasoned from "a thread that exists is not a thread
-                           asking for you" — true of the thread, false of the item:
-                           the arrow on the head is already terracotta, and a grey
-                           deck beneath it said the words waiting inside were a
-                           separate, calmer matter. A FILL rather than ink, because
-                           it holds a number and a card that only recoloured its
-                           digit would be the faintest thing on the block.
-
-                           ABSENT, NOT ZERO — Law 1. --%>
-                      <span
-                        :if={word_count(item) > 0}
-                        class={["relative shrink-0", word_images(item) == 0 && "ml-auto"]}
-                      >
+                           IT LIGHTS ONLY WHEN A LETTER IS UNOPENED, because the
+                           arrow beside it does and a grey deck under a terracotta
+                           arrow said the words waiting inside were a separate,
+                           calmer matter. A FILL rather than ink: it holds a
+                           number. --%>
+                      <span :if={word_count(item) > 0} class="relative shrink-0">
                         <span
                           :if={word_count(item) > 1}
                           class={[
@@ -2044,6 +2024,84 @@ defmodule PeoplemediaWeb.IndexLive do
                           {word_count(item)}
                         </span>
                       </span>
+                    </div>
+
+                    <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
+                      <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
+                    </div>
+
+                    <div class={[
+                      "word flex h-16 items-center gap-3 px-(--list-pad)",
+                      (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
+                        "bg-neutral-100/50 dark:bg-dark-900/40"
+                    ]}>
+                      <p class={[
+                        "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
+                        (item[:round] && "text-neutral-900 dark:text-dark-100") ||
+                          "text-neutral-500 dark:text-neutral-400"
+                      ]}>
+                        {plate_says(item)}
+                      </p>
+
+                      <%!-- PICTURES IN THE ROUND, PILED. A word is speech plus
+                           attached documents and it is the only thing here that
+                           takes an upload; the stack says there are some without
+                           saying how many, which is what a glance wants. --%>
+                      <span :if={word_images(item) > 0} class="relative size-5 shrink-0">
+                        <img
+                          :if={word_images(item) > 1}
+                          src="/images/word-2.svg"
+                          alt=""
+                          class="absolute inset-0 size-full rotate-6 object-cover"
+                        />
+                        <img
+                          src="/images/word-1.svg"
+                          alt=""
+                          class={[
+                            "relative size-full object-cover",
+                            word_images(item) > 1 && "-rotate-6"
+                          ]}
+                        />
+                      </span>
+
+                      <%!-- WHEN, AND IT MOVED DOWN HERE WITH THE THING IT DATES. A
+                           round is identified by when it was made and the words
+                           are what is in it, so the age belongs on the block that
+                           holds them — the frame above says WHO, and a date is not
+                           an answer to who. --%>
+                      <span
+                        :if={item_age(item)}
+                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                      >
+                        {item_age(item)}
+                      </span>
+
+                      <%!-- AND THE WAY IN. Saying something is the one act an item
+                           offers, and until now it had nowhere to be performed
+                           from: you opened the person's page and found it there.
+                           It stands at the outer edge, last on the block, where
+                           the thing you do sits on every other surface here — the
+                           act at the foot, the send in a form. --%>
+                      <button
+                        :if={item[:round] && @list_mode == :people}
+                        type="button"
+                        phx-click="open_item"
+                        phx-value-id={item[:id]}
+                        aria-label="Say something"
+                        class="flex size-5 shrink-0 cursor-pointer items-center justify-center text-neutral-400 transition-colors hover:text-primary-600 dark:text-neutral-500 dark:hover:text-primary-500"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="size-[1.15em]"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="butt"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
 
@@ -2336,7 +2394,7 @@ defmodule PeoplemediaWeb.IndexLive do
                 role="button"
                 tabindex="0"
                 aria-label="Expand the letter"
-                class="letterbox is-empty pointer-events-auto relative flex size-(--person-frame) shrink-0 cursor-pointer items-center justify-center p-2 transition-[opacity,width,height,padding] duration-300"
+                class="letterbox is-empty pointer-events-auto relative flex size-(--person-frame) shrink-0 cursor-pointer items-center justify-center transition-[opacity,width,height,padding] duration-300"
               >
                 <%!-- The screen is inset from the frame so the brackets bracket the
                    picture rather than cropping it, and square on every corner —
