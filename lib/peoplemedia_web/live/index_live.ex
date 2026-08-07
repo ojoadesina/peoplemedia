@@ -1866,15 +1866,22 @@ defmodule PeoplemediaWeb.IndexLive do
                         alt=""
                         class="absolute inset-0 size-full object-cover"
                       />
-                      <%!-- THE SCRIM AND THE SHADOW BOTH — the app's own answer,
-                           copied rather than reinvented. The wash holds the light
-                           end of the picture down and the shadow holds the type up
-                           over whatever the wash misses; a video is a moving
-                           background, so nothing static can be relied on to be
-                           dark where a word happens to fall. --%>
+                      <%!-- THE SCRIM RUNS ACROSS, NOT DOWN. Top to bottom it was
+                           darkest along the whole upper edge of the block — which
+                           is most of a 3.5rem frame — so a capture arrived and
+                           still read as a dark bar with a name on it. The name
+                           sits at the LEFT and nothing else on this line needs
+                           protecting, so the wash is heaviest there and clears
+                           entirely by the right: the picture is visible over most
+                           of its own width, which is the point of putting it
+                           there.
+
+                           THE SHADOW GOES WITH IT, for what the wash misses. A
+                           video is a moving background, so nothing static can be
+                           relied on to be dark where a word happens to fall. --%>
                       <span
                         :if={pictured(item)}
-                        class="capture-scrim absolute inset-0 bg-linear-to-b from-black/65 via-black/35 to-black/25"
+                        class="capture-scrim absolute inset-0 bg-linear-to-r from-black/70 via-black/30 to-transparent"
                         aria-hidden="true"
                       >
                       </span>

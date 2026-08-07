@@ -1,13 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-  <!-- A STAND-IN FOR A CAPTURED STILL: colour and blur only, no shapes. An
-       illustration is a kind of content, and the moment a placeholder looks like
-       content it stops standing in for it. Goes when captures arrive. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <!-- The second of the pair — see still-1.svg for why these are light. -->
   <defs>
-    <linearGradient id="s2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#7d8a72"/>
-      <stop offset="0.6" stop-color="#8a7f8e"/>
-      <stop offset="1" stop-color="#3d4144"/>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="0.8">
+      <stop offset="0" stop-color="#e8ddd0"/><stop offset="0.5" stop-color="#d5c3ba"/>
+      <stop offset="1" stop-color="#9fa9ac"/>
     </linearGradient>
+    <radialGradient id="lamp" cx="0.28" cy="0.3" r="0.5">
+      <stop offset="0" stop-color="#ffe9c4" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffe9c4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade" cx="0.85" cy="0.9" r="0.55">
+      <stop offset="0" stop-color="#6c6a74" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#6c6a74" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="200" height="200" fill="url(#s2)"/>
+  <rect width="400" height="400" fill="url(#wall)"/>
+  <rect width="400" height="400" fill="url(#shade)"/>
+  <rect width="400" height="400" fill="url(#lamp)"/>
 </svg>
