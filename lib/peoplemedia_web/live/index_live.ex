@@ -997,6 +997,12 @@ defmodule PeoplemediaWeb.IndexLive do
   defp pictured(item), do: capture(item) in ~w(face still)
 
   defp word_count(item), do: item[:round][:words][:count] || 0
+  # A PICTURE ATTACHED TO A WORD IS A PICTURE. The pile drew two flat SVGs, which
+  # is a drawing of an attachment rather than one — and the point of the pile is
+  # to say what is in there. Borrowed and public until this app can take one.
+  @word_thumbs ["https://picsum.photos/id/1025/200/200", "https://picsum.photos/id/1039/200/200"]
+  defp word_thumb(n), do: Enum.at(@word_thumbs, n)
+
   defp word_images(item), do: item[:round][:words][:images] || 0
 
   # THE DECK AND THE ↓ LIGHT FOR THE SAME REASON AND MUST AGREE. Both mean "an
@@ -1866,22 +1872,22 @@ defmodule PeoplemediaWeb.IndexLive do
                         alt=""
                         class="absolute inset-0 size-full object-cover"
                       />
-                      <%!-- THE SCRIM RUNS ACROSS, NOT DOWN. Top to bottom it was
-                           darkest along the whole upper edge of the block — which
-                           is most of a 3.5rem frame — so a capture arrived and
-                           still read as a dark bar with a name on it. The name
-                           sits at the LEFT and nothing else on this line needs
-                           protecting, so the wash is heaviest there and clears
-                           entirely by the right: the picture is visible over most
-                           of its own width, which is the point of putting it
-                           there.
+                      <%!-- A FLAT VEIL, NOT A RAMP. It was a gradient — two of
+                           them over the life of this block, top-to-bottom and
+                           then left-to-right — and a gradient is a thing the
+                           compositor has to interpolate on every frame it is
+                           drawn over. Over a PLAYING VIDEO that is every frame,
+                           on every one of these in the column.
 
-                           THE SHADOW GOES WITH IT, for what the wash misses. A
-                           video is a moving background, so nothing static can be
-                           relied on to be dark where a word happens to fall. --%>
+                           One flat translucent black does the same job: hold the
+                           picture down far enough for the type to read. The
+                           text-shadow does the rest, which is what it was always
+                           for — a video is a moving background, so nothing static
+                           can be relied on to be dark where a word happens to
+                           fall. --%>
                       <span
                         :if={pictured(item)}
-                        class="capture-scrim absolute inset-0 bg-linear-to-r from-black/70 via-black/30 to-transparent"
+                        class="capture-scrim absolute inset-0 bg-black/35"
                         aria-hidden="true"
                       >
                       </span>
@@ -2000,12 +2006,12 @@ defmodule PeoplemediaWeb.IndexLive do
                       <span :if={word_images(item) > 0} class="relative size-5 shrink-0">
                         <img
                           :if={word_images(item) > 1}
-                          src="/images/word-2.svg"
+                          src={word_thumb(1)}
                           alt=""
                           class="absolute inset-0 size-full rotate-6 object-cover"
                         />
                         <img
-                          src="/images/word-1.svg"
+                          src={word_thumb(0)}
                           alt=""
                           class={[
                             "relative size-full object-cover",

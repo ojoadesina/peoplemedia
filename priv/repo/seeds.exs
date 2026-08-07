@@ -97,7 +97,12 @@ threads = [
 # the sheet or the design is only ever judged against a full column.
 #
 # BORROWED AND PUBLIC, and they go the day this app can capture anything itself:
-# small CC-licensed clips from test-videos.co.uk, and a still drawn here.
+# small CC-licensed clips from test-videos.co.uk and photographs from picsum.
+#
+# A STILL IS A PHOTOGRAPH. It was a drawn gradient for a while, which was never
+# discussed and was wrong twice over — a drawing is not what the field holds, and
+# dark ones under a scrim were indistinguishable from a frame that had failed to
+# load. Real pictures, so the state can actually be judged.
 face_clip = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
 voice_clip = "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"
 
@@ -105,11 +110,11 @@ captures = [
   {"face", face_clip},
   {nil, nil},
   {"voice", voice_clip},
-  {"still", "/images/still-1.svg"},
+  {"still", "https://picsum.photos/id/1015/600/400"},
   {nil, nil},
   {"face", face_clip},
   {nil, nil},
-  {"still", "/images/still-2.svg"},
+  {"still", "https://picsum.photos/id/1043/600/400"},
   {"voice", voice_clip},
   {nil, nil}
 ]
@@ -374,8 +379,8 @@ Peoplemedia.Repo.all(Peoplemedia.Rounds.Round)
     # nothing about when the stack appears — which is most of what it says.
     pictures =
       case rem(i * 3 + n, 5) do
-        0 -> ["/images/word-1.svg", "/images/word-2.svg"]
-        3 -> ["/images/word-1.svg"]
+        0 -> ["https://picsum.photos/id/1025/200/200", "https://picsum.photos/id/1039/200/200"]
+        3 -> ["https://picsum.photos/id/1025/200/200"]
         _ -> []
       end
 
