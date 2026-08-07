@@ -2798,6 +2798,38 @@ textarea {
   flex: 1 0 calc(var(--list-w) + 0.75rem);
   scroll-snap-align: start;
 }
+
+/* ── TWO VIEWS, ON A PHONE ONLY ────────────────────────────────────────────────
+   A WIDE SCREEN HAS ROOM FOR BOTH AT ONCE, so it shows both at once and this
+   whole arrangement is inert there — the lead grows into the spare rail and
+   nothing scrolls, exactly as it always did. A phone does not, and the answer
+   that fits everything onto one screen anyway is the answer that makes everything
+   on it smaller.
+
+   SO THE PHONE GETS TWO SNAP VIEWS: the list, and the person frame. `mandatory`
+   rather than `proximity` because there is no useful state between them — half a
+   list beside half a capture is neither — and the lead is exactly one view wide,
+   so a swipe lands on one or the other and cannot stop in between.
+
+   THE FRAME TAKES THE FULL VIEW when it is the thing you swiped to. At 7.5rem in
+   a 100vw page it was a stamp in a field; given the view it was swiped for, it is
+   the size of the thing it is showing. */
+@media (max-width: 40rem) {
+  .boxes-lead {
+    flex: 1 0 100%;
+  }
+  .boxes-run {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    justify-content: center;
+  }
+  .scope-boxes .letterbox {
+    width: calc(100vw - 2rem);
+    height: calc(100vw - 2rem);
+    max-height: 60vh;
+    max-width: 60vh;
+  }
+}
 .boxes-run {
   flex: 0 0 auto;
   scroll-snap-align: end;
@@ -2876,7 +2908,12 @@ textarea {
        colour and the start of its word — enough to say "there is more here and
        it is about them" — and it is the most the band can spare on the screen
        where its own name has the least room. */
-    --list-w: calc(100vw - 2rem - 3.5rem - 0.75rem);
+    /* THE LIST TAKES THE WHOLE VIEW ON A PHONE. It gave up 3.5rem so a sliver of
+       the person frame could peek at the edge and say "there is more here" — a
+       fair trade while the box was squeezed onto the same screen. It is a SECOND
+       VIEW now, one snap away, so there is nothing to peek: the strip the peek
+       cost is back in the names, which is the one column a phone cannot spare. */
+    --list-w: calc(100vw - 2rem);
     /* THE ROW CLOSES UP WITH THE TYPE. A row is air around a two-line block,
        and the block shrinks here — the type clamp bottoms out at its smallest
        — so a row held at the desktop's 5rem would be mostly empty, and a phone
