@@ -1281,6 +1281,22 @@ html[data-theme="dark"] {
    rescued it — so fading the cluster would have taken the frame with it, on the
    phone especially, where an open panel turns that same frame into the header's
    full-width video. The three controls fade; the answer stays. */
+/* THE CAPTION STANDS DOWN WHILE THE LIST IS MOVING OR HAS SETTLED. It sits in
+   the gap between the band and the first item, which is fine while nothing is
+   happening and is a line of small grey type directly under the thing you are
+   reading the moment something is. A caption is for when you are deciding what
+   you are looking at; once you have chosen, it is furniture on top of the answer. */
+/* `:has` FROM THE ROOT, because the caption is drawn BEFORE the scroller and a
+   sibling combinator only reaches forwards. */
+#scopes:has(.scopes-scroll.has-selection) .list-tags,
+#scopes:has(.scopes-scroll.is-scrolling) .list-tags {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 220ms ease-out,
+    visibility 0s 220ms;
+}
+
 #scopes.is-open .mark-slot,
 #scopes.is-open .lede,
 #scopes.is-open .list-tags,
@@ -2726,7 +2742,13 @@ textarea {
    agree by construction. A margin was added here to correct a drift that turned
    out to be measured wrong — the box was already level and the correction was
    what tilted it. Nothing to add. */
+/* THE BOX SHARES THE BAND'S CENTRE LINE, not its top edge. It is 7.5rem and the
+   band is 3.5rem, so aligning their tops hung four rems of box below the thing it
+   is meant to sit beside — which is what "it does not balance" was pointing at.
+   There is no padding on it and never was: the screen fills it exactly. What was
+   out of true was the two boxes' relationship, not the box's own insides. */
 .scope-boxes {
+  transform: translateY(calc((var(--band-h) - var(--person-frame)) / 2));
   position: absolute;
   /* THE BAND'S TOP EDGE, NOT ITS CENTRE, and the boxes stand on it. Centred and
      pulled back half its height it resolves to the same resting line — but the

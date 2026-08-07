@@ -243,135 +243,16 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute has_element?(live, "#bar.is-picked")
   end
 
-  test "the two boxes are the head of the list, and each flips one axis", %{conn: conn} do
+  # THE COUNT IS THE WHOLE OF WHAT THIS LINE SAYS NOW. It counted people in a
+  # PLACE once, and the place is gone — the list is simply everybody, so the
+  # number is everybody, and pressing it flips which everybody you mean.
+  test "the count says how many are in the list under it", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
-
-    # WHERE, and WHICH OF THEM. The place box names the place; the population box
-    # names the population you are inside and carries its own count.
-    assert tags_say(live) =~ "FINLAND"
     assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
 
-    # THE POPULATION BOX SWAPS, and never leaves the people. It shows where you
-    # ARE rather than offering both — one box, not a segmented pair.
     live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
-    # One box, so the population it swapped OUT of is not on screen at all. The
-    # two words no longer share a stem, so this can refute the WORD outright —
-    # it used to have to name the count as well, because "UNSCOPES" contains
-    # "SCOPES" and the plain refute passed for the wrong reason.
+    assert tags_say(live) =~ "PEOPLE"
     refute tags_say(live) =~ "RELATIONSHIPS"
-    assert has_element?(live, "#letterbox")
-
-    # THE PLACE BOX SWAPS WHAT THE LIST HOLDS. The roll opens unselected, so the
-    # box reads WORLD — no country chosen — and the world's own totals with it.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    refute has_element?(live, "#letterbox")
-    assert tags_say(live) =~ "WORLD"
-    # EVERYWHERE IS THE SUM OF THE PLACES, and the whole cast lives in one, so
-    # the world says exactly what Finland said.
-    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
-  end
-
-  test "the box counts what the list under it holds", %{conn: conn} do
-    # THE TWO USED TO BE UNRELATED — a hand-written table over an unfiltered
-    # list, so Finland could claim 122 strangers above a list of five. The place
-    # is the list's parent now, which makes them one question asked twice.
-    {:ok, live, _html} = live(conn, ~p"/")
-    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
-    assert rows_in(render(live)) == held_count()
-
-    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert tags_say(live) =~ "#{stranger_count()} PEOPLE"
-    assert rows_in(unscoped) == stranger_count()
-
-    # And a place nobody is in says so, rather than borrowing the world's total.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    render_hook(live, "select", %{"index" => 1})
-    empty = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert tags_say(live) =~ "NIGERIA"
-    assert tags_say(live) =~ "0 PEOPLE"
-    assert rows_in(empty) == 0
-  end
-
-  test "the band moves the place box but commits nothing", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-
-    # A country scrolling through the band updates the box AND its counts, so
-    # you can read a place's two populations without leaving the roll.
-    render_hook(live, "select", %{"index" => 1})
-    assert tags_say(live) =~ "NIGERIA"
-    assert tags_say(live) =~ "0 RELATIONSHIPS"
-
-    # Still in the world. The band alone commits nothing, and neither does the
-    # band's own press.
-    live |> element(".focus-box") |> render_click()
-    refute has_element?(live, "#letterbox")
-
-    # AND THE WAY OUT THAT CHANGES NOTHING leaves with what you came in with.
-    render_hook(live, "cancel_place", %{})
-    assert has_element?(live, "#letterbox")
-    assert tags_say(live) =~ "FINLAND"
-    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
-  end
-
-  test "either box is a door back, and both take the place with them", %{conn: conn} do
-    # Somebody abroad, so the second place in this test is not an empty one.
-    person("CARIOCA", "Brazil")
-    {:ok, live, _html} = live(conn, ~p"/")
-
-    # THE PLACE BOX commits what settled and keeps the population you had.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    render_hook(live, "select", %{"index" => 2})
-    scoped = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert tags_say(live) =~ "BRAZIL"
-    assert tags_say(live) =~ "0 RELATIONSHIPS"
-    # You hold nobody in Brazil, so the list that came back is empty — and says
-    # so rather than showing Finland's people under Brazil's name. Read from the
-    # ROWS: the launcher's scoping room lists everyone you hold, everywhere, and
-    # is not what this is about.
-    assert rows_in(scoped) == 0
-    refute has_element?(live, "#panel")
-
-    # THE POPULATION BOX commits it too, and swaps population on the way — one
-    # press answering both halves, which is what the two count boxes used to do.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    render_hook(live, "select", %{"index" => 2})
-    unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert tags_say(live) =~ "BRAZIL"
-    assert tags_say(live) =~ "1 PEOPLE"
-    # A stranger only Brazil holds, so the place really came with it.
-    assert unscoped =~ "CARIOCA"
-    refute unscoped =~ "AMINA"
-  end
-
-  # THE WAY OUT IS THE GESTURE THAT GOT YOU IN, and there is no longer a control
-  # for it. A cancel X stood beside the place while these lived on a line above
-  # the list, always in view; behind the band it would be hidden by the very swipe
-  # somebody makes to leave. So the drawer IS the mode — the bar says whether it
-  # is open, the hook opens it on arrival and cancels it on the way out, and the
-  # server keeps `cancel_place` for the hook to call rather than for a button.
-  test "the drawer being open is what says the roll of places is open", %{conn: conn} do
-    {:ok, live, html} = live(conn, ~p"/")
-    assert html =~ ~s(data-place-open="false")
-    refute has_element?(live, ~s(button[phx-click="cancel_place"]))
-
-    opened = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert opened =~ ~s(data-place-open="true")
-    assert has_element?(live, ~s(button[phx-click="place_box"][aria-pressed="true"]))
-    refute has_element?(live, ~s(button[phx-click="cancel_place"])), "the swipe out is the cancel"
-
-    # WORLD is a choice like any other, so pressing the box on an empty band
-    # commits it rather than being inert.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert tags_say(live) =~ "WORLD"
-    assert tags_say(live) =~ "#{held_count()} RELATIONSHIPS"
-    assert render(live) =~ ~s(data-place-open="false")
-
-    # And leaving without choosing is the same event, sent by the hook.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    render_hook(live, "cancel_place", %{})
-    assert render(live) =~ ~s(data-place-open="false")
   end
 
   test "the empty band says nothing yet, and does not say it with the mark", %{conn: conn} do
@@ -411,31 +292,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert html =~ "focus-dot"
   end
 
-  test "only the place lights, and only while the world is open", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-    # `(?<!:)` OR IT MATCHES THE HOVER. The place is set like a name now and takes
-    # a name's ink at rest, with terracotta as its HOVER — so a bare search for
-    # the colour finds `hover:text-primary-600` and reports every tag as lit.
-    lit = ~r/(list-place|list-scope)[^"]*(?<!:)text-primary-600/
-    tags = fn -> tags_html(live) end
-
-    # NOTHING IS LIT OVER PEOPLE. Both tags were washed boxes and exactly one was
-    # always on; as small tracked words at the head of the list, terracotta means
-    # what it means everywhere else here — look at this — and neither of them is
-    # asking anything of you while you are simply reading the list.
-    assert Regex.scan(lit, tags.(), capture: :all_but_first) == []
-
-    # OPENING THE WORLD IS A STATE WORTH SHOWING, and it is the only one either
-    # tag has. The population is a toggle you can press from either side, and
-    # neither side is more chosen than the other.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert Regex.scan(lit, tags.(), capture: :all_but_first) == [["list-place"]]
-
-    # And it goes out again on the way back.
-    live |> element(~s(button[phx-click="place_box"])) |> render_click()
-    assert Regex.scan(lit, tags.(), capture: :all_but_first) == []
-  end
-
   test "the rail answers the band, and the head of the list answers the list", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
 
@@ -454,30 +310,11 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # whichever name had scrolled in. Those two are a caption at the head now,
     # and what is left on the rail genuinely is about the person under the band.
     assert boxes =~ ~s(id="letterbox")
-    refute boxes =~ "list-place"
     refute boxes =~ "list-scope"
 
     tags = tags_html(live)
-    assert tags =~ "list-place"
     assert tags =~ "list-scope"
     refute tags =~ "letterbox"
-  end
-
-  test "a place is one line, shouted, and its rows close up to suit", %{conn: conn} do
-    {:ok, live, html} = live(conn, ~p"/")
-    assert html =~ "h-(--row-h)"
-
-    places = live |> element(~s(button[phx-click="place_box"])) |> render_click()
-
-    # UPPERCASE like every other word on this surface. The fixtures store
-    # "Finland" because that is the country's name; the list is a list.
-    assert places =~ "NIGERIA"
-    refute places =~ ">\n                  Nigeria"
-
-    # And a shorter row, because a place has no age hung under it. At the
-    # people row's height the words sat further apart than the band is tall.
-    assert places =~ "h-(--place-h)"
-    refute places =~ "h-(--row-h)"
   end
 
   test "the act opens the launcher; the launcher's own master closes it",

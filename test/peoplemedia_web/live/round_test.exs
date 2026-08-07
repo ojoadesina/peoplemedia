@@ -225,7 +225,6 @@ defmodule PeoplemediaWeb.RoundTest do
         |> tl()
         |> Enum.map_join(" ", &(&1 |> String.split("</div>") |> hd()))
 
-      assert tags =~ "FINLAND"
       assert tags =~ "RELATIONSHIPS"
 
       refute boxes(live) =~ "FINLAND"

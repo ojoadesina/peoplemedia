@@ -740,37 +740,6 @@ defmodule PeoplemediaWeb.IndexLive do
     end
   end
 
-  # ── THE TWO BOXES ───────────────────────────────────────────────────────────
-  # THE HEAD OF THE LIST IS TWO SWITCHES, and each one flips a different axis of
-  # the same question — WHERE, and WHICH OF THEM:
-  #
-  #   THE PLACE BOX toggles what the list HOLDS: people, or the roll of places
-  #   to pick from. Pressing it in people mode opens the world; pressing it in
-  #   the world COMMITS whatever has settled in the band and comes back.
-  #
-  #   THE POPULATION BOX toggles WHO of that place: the ones you hold, or the
-  #   rest. It always lands on people, from either mode.
-  #
-  # WHY A TOGGLE AND NOT A PAIR. There were two count boxes before, off to the
-  # right, and they were two doors into the same room — press one population or
-  # the other. But you are only ever in one of them at a time, and a
-  # control that shows you the state you are NOT in is a control you have to
-  # read before you can use. One box showing where you ARE, that swaps when
-  # pressed, is the same two doors with the answer already given.
-  def handle_event("place_box", _params, %{assigns: %{list_mode: :people}} = socket) do
-    {:noreply, socket |> assign(list_mode: :location) |> reset_list()}
-  end
-
-  # COMMITTING IS WHAT THE BOX DOES ON THE WAY BACK. The band updates this box
-  # as countries pass through it, but it changes nothing until pressed — you can
-  # scroll the whole world and leave with the place you came in with.
-  def handle_event("place_box", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(list_mode: :people, location: socket.assigns.box_place)
-     |> reset_list()}
-  end
-
   # AND IT COMMITS THE PLACE TOO when pressed from the world, which is the old
   # counts' behaviour kept whole: pressing a population under a country was
   # always an answer to both halves at once. Leaving the picker by this door
@@ -779,20 +748,8 @@ defmodule PeoplemediaWeb.IndexLive do
   def handle_event("scope_box", _params, socket) do
     {:noreply,
      socket
-     |> assign(
-       list_mode: :people,
-       location: socket.assigns.box_place,
-       scope: other_scope(socket.assigns.scope)
-     )
+     |> assign(scope: other_scope(socket.assigns.scope))
      |> reset_list()}
-  end
-
-  # THE WAY OUT THAT CHANGES NOTHING. Both boxes commit something, and the roll
-  # of places has no empty state to escape to — the band always has a country in
-  # it or reads WORLD, and WORLD is itself a choice. So leaving without choosing
-  # needs a control of its own, or the only exit from the picker is a decision.
-  def handle_event("cancel_place", _params, socket) do
-    {:noreply, socket |> assign(list_mode: :people) |> reset_list()}
   end
 
   # A LETTERHEAD GOES TO THE WORLD, and for now that is not a choice anybody is
@@ -972,19 +929,8 @@ defmodule PeoplemediaWeb.IndexLive do
   end
 
   # ONE SCROLLER, THREE POSSIBLE CONTENTS, chosen by the two tags above it.
-  defp current_list(%{list_mode: :location} = assigns), do: assigns.countries
-  defp current_list(%{scope: "UNSCOPED"} = assigns), do: in_place(assigns.unscopes, assigns)
-  defp current_list(assigns), do: in_place(assigns.scopes, assigns)
-
-  # THE PLACE IS THE LIST'S PARENT, which is the whole reason it sits in a box
-  # above it: "Finland → its scopes" rather than "Finland, and separately, some
-  # people". Until this filter existed the box counted one thing and the list
-  # showed another — Finland claiming six scopes over a list of everybody
-  # everywhere — and the two never had to agree because neither read the other.
-  #
-  # WORLD IS NOT A PLACE, it is the absence of one, so it filters nothing.
-  defp in_place(people, %{location: "WORLD"}), do: people
-  defp in_place(people, %{location: place}), do: Enum.filter(people, &(&1.country == place))
+  defp current_list(%{scope: "UNSCOPED"} = assigns), do: assigns.unscopes
+  defp current_list(assigns), do: assigns.scopes
 
   # Stored rather than read through a function in the markup, which would switch
   # LiveView's change tracking off for the whole block.
@@ -1720,19 +1666,12 @@ defmodule PeoplemediaWeb.IndexLive do
                the place can be OPEN, with the roll of the world under the band,
                and that is a state worth a colour. --%>
           <div class="list-tags pointer-events-none absolute top-(--tags-under) left-0 z-20 flex items-baseline gap-3">
-            <button
-              type="button"
-              phx-click="place_box"
-              aria-pressed={to_string(@list_mode == :location)}
-              class={[
-                "list-place pointer-events-auto min-w-0 cursor-pointer truncate",
-                "text-sm tracking-[0.08em] outline-none transition-colors focus-visible:underline",
-                (@list_mode == :location && "text-primary-600 dark:text-primary-500") ||
-                  "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-              ]}
-            >
-              {String.upcase(@box_place)}
-            </button>
+            <%!-- WHICH POPULATION, AND THAT IS ALL THAT IS LEFT OF THIS LINE. A
+                 PLACE stood beside it — a country, with the whole roll of the
+                 world scrolling under the band when you pressed it. It answered a
+                 question nobody was asking: this app is about the people you
+                 hold, and where they happen to be standing has never once changed
+                 which of them you want to reach. --%>
             <button
               type="button"
               phx-click="scope_box"
