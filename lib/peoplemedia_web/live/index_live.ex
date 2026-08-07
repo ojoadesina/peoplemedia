@@ -1039,22 +1039,16 @@ defmodule PeoplemediaWeb.IndexLive do
   # LiveView's change tracking off for the whole block.
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-  # WHAT THE MARK ON A ROW SAYS, and it is one question: are they round, and with
-  # what?
-  #
-  # A ROUND WITHOUT A FRAME IS WORDS, which is what every round is today — frames
-  # are captured and there is nothing to capture with yet. The moment a round can
-  # carry one, this is the single line that has to learn about it, and both of the
-  # drawings it will reach for are already in the vocabulary.
-  #
-  # NO ROUND IS AN ANSWER TOO, and it is the commonest one on the list, which is
-  # exactly why it gets a drawing rather than a blank. It is also the QUIETEST of
-  # them: on a list of twenty names, most of them not round, anything loud here
-  # would be a column shouting about absence — and Law 1 says absence is silent.
-  defp round_mark(%{} = round) when map_size(round) > 0,
-    do: round[:frame] || "text"
-
-  defp round_mark(_not_round), do: "away"
+  # WHAT THE PLATE SAYS, AND NOTHING WHEN THERE IS NOTHING. A round with no doing
+  # on it is somebody saying only "I am here", which the head above already says;
+  # an empty plate holds its wash and stays quiet rather than captioning itself.
+  defp round_doing(item) do
+    case item[:round][:doing] do
+      nil -> nil
+      "" -> nil
+      doing -> String.upcase(doing)
+    end
+  end
 
   # WHAT THE TWO BOXES SAY rides with the selection, because over the roll of
   # places the place box is showing the band's own answer — it follows the
@@ -1784,103 +1778,99 @@ defmodule PeoplemediaWeb.IndexLive do
                        two scrollers at right angles in the same pixel, each
                        needing the other to keep out of its axis. --%>
                 <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
-                  <div class="flex h-full w-full shrink-0 snap-start items-center px-(--list-pad)">
-                    <div class="flex min-w-0 flex-1 items-start">
-                      <%!-- THE MARK IS ABOUT THEIR ROUND, NOT THEIR LETTERS.
+                  <%!-- ── THE ROUND FRAME: A HEAD AND A PLATE ──────────────
+                       AN ITEM IS TWO BLOCKS JOINED BY A STROKE, and the pair is
+                       the round frame. The HEAD says who — a name, and the marks
+                       that say how it stands with you. The PLATE says what they
+                       are round with — what they are up to, and how they are.
 
-                           IT HUNG OFF THE LAST LETTER first, which made it a
-                           fact about the CORRESPONDENCE — and a correspondence
-                           is a thing only the two of you have. A visitor holds
-                           nobody, so not one row could carry a mark; the People
-                           tab was the same; and even between two people who
-                           write constantly the mark went blank the moment there
-                           was nothing new. A column that is empty for most rows
-                           most of the time is not a column.
+                       THEY WERE ONE LINE, which made the person a property of
+                       what they had done: a byline over the thing you were being
+                       shown. Split, the person is a block in their own right
+                       standing over a block of their own round, and the column
+                       reads as PEOPLE WITH THINGS UNDER THEM rather than as posts
+                       that happen to be signed.
 
-                           A ROUND IS THE RIGHT SUBJECT. Everybody has an answer
-                           to it at every moment — they are round, or they are
-                           not — so the mark always says something, and what it
-                           says is the thing this whole surface exists to show.
-                           It is also the fact that CHANGES, which is what a
-                           glanceable mark is for; who last wrote to you does not
-                           change while you are looking at the list.
+                       THE PLATE IS ALWAYS DRAWN, EMPTY OR NOT. The band settles
+                       a row by its position, so every item has to be the same
+                       height or the thing under the brackets stops being one
+                       whole item — and an item that changed height with what
+                       somebody happened to be doing would make the column's beat
+                       a function of the news. Empty, it holds its wash and says
+                       nothing, which is what every empty thing on this surface
+                       does.
 
-                           THE VOCABULARY IS ONE RECTANGLE AT FOUR ANGLES. Level
-                           is a mouth: here, saying something. Struck through at
-                           45° is words with no face and no voice, which is what
-                           every round is until frames are built. Upright is that
-                           same mouth CLOSED — not around. Two eyes are a face.
-                           When a round can carry a frame, `round_mark/1` is the
-                           one line that has to learn about it.
+                       THE STROKE IS THE JOIN AND IT IS ALSO THE GAP. The 0.5rem
+                       is this element's own height rather than a gap between the
+                       two, so the air between the blocks and the mark crossing it
+                       are one measurement and cannot drift apart. It stands a
+                       gutter in, where the name above it and the doing below it
+                       both start, so it reads as belonging to the words rather
+                       than to the box. --%>
+                  <div class="flex h-full w-full shrink-0 snap-start flex-col justify-center">
+                    <div class={[
+                      "frame-head relative flex h-14 items-center gap-3 overflow-hidden",
+                      "px-(--list-pad) text-md bg-neutral-100 dark:bg-dark-900"
+                    ]}>
+                      <p class="scopes-line min-w-0 flex-1 truncate tracking-[0.1em]">
+                        {String.upcase(item[:label] || item[:name])}
+                      </p>
 
-                           IT NEVER LIGHTS. Terracotta means something is asking
-                           for you, and being round is an invitation rather than
-                           a demand — Law 1 says absence is silent, and its
-                           opposite is not a summons either. The FLOW on the
-                           right still lights, because an unopened letter really
-                           is asking. --%>
-                      <.letter_glyph
-                        :if={@list_mode == :people}
-                        kind={round_mark(item[:round])}
-                        class="mr-3 -mt-[0.125em]"
-                      />
-                      <div class="min-w-0 flex-1 leading-tight">
-                        <p class="scopes-line flex items-baseline">
-                          {String.upcase(item[:label] || item[:name])}
-                          <%!-- Their own name, quiet beside the label, arriving only
-                             while the row is IN the band. It keeps its own muted
-                             colour on purpose: the focused row turns terracotta,
-                             and this staying grey is what stops the band reading
-                             as two labels shouting. Only a scoped person has both
-                             a label and a name — a stranger or a country is one
-                             word. --%>
-                          <%!-- AND NOT THEIR OTHER NAME EITHER. "MUM SARAH" is
-                               two labels for one person on one line, which reads
-                               as a headline over a byline. One name. --%>
-                        </p>
-                        <%!-- WHEN THE LAST LETTER CAME, and nothing else.
+                      <%!-- A COUNTRY CARRIES ITS TWO COUNTS where a person
+                           carries their age: how many there you hold, and how
+                           many you do not. --%>
+                      <span
+                        :if={@list_mode == :location}
+                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                      >
+                        {item.scopes} · {item.unscopes}
+                      </span>
 
-                           GREY, NOT THE WARM RAMP. It used to be `light-500`,
-                           which is not a neutral at all — the light ramp runs
-                           cream to cocoa, so its middle is a muted terracotta,
-                           and an age drawn in it read as a quiet version of the
-                           colour this surface uses for ATTENTION. Every subtext
-                           here is grey for that reason: terracotta has one job
-                           and a timestamp is not it.
+                      <%!-- AN AGE IS AN ASIDE and is drawn like one: enough
+                           tracking to keep capitals from touching, and no more.
+                           Wider apart it took a name's worth of rail and read as
+                           a second heading. --%>
+                      <span
+                        :if={item[:letter][:when]}
+                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                      >
+                        {String.upcase(item.letter.when)}
+                      </span>
 
-                           It stays grey through the focus too — the row turning
-                           terracotta is about the NAME, and an age that lit with
-                           it would make the band read as two things being
-                           pointed at. --%>
-                        <%!-- AND NOTHING UNDER THE NAME. The doing was here for
-                             a while — grey, small, under a name at full size —
-                             and the argument for it was real: with it gone the
-                             only way to learn what anybody is up to is to scroll
-                             them into the band one at a time.
+                      <%!-- THE ARROWS GET THEIR OWN BASE rather than the head's.
+                           They are drawn at 1.05em against a 20px row; at this
+                           block's 14px the same 1.05em lands under 15px, and a
+                           mark tuned to be quiet at 20 is merely hard to find at
+                           15. --%>
+                      <.letter_flow :if={item[:letter]} letter={item.letter} class="text-xl" />
+                    </div>
 
-                             IT STILL LOST, and to the same law it lost to the
-                             first time. A subtitle on every row turns a list
-                             into a FEED — a column of headlines with people's
-                             names attached — and this list is people-first or it
-                             is nothing. The mark on the left and the flow on the
-                             right are not headlines: they are two glyphs saying
-                             what passed and which way, which is what a row of a
-                             list of PEOPLE is allowed to say about them.
+                    <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
+                      <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
+                    </div>
 
-                             SO THE DOING LIVES ON THEIR PAGE, beside LETTERS,
-                             where the panel already carries it — one person at a
-                             time, and only once you have opened them. That is a
-                             step further in than settling them under the band,
-                             and it is the price of a list that stays a list. --%>
-                      </div>
-                      <%!-- THE FLOW RIDES ON THE NAME'S LINE, top right, mirroring
-                       the kind mark at top left — the row's two marks are one
-                       pair and belong on one line, with the age hanging under
-                       the name between them. Centred against the whole two-line
-                       block it sat below both of them and read as a third thing
-                       floating in the row rather than as the other half of what
-                       the left mark says. --%>
-                      <.letter_flow :if={item[:letter]} letter={item.letter} class="ml-4" />
+                    <div class="frame-plate flex h-16 items-center gap-3 bg-neutral-100 px-(--list-pad) dark:bg-dark-900">
+                      <%!-- WHAT THEY ARE UP TO, AT ITS OWN WIDTH. It is a room's
+                           name — short, deliberate, the thing you would say to
+                           tell somebody which round you meant — so it truncates
+                           rather than being padded out to fill the rail, which
+                           would make it read as a field. --%>
+                      <p class="min-w-0 truncate text-md tracking-[0.08em] text-neutral-900 dark:text-dark-100">
+                        {round_doing(item)}
+                      </p>
+
+                      <%!-- HOW THEY ARE, AS A COLOUR, at the trailing edge. It is
+                           the one place on this surface carrying a hue of its
+                           own: the word keeps the ordinary ink and the WASH
+                           carries the family, at a strength that can never
+                           outshout an unread mark. --%>
+                      <span
+                        :if={item[:round][:mood]}
+                        class="mood-box ml-auto flex h-5 shrink-0 items-center px-2 text-sm tracking-[0.08em] text-neutral-700 dark:text-dark-200"
+                        data-family={item[:round][:family]}
+                      >
+                        {String.upcase(item.round.mood)}
+                      </span>
                     </div>
                   </div>
 
@@ -2141,39 +2131,16 @@ defmodule PeoplemediaWeb.IndexLive do
                  THE WORD KEEPS THE ORDINARY INK. The wash carries the hue and
                  the hue never reaches full strength, because the moment a mood is
                  as loud as terracotta, terracotta stops meaning "look here". --%>
-              <div
-                :if={!@going}
-                phx-mounted={JS.ignore_attributes(["class"])}
-                role="button"
-                tabindex="0"
-                data-opens="how they are"
-                aria-label="Expand how they are"
-                class={[
-                  "around-box mood-box pointer-events-auto relative flex h-(--band-h) w-(--mood-w)",
-                  "shrink-0 cursor-pointer items-center justify-center overflow-hidden px-3",
-                  !@current[:round][:family] && "bg-neutral-400/10 dark:bg-neutral-300/15"
-                ]}
-                data-family={@current[:round][:family]}
-              >
-                <span
-                  :if={@current[:round][:mood]}
-                  class="around-brief truncate text-(length:--sub-type) tracking-(--sub-track) text-light-900 dark:text-dark-100"
-                >
-                  {String.upcase(@current.round.mood)}
-                </span>
-                <%!-- OPEN, IT NAMES THE FAMILY TOO. The colour belongs to the
-                   family and the word to the feeling, so a box that only ever
-                   showed the word left its own hue unexplained — you would
-                   learn it eventually and never once be told. --%>
-                <div class="around-full flex-col items-center justify-center gap-3 text-center">
-                  <span class="text-(length:--count-type) leading-none tracking-(--row-track) text-light-900 dark:text-dark-100">
-                    {String.upcase(@current[:round][:mood] || "")}
-                  </span>
-                  <span class="text-(length:--sub-type) tracking-(--sub-track) text-neutral-500 dark:text-neutral-400">
-                    {String.upcase(@current[:round][:family] || "")}
-                  </span>
-                </div>
-              </div>
+              <%!-- THE MOOD IS ON THE PLATE NOW, at the trailing edge of the round
+                 block, where it sits beside the doing it belongs to. It was a box
+                 on this rail — one answer about the settled person among the
+                 others — and having it in both places would be the same fact said
+                 twice, once where you are reading and once where you are not.
+
+                 WHAT IS LEFT HERE IS THE PERSON FRAME, and it is the only thing
+                 that still genuinely answers the band: a capture of THEM, which
+                 no block in the column can hold because the column is a column of
+                 names and a face is not a name. --%>
 
               <%!-- THREE: THE LETTER BOX — the last letter the settled person
                  sent YOU, and the reason this surface exists. It is the only

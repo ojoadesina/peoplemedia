@@ -33,6 +33,13 @@ defmodule PeoplemediaWeb.RoundTest do
     render_hook(live, "select", %{"index" => index})
   end
 
+  defp item_for(live, name) do
+    render(live)
+    |> String.split(~s(class="scopes-item))
+    |> tl()
+    |> Enum.find(&(&1 =~ name))
+  end
+
   defp boxes(live), do: live |> element(".scope-boxes") |> render()
 
   describe "opening the app" do
@@ -115,10 +122,13 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "MUM")
 
-      said = boxes(live)
-      assert said =~ "HAPPY"
-      assert said =~ ~s(data-family="joy")
-      refute said =~ "THE WITCHERS, FINALLY"
+      # THE PLATE HOLDS BOTH, side by side: what they are up to, and how they
+      # are. They were split across a row and a box on the rail, which put one
+      # fact where you were reading and the other where you were not.
+      item = item_for(live, "MUM")
+      assert item =~ "HAPPY"
+      assert item =~ ~s(data-family="joy")
+      assert item =~ "THE WITCHERS, FINALLY"
     end
 
     # AND THE DOING IS ON NEITHER — NOT THE ROW, NOT THE RAIL.
@@ -136,13 +146,12 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, html} = live(conn, ~p"/")
 
       rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      refute rows =~ "THE WITCHERS, FINALLY"
-      refute rows =~ "scopes-doing"
+      assert rows =~ "THE WITCHERS, FINALLY"
 
+      # AND ON THEIR PAGE TOO, with the mood it was made in — the panel takes the
+      # band away, so without it walking into somebody loses the one thing the
+      # column had just told you about them.
       settle(live, "MUM")
-      refute boxes(live) =~ "THE WITCHERS, FINALLY"
-
-      # Opened, it is there — with the mood it was made in.
       assert render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
     end
 
@@ -168,11 +177,10 @@ defmodule PeoplemediaWeb.RoundTest do
       assert said =~ "boxes-lead", "without the lead the boxes sit on top of the band"
       assert said =~ "boxes-run"
 
-      # The lead comes first, and every box is inside the run behind it.
+      # The lead comes first, and the person frame is inside the run behind it.
       [_before, after_lead] = String.split(said, "boxes-lead", parts: 2)
       assert after_lead =~ "boxes-run"
       [_outside, inside_run] = String.split(said, "boxes-run", parts: 2)
-      assert inside_run =~ "around-box"
       assert inside_run =~ "letterbox"
     end
 
@@ -183,20 +191,24 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "DAD")
 
-      said = boxes(live)
-      refute said =~ "HAPPY"
-      refute said =~ "THE WITCHERS"
-      assert said =~ "around-box", "an empty box keeps its slot or the letter box moves"
-      refute said =~ ~s(data-family=")
+      # AN EMPTY PLATE HOLDS ITS WASH AND SAYS NOTHING, which is what every empty
+      # thing on this surface does — and it is still drawn, because the band
+      # settles on position and an item that shrank when nothing was happening
+      # would move every item under it.
+      item = item_for(live, "DAD")
+      refute item =~ "HAPPY"
+      refute item =~ "THE WITCHERS"
+      assert item =~ "frame-plate"
+      refute item =~ ~s(data-family=")
     end
 
     test "nothing at all for somebody who is not here", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "COACH")
 
-      said = boxes(live)
-      refute said =~ "HAPPY"
-      assert said =~ "around-box"
+      item = item_for(live, "COACH")
+      refute item =~ "HAPPY"
+      assert item =~ "frame-plate"
     end
   end
 

@@ -2474,7 +2474,12 @@ textarea {
   --app-gutter: 1.5rem;
   --list-w: 32rem;
   --list-h: 50vh;
-  --row-h: 5rem;
+  /* A ROW IS A WHOLE ROUND FRAME NOW — a 3.5rem head, the 0.5rem join, and a
+     4rem plate. It is stated as one number rather than summed from three because
+     the BAND settles against it: the brackets have to land on a whole item, and
+     an item made of parts that each knew their own height would let the two
+     drift apart on the one screen where it shows. */
+  --row-h: 9.75rem;
   /* A PLACE IS ONE LINE. --row-h carries a name with its age under it; the roll
      of countries has neither, and wearing the people row's height it read as a
      list with gaps in it — the words further apart than the band they pass
@@ -2487,7 +2492,11 @@ textarea {
      a near-miss rather than as a deliberate difference — the eye measures a
      right-hand box against the box it is beside before it measures anything
      else. One number, one rhythm. */
-  --band-h: 4.5rem;
+  /* AND THE BAND IS THE ROW, exactly. It used to be shorter than one — a strip
+     across a line of text — because a row WAS a line of text. A round frame is
+     two blocks, and brackets that took in only the first of them would say the
+     head was the thing you had chosen when the pair is. */
+  --band-h: 8rem;
   /* FIXED, so the letter box never moves. Most people are around silently, so
      these two are empty far more often than not — and boxes that collapsed when
      empty would slide the one box that is always the same object sideways on
@@ -2815,9 +2824,9 @@ textarea {
        (`-translate-y-10`), so changing the row here would slide the box off the
        line the row is holding, on the one screen where the two are hardest to
        see out of step. */
-    --row-h: 4.25rem;
+    --row-h: 9.75rem;
     --place-h: 3rem;
-    --band-h: 3.75rem;
+    --band-h: 8rem;
     /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
        phone has the least page to spend and the most reason not to spend it on
        empty space above a mark. */

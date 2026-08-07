@@ -69,22 +69,21 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     {:ok, live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    assert rows =~ "letter-glyph"
     assert rows =~ "letter-flow"
     refute rows =~ "tabular-nums"
     refute rows =~ "scopes-name"
     refute rows =~ "scopes-when"
 
-    # ONE RECTANGLE AT FOUR ANGLES. Level is a mouth, struck through at 45° is
-    # words with no face and no voice, upright is that mouth shut — not around.
-    assert rows =~ "rotate(-45 12 12)", "somebody round, with words"
-    assert rows =~ "rotate(-90 12 12)", "somebody who is not round"
+    # THE PLATE SAYS WHAT THE MARK USED TO. A mark that named what a frame held
+    # was a caption on a picture; the frame shows what it holds, and the plate
+    # says what they are round with in their own words.
+    assert rows =~ "frame-plate"
 
     # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
     # letters: they have no correspondence at all and they are still either round
     # or not.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    assert unscoped =~ "letter-glyph"
+    assert unscoped =~ "frame-head"
     refute unscoped =~ "letter-flow", "no correspondence, so no direction to show"
   end
 
