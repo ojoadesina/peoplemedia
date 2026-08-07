@@ -7,12 +7,13 @@ defmodule Peoplemedia.Rounds.Round do
   being HERE and wrong for this. A person's page lists their past rounds; a
   pair's page interleaves every round between them. Both want rows that stay.
 
-  ## EVERYTHING ON IT IS OPTIONAL
+  ## THERE IS NOTHING ON IT
 
-  A doing, nullable, and that is the design rather than laxness:
-  a round with nothing on it is somebody saying "I am here and open to being
-  joined", which is the smallest true thing this app exists to let anybody say.
-  Filling it in is how you say more.
+  No name, no title, no summary. Making one is somebody saying "I am here and
+  open to being joined", which is the smallest true thing this app exists to let
+  anybody say — and everything beyond that is said in WORDS, by whoever says it.
+  A title over them would be a second summary of the thing directly underneath
+  it, written before anybody had said anything.
 
   ## IT HAS A NUMBER, AND THAT IS WHAT IT IS KNOWN BY
 
@@ -32,14 +33,6 @@ defmodule Peoplemedia.Rounds.Round do
 
   alias Peoplemedia.People.Person
 
-  # WHAT YOU ARE DOING IS WHAT YOU TYPE. It was a closed set of fourteen with a
-  # free line beneath it, and the two overlapped so badly that "the witchers,
-  # finally" / `movie` / "the witchers" was one thought said three times. A
-  # vocabulary of doings is either redundant beside a sentence somebody wrote or
-  # it is the thing stopping them writing it.
-
-  @doing_limit 80
-
   # PUBLIC IS EVERYONE. PRIVATE IS THE PEOPLE YOU HOLD — or one of them, when a
   # target is set. Which of the two you get is decided by the tab you were
   # standing on, so nobody is asked a question the surface already knows.
@@ -48,7 +41,6 @@ defmodule Peoplemedia.Rounds.Round do
   schema "rounds" do
     belongs_to(:person, Person)
     belongs_to(:target, Person)
-    field(:doing, :string)
     # PER CREATOR, INCREASING. Names repeat and names are optional; a number is
     # neither, so it is what a word hangs off and what a page lists by.
     field(:number, :integer)
@@ -60,12 +52,9 @@ defmodule Peoplemedia.Rounds.Round do
 
   def changeset(round, attrs) do
     round
-    |> cast(attrs, [:person_id, :target_id, :doing, :audience, :expires_at, :number])
+    |> cast(attrs, [:person_id, :target_id, :audience, :expires_at, :number])
     |> validate_required([:person_id, :audience, :expires_at, :number])
     |> validate_inclusion(:audience, @audiences)
-    # SHORT BY CONSTRUCTION. It rides in a box beside the band, so a paragraph
-    # set there would either overrun the rail or truncate into nonsense.
-    |> validate_length(:doing, max: @doing_limit)
     |> unique_constraint([:person_id, :number], name: :rounds_person_id_number_index)
     # AIMING A PUBLIC ROUND IS NOT A STRICTER PUBLIC ROUND, it is two different
     # answers to one question. The database says the same; naming it here is what
@@ -88,5 +77,4 @@ defmodule Peoplemedia.Rounds.Round do
   end
 
   def audiences, do: @audiences
-  def doing_limit, do: @doing_limit
 end

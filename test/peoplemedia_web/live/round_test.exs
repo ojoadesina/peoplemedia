@@ -118,7 +118,7 @@ defmodule PeoplemediaWeb.RoundTest do
     # carried on the person's PAGE instead, beside LETTERS, at a size that suits
     # it. What is left on the rail is what neither a line nor a page-heading does
     # well: a colour, and a frame.
-    test "the plate names the round, and holds no colour", %{conn: conn} do
+    test "the word block says what was said, and holds no colour", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "MUM")
 
@@ -126,34 +126,35 @@ defmodule PeoplemediaWeb.RoundTest do
       # at its trailing edge for a while, which put a second thing to read on a
       # block that answers one question — and the colour is held back until there
       # is somewhere it earns its place.
+      # THE WORD BLOCK SAYS WHAT WAS SAID, and a round with nothing said in it
+      # says nothing. It fell back to the round's own NAME once — a title given
+      # before anybody had spoken, which is the least informed sentence in the
+      # round given its most prominent line.
       item = item_for(live, "MUM")
-      assert item =~ "THE WITCHERS, FINALLY"
+      assert item =~ "frame-plate"
       refute item =~ "HAPPY"
       refute item =~ ~s(data-family="joy")
     end
 
-    # AND THE DOING IS ON NEITHER — NOT THE ROW, NOT THE RAIL.
+    # A ROUND SAYS NOTHING OF ITS OWN, ANYWHERE.
     #
-    # It spent a while on the ROW, on the argument that boxes answer one person
-    # at a time and nobody should have to settle somebody to learn anything.
-    # That argument is true and it lost anyway: a sentence under every name is a
-    # FEED however fresh the sentence is, and this list is people-first or it is
-    # nothing. The row keeps two GLYPHS, which are marks rather than words.
+    # It carried a title for a while — three text fields, then one, then none.
+    # Each cut was the same argument taken one step further: a summary of a thing
+    # written by somebody who had not said anything yet is the least informed
+    # sentence in the round, and it was being given the most prominent line of it.
     #
-    # SO IT IS ONE STEP FURTHER IN THAN IT WAS. Not settled — OPENED. The panel
-    # carries it beside LETTERS and always has, which is also the only place your
-    # own round is visible to you, since you have no row in your own list.
-    test "and the doing is on their page, not on the row or the rail", %{conn: conn} do
+    # WHAT IS SAID IN IT IS WHAT IT IS. The word block carries the last of those,
+    # and stands empty until somebody speaks — which reads correctly: here is
+    # somebody, and nobody has said anything yet.
+    test "and a round with nothing said in it says nothing", %{conn: conn} do
       {:ok, live, html} = live(conn, ~p"/")
 
       rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      assert rows =~ "THE WITCHERS, FINALLY"
+      assert rows =~ "frame-plate"
+      refute rows =~ "THE WITCHERS, FINALLY"
 
-      # AND ON THEIR PAGE TOO, with the mood it was made in — the panel takes the
-      # band away, so without it walking into somebody loses the one thing the
-      # column had just told you about them.
       settle(live, "MUM")
-      assert render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
+      refute render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
     end
 
     # THEY SIT ON A TRACK, AND THE TRACK IS WHAT MAKES THEM FIT ANYWHERE. Below
@@ -244,31 +245,31 @@ defmodule PeoplemediaWeb.RoundTest do
       assert has_element?(live, "#round-form")
       assert has_element?(live, ".scopes-item")
 
-      # TWO FIELDS, AND THEY ARE THE TWO BLOCKS AN ITEM IS MADE OF: the round's
-      # name where the head will be, the first word where the word block will be.
-      # Nothing moves between filling it in and reading it back.
+      # ONE FIELD, AND A HEAD HELD OPEN ABOVE IT. A round has no name to type any
+      # more — it is known by when it was made — so the block that would have
+      # taken one is empty on purpose: it is where a live capture will go. Drawn
+      # rather than left out, because the form is the SHAPE of what it makes and
+      # what it makes is two blocks.
       room = render(live)
-      assert room =~ "WHAT IS THIS ROUND?"
-      assert room =~ "SAY SOMETHING"
-      assert has_element?(live, "#round-name")
       assert has_element?(live, "#round-word")
+      refute has_element?(live, "#round-name")
+      refute room =~ "WHAT IS THIS ROUND?"
 
-      # AND NO MOOD, ANYWHERE. Forty-eight words in seven coloured families, a
-      # grid to pick them from, and a box on the rail to open it — all of it gone,
-      # because the words people actually say answer the question better.
+      # AND THE BAND LEAVES THE LINE IT IS STANDING ON. They occupy the same place
+      # by design, and the band's wash showing through put a terracotta strip
+      # across a form that is not a selection.
+      assert has_element?(live, "#bar.invisible")
+
+      # AND NO MOOD, ANYWHERE.
       refute room =~ "HEARTBROKEN"
       refute has_element?(live, ~s(button[phx-click="pick_open"]))
 
-      render_submit(live, :round_send, %{
-        "doing" => "mending the fence",
-        "word" => "third attempt at this"
-      })
+      render_submit(live, :round_send, %{"word" => "third attempt at this"})
 
       # THE ROUND AND ITS FIRST WORD IN ONE PRESS. Going round and then saying
       # something were two acts a moment apart, and the second is the reason for
       # the first.
       round = Rounds.live(me.id)
-      assert %{doing: "mending the fence"} = round
       assert [%{body: "third attempt at this"}] = Peoplemedia.Words.thread(round.id)
       refute has_element?(live, "#round-form"), "sending closes the form"
     end
@@ -279,10 +280,10 @@ defmodule PeoplemediaWeb.RoundTest do
     test "and the first word is optional", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
       live |> element("#act") |> render_click()
-      render_submit(live, :round_send, %{"doing" => "just about", "word" => "   "})
+      render_submit(live, :round_send, %{"word" => "   "})
 
       round = Rounds.live(me.id)
-      assert %{doing: "just about"} = round
+      assert round
       assert Peoplemedia.Words.thread(round.id) == []
     end
 
@@ -294,7 +295,7 @@ defmodule PeoplemediaWeb.RoundTest do
       live |> element("#act") |> render_click()
       render_submit(live, :round_send, %{})
 
-      assert %{doing: nil} = Rounds.live(me.id)
+      assert %{number: 1} = Rounds.live(me.id)
     end
 
     # MANUAL CANCEL, and it is the only way out that changes nothing.
@@ -307,15 +308,15 @@ defmodule PeoplemediaWeb.RoundTest do
       assert Rounds.live(me.id) == nil
     end
 
-    test "a doing, and the round is numbered", %{conn: conn, me: me} do
+    test "and the round is numbered", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
       live |> element("#act") |> render_click()
 
-      render_submit(live, :round_send, %{"doing" => "fixing the bike before it rains"})
+      render_submit(live, :round_send, %{})
 
       # THE NUMBER IS WHAT IT IS KNOWN BY. Per creator, increasing — a name
       # repeats and is optional, and no two people's are comparable.
-      assert %{doing: "fixing the bike before it rains", number: 1} = Rounds.live(me.id)
+      assert %{number: 1} = Rounds.live(me.id)
     end
 
     # GOING ROUND IS A NEW ROW EVERY TIME. The old one keeps its words and its

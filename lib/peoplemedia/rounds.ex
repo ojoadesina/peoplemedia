@@ -242,7 +242,6 @@ defmodule Peoplemedia.Rounds do
   def minutes, do: @minutes
 
   def audiences, do: Round.audiences()
-  def doing_limit, do: Round.doing_limit()
 
   # WHAT A SURFACE IS HANDED. The row's own keys plus the one thing every caller
   # would otherwise work out for itself — whether it is still up. Derived, because
@@ -253,7 +252,6 @@ defmodule Peoplemedia.Rounds do
       number: r.number,
       person_id: r.person_id,
       target_id: r.target_id,
-      doing: r.doing,
       audience: r.audience,
       # A ROUND BETWEEN TWO PEOPLE IS A DIFFERENT KIND OF THING from one going
       # out to everybody you hold, and the row marks it. Derived, because it is

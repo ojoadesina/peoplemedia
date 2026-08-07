@@ -408,7 +408,7 @@ defmodule PeoplemediaWeb.IndexLive do
     # had to trust a hidden input rather than the form.
     said =
       params
-      |> Map.take(~w(doing))
+      |> Map.take([])
       |> Map.merge(audience_for_tab(socket.assigns.scope))
 
     case me && Rounds.go(me.id, said) do
@@ -619,7 +619,7 @@ defmodule PeoplemediaWeb.IndexLive do
     # any one of them is a complete act — a mood on its own is a thing worth
     # saying, and demanding a letter to go with it would make the quieter half of
     # the feature unreachable.
-    standing = Map.take(params, ~w(doing))
+    standing = %{}
     said = Enum.any?(Map.values(standing), &(&1 not in [nil, ""]))
 
     cond do
@@ -856,7 +856,7 @@ defmodule PeoplemediaWeb.IndexLive do
   defp receipt(them, _body, _standing), do: "SENT TO #{String.upcase(them.name)}"
 
   defp standing_words(standing) do
-    ~w(doing)
+    []
     |> Enum.map(&standing[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.map_join(" · ", &String.upcase/1)
@@ -894,7 +894,7 @@ defmodule PeoplemediaWeb.IndexLive do
   defp round_receipt(_people, said), do: "ROUND, PUBLICLY#{round_words(said)}"
 
   defp round_words(said) do
-    ~w(doing)
+    []
     |> Enum.map(&said[&1])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> case do
@@ -991,13 +991,17 @@ defmodule PeoplemediaWeb.IndexLive do
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
   # WHAT THE WORD BLOCK SAYS, in order of what is actually there: the last thing
-  # said in the round, then the round's own name if nothing has been said yet,
-  # then the standing status if they are not round at all. Three answers to one
-  # question, and the block never says nothing.
+  # said in the round, then the standing status if they are not round at all.
+  #
+  # A ROUND WITH NOTHING SAID IN IT SAYS NOTHING, and the block stands empty. It
+  # used to fall back to the round's own NAME — a title given before anybody had
+  # spoken, which is the least informed sentence in the round given its most
+  # prominent line. There is no name to fall back to now, and an empty block under
+  # a name reads correctly: somebody is here and nobody has said anything yet.
   defp plate_says(item) do
     cond do
       last = item[:round][:words][:last] -> String.upcase(last)
-      name = blank_to_nil(item[:round][:name] || item[:round][:doing]) -> String.upcase(name)
+      item[:round] -> nil
       status = blank_to_nil(item[:status]) -> String.upcase(status)
       true -> nil
     end
@@ -1861,6 +1865,28 @@ defmodule PeoplemediaWeb.IndexLive do
                       >
                         {String.upcase(item.letter.when)}
                       </span>
+
+                      <%!-- WHICH WAY THE WORDS HAVE GONE, ON THE HEAD. It sat on
+                           the word block for a while, on the reasoning that a
+                           word is a fact about the ROUND and the block is what
+                           holds the words. True, and it put the pair on the one
+                           part of an item that is not always there: a person with
+                           no round has no word block, so their flow had nowhere to
+                           be drawn and half the column carried no marks at all.
+
+                           THE HEAD IS ALWAYS THERE. It is the person, and how a
+                           conversation stands between you is a fact about the
+                           person — which is where you look for it, on the line
+                           with their name.
+
+                           BOTH QUIET. An unopened letter is asking for you and
+                           lights; a round you have spoken in is not asking
+                           anything, it is telling you where you stand in it. --%>
+                      <.letter_flow
+                        :if={word_flow(item)}
+                        letter={word_flow(item)}
+                        class="shrink-0 text-xl"
+                      />
                     </div>
 
                     <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
@@ -1920,21 +1946,6 @@ defmodule PeoplemediaWeb.IndexLive do
                       ]}>
                         {plate_says(item)}
                       </p>
-
-                      <%!-- WHICH WAY THE WORDS HAVE GONE. It was on the head,
-                           about LETTERS, which are written to a scope and so are
-                           a fact about the two of you; a word is said in a round
-                           and is a fact about the round. The pair belongs on the
-                           block that holds them.
-
-                           BOTH QUIET. An unopened letter is asking for you and
-                           lights; a round you have spoken in is not asking
-                           anything, it is telling you where you stand in it. --%>
-                      <.letter_flow
-                        :if={word_flow(item)}
-                        letter={word_flow(item)}
-                        class="shrink-0 text-xl"
-                      />
 
                       <%!-- HOW MANY WORDS ARE IN THERE. A word is threaded, so a
                            round is a door onto a stack of them, and the count is
@@ -2341,17 +2352,25 @@ defmodule PeoplemediaWeb.IndexLive do
                  removes a step. Left blank it still makes the round, because "I am
                  here" is the smallest true thing this app exists to let anybody
                  say. --%>
-            <div class="flex h-14 items-center bg-neutral-100 px-(--list-pad) dark:bg-dark-900">
-              <input
-                id="round-name"
-                phx-update="ignore"
-                form="round-form"
-                name="doing"
-                maxlength={Rounds.doing_limit()}
-                autocomplete="off"
-                placeholder="WHAT IS THIS ROUND?"
-                class="w-full bg-transparent text-md tracking-[0.1em] text-neutral-900 outline-none placeholder:text-neutral-400 dark:text-dark-100 dark:placeholder:text-neutral-600"
-              />
+            <%!-- THE HEAD IS HELD OPEN AND ANSWERS NOTHING. A round has no name
+                 to type any more — it is known by when it was made — so the block
+                 that would have taken one is empty, and it is empty on purpose
+                 rather than absent: this is where a live capture will go, a face
+                 or a voice or a still taken at the moment of making the round.
+
+                 DRAWN AS DISABLED, NOT LEFT OUT. Left out, the form would be a
+                 single field and the thing it makes would be two blocks — and the
+                 whole argument for this form is that it is the SHAPE of what it
+                 makes. Held open and turned down, it says "this belongs to the
+                 round and there is nothing in it", which is exactly what an
+                 uncaptured frame says everywhere else on this surface. --%>
+            <div
+              class="flex h-14 items-center bg-neutral-100/50 px-(--list-pad) dark:bg-dark-900/40"
+              aria-hidden="true"
+            >
+              <span class="text-md tracking-[0.1em] text-neutral-400 dark:text-neutral-600">
+                —
+              </span>
             </div>
 
             <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
@@ -2395,6 +2414,18 @@ defmodule PeoplemediaWeb.IndexLive do
               [
                 "bar pointer-events-none absolute top-(--band-top) left-0 flex w-(--list-w) -translate-y-1/2 items-center",
                 @mode in [:open, :self] && "is-picked",
+                # THE FORM HAS THE LINE, SO THE BAND LEAVES IT. They stand in the
+                # same place by design — the form is the shape of the item it
+                # makes, in the position that item will take — and the band's wash
+                # was showing through underneath it, which put a terracotta strip
+                # across a form that is not a selection.
+                #
+                # `invisible` RATHER THAN A CONDITIONAL RENDER, because the Bar
+                # hook measures this element and the scroller measures its lead
+                # from the band: taken out of the DOM, the list would re-lay itself
+                # every time somebody pressed the plus and land somewhere else when
+                # they cancelled.
+                @going && "invisible",
                 # THE DOTS BREATHE FROM HERE. The state belongs to the LIST and
                 # the mark that shows it is in the band, so the class goes on the
                 # one element that contains every face of it.

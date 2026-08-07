@@ -264,16 +264,16 @@ IO.puts(
 
 # ── WHO IS ROUND ──────────────────────────────────────────────────────────────
 # The list is people-first and never a feed, so what makes it worth looking at is
-# who has gone round: a name, a mood, a doing. A seed in which nobody has would
+# who has gone round. A seed in which nobody has would
 # draw the surface's newest boxes empty on every row — and `absent`, which is
 # half of what a row can say, would be the only half anybody saw.
 alias Peoplemedia.{Presence, Rounds}
 
 rounds = [
-  {"SARAH", %{doing: "the witchers, finally", mood: "happy"}},
-  {"KEMI", %{doing: "walking it off", mood: "sad"}},
-  {"IBRAHIM", %{doing: "hill sprints before the rain", mood: "restless"}},
-  {"ELENA", %{doing: "borscht, third attempt", mood: "content"}},
+  {"SARAH", %{mood: "happy"}},
+  {"KEMI", %{mood: "sad"}},
+  {"IBRAHIM", %{mood: "restless"}},
+  {"ELENA", %{mood: "content"}},
   {"MICHAEL", :here_only},
   {"ROSE", :here_only}
 ]
