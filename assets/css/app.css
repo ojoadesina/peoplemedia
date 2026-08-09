@@ -2521,3 +2521,58 @@ textarea {
   color: var(--color-light-50);
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
 }
+
+
+/* THE LIST CONTAINS ITS VERTICAL OVERSCROLL AND NOT ITS HORIZONTAL. It wore
+   `overscroll-contain`, which is BOTH axes — so a sideways drag beginning on the
+   list was refused the chain to the pager around it, and the two views sat there
+   scrollable and unreachable. `overscroll-y-contain` keeps what that was for: a
+   vertical flick that runs out must not start pulling the page behind it. The
+   horizontal axis has somewhere to go now and is let go there. */
+
+/* ── THE SURFACE'S TWO VIEWS ───────────────────────────────────────────────────
+   ROUND and LAUNCHER, side by side on a wide screen and one swipe apart on a
+   phone. See the note in the template for why the LIST has to be view one itself
+   rather than a spacer with the list showing through: a scroll track can only be
+   driven by something inside it, and the old arrangement put an inert,
+   zero-height div over the whole first view.
+
+   THE WIDE SCREEN DOES NOT SNAP AND DOES NOT OVERFLOW. There is nothing to page
+   between when both are on the page — the track is a plain flex row there, and
+   the phone rules below are the only place any of this behaves like a pager. */
+.surface-views {
+  gap: 3rem;
+}
+.view-round {
+  flex: 0 0 var(--list-w);
+  min-width: 0;
+}
+/* THE LAUNCHER TAKES WHAT IS LEFT OF THE RAIL, which is the space the trailing
+   box used to sit in. It is the first thing to stand there since — a gradual
+   rebuild of the rest of the surface, one view at a time. */
+.view-launcher {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  /* TWO FULL VIEWS AND A MANDATORY SNAP. There is no useful state between them —
+     half a list beside half a launcher is neither — so a swipe lands on one or
+     the other and cannot stop in between. `contain` keeps the drag from becoming
+     a browser back-gesture. */
+  .surface-views {
+    gap: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .surface-views::-webkit-scrollbar {
+    display: none;
+  }
+  .view-round,
+  .view-launcher {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+}

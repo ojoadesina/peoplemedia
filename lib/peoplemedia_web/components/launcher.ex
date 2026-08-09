@@ -414,7 +414,11 @@ defmodule PeoplemediaWeb.Launcher do
   attr :badge, :integer, default: 0
   slot :inner_block, required: true
 
-  defp cell(assigns) do
+  # PUBLIC, because the surface renders these outside the overlay now — the
+  # second of its two views is the launcher's own cells rather than a copy of
+  # them. `data-open-room` and the delegated listener mean a cell works wherever
+  # it stands; the only thing in the way was this being private.
+  def cell(assigns) do
     ~H"""
     <button
       type="button"
