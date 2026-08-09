@@ -40,8 +40,6 @@ defmodule PeoplemediaWeb.RoundTest do
     |> Enum.find(&(&1 =~ name))
   end
 
-  defp boxes(live), do: live |> element(".scope-boxes") |> render()
-
   describe "opening the app" do
     # THERE IS NO PRESS FOR PRESENCE. Being here is what having the surface open
     # MEANS. Going round is the opposite — deliberate — so mounting must NOT make
@@ -118,22 +116,19 @@ defmodule PeoplemediaWeb.RoundTest do
     # carried on the person's PAGE instead, beside LETTERS, at a size that suits
     # it. What is left on the rail is what neither a line nor a page-heading does
     # well: a colour, and a frame.
-    test "the word block says what was said, and holds no colour", %{conn: conn} do
-      {:ok, live, _} = live(conn, ~p"/")
-      settle(live, "MUM")
+    # THE BLOCK SAYS THE LAST THING SAID IN THE ROUND, and only that. It carried a
+    # mood chip once, and before that a title given before anybody had spoken —
+    # the least informed sentence in the round, on its most prominent line.
+    test "the word block says what was said, and holds no colour", %{conn: conn, me: me} do
+      [{scope, them} | _] = Relationships.held_by(me.id)
+      {:ok, round} = Rounds.go(them.id)
+      {:ok, _} = Peoplemedia.Words.say(round.id, them.id, "borscht, third attempt")
 
-      # THE PLATE NAMES THE ROUND AND NOTHING ELSE. The mood was a coloured chip
-      # at its trailing edge for a while, which put a second thing to read on a
-      # block that answers one question — and the colour is held back until there
-      # is somewhere it earns its place.
-      # THE WORD BLOCK SAYS WHAT WAS SAID, and a round with nothing said in it
-      # says nothing. It fell back to the round's own NAME once — a title given
-      # before anybody had spoken, which is the least informed sentence in the
-      # round given its most prominent line.
-      item = item_for(live, "MUM")
-      assert item =~ "word"
-      refute item =~ "HAPPY"
-      refute item =~ ~s(data-family="joy")
+      {:ok, live, _} = live(conn, ~p"/")
+
+      item = item_for(live, scope.name)
+      assert item =~ "BORSCHT, THIRD ATTEMPT"
+      refute item =~ ~s(data-family=)
     end
 
     # A ROUND SAYS NOTHING OF ITS OWN, ANYWHERE.
@@ -150,40 +145,14 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, html} = live(conn, ~p"/")
 
       rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      assert rows =~ "word"
       refute rows =~ "THE WITCHERS, FINALLY"
+
+      # AND NO BLOCK AT ALL. Nobody in the fixtures has said anything, so not one
+      # item carries a second block or the stroke that joins it to one.
+      refute rows =~ ~s(class="word )
 
       settle(live, "MUM")
       refute render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
-    end
-
-    # THEY SIT ON A TRACK, AND THE TRACK IS WHAT MAKES THEM FIT ANYWHERE. Below
-    # about 66rem the rail cannot hold the band and both boxes, and the answer
-    # used to be a second layout that stacked them ABOVE the band — a row of grey
-    # rectangles over the top of the list, answering a band they were no longer
-    # beside. Now the cluster overflows instead of moving: `.boxes-lead` holds the
-    # band's column and grows into whatever rail is spare, so a wide screen has
-    # nothing to scroll and a phone shows the first box at its edge.
-    #
-    # THE NESTING IS THE LOAD-BEARING PART, which is why it is asserted rather
-    # than left to the stylesheet. Two rules — the fade when a panel opens, and
-    # the one that clears the rail for an expanded box — were written as DIRECT
-    # children of the cluster, and both broke silently when the run went in
-    # between: the second hid the run itself, and a box opening inside a hidden
-    # parent measured zero and drew nothing.
-    test "on a track, with the band's column held open in front of them", %{conn: conn} do
-      {:ok, live, _} = live(conn, ~p"/")
-      settle(live, "MUM")
-
-      said = boxes(live)
-      assert said =~ "boxes-lead", "without the lead the boxes sit on top of the band"
-      assert said =~ "boxes-run"
-
-      # The lead comes first, and the person frame is inside the run behind it.
-      [_before, after_lead] = String.split(said, "boxes-lead", parts: 2)
-      assert after_lead =~ "boxes-run"
-      [_outside, inside_run] = String.split(said, "boxes-run", parts: 2)
-      assert inside_run =~ "letterbox"
     end
 
     # THE SLOTS STAY so the letter box, which is anchored to the app's right
@@ -200,7 +169,7 @@ defmodule PeoplemediaWeb.RoundTest do
       item = item_for(live, "DAD")
       refute item =~ "HAPPY"
       refute item =~ "THE WITCHERS"
-      assert item =~ "word"
+      refute item =~ ~s(class="word )
       refute item =~ ~s(data-family=")
     end
 
@@ -208,9 +177,12 @@ defmodule PeoplemediaWeb.RoundTest do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "COACH")
 
+      # NO ROUND, NO WORD BLOCK. It used to draw one either way and fall back to a
+      # standing status, which read exactly like something somebody had said and
+      # was not. Where there are no words there is no block and no stroke.
       item = item_for(live, "COACH")
       refute item =~ "HAPPY"
-      assert item =~ "word"
+      refute item =~ ~s(class="word )
     end
   end
 
@@ -226,9 +198,6 @@ defmodule PeoplemediaWeb.RoundTest do
         |> Enum.map_join(" ", &(&1 |> String.split("</div>") |> hd()))
 
       assert tags =~ "RELATIONSHIPS"
-
-      refute boxes(live) =~ "FINLAND"
-      refute boxes(live) =~ "RELATIONSHIPS"
     end
   end
 
@@ -484,16 +453,18 @@ defmodule PeoplemediaWeb.RoundTest do
     test "hidden removes the round while leaving them in the list", %{conn: conn, me: me} do
       [{_scope, them} | _] = Relationships.held_by(me.id)
       [{scope, _} | _] = Relationships.held_by(me.id)
-      round(them, %{doing: "reading"})
+      {:ok, round} = Rounds.go(them.id)
+      {:ok, _} = Peoplemedia.Words.say(round.id, them.id, "reading, still")
       {:ok, _} = People.set_around_hidden(them, true)
 
       {:ok, live, html} = live(conn, ~p"/")
-      assert html =~ scope.name
 
-      settle(live, scope.name)
-      said = boxes(live)
-      refute said =~ "HAPPY"
-      refute said =~ "READING"
+      # THEY STAY IN THE LIST AND THE ROUND GOES. Hidden is about the round, not
+      # about the person — so the name is there and the word block under it is not.
+      assert html =~ scope.name
+      item = item_for(live, scope.name)
+      refute item =~ "READING, STILL"
+      refute item =~ ~s(class="word )
     end
 
     test "the passport room is where you turn it off", %{conn: conn} do

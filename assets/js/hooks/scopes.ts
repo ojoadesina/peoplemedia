@@ -43,228 +43,21 @@ export const Scopes = {
     const root = document.getElementById("scopes");
     if (!root || !rows().length) return;
 
-    // THE FRAME is ONE element that every row borrows in turn, rather than one
-    // letter box per row: nineteen <video> tags would each hold a buffer for a
-    // picture nobody is looking at. The cost of sharing is that the media must
-    // be torn down on the way out as deliberately as it is set up on the way in.
-    const box = document.getElementById("letterbox");
-    const video = box?.querySelector<HTMLVideoElement>(".letterbox-video") ?? null;
-    const audio = box?.querySelector<HTMLAudioElement>(".letterbox-audio") ?? null;
-    const words = box?.querySelector<HTMLElement>(".letterbox-words") ?? null;
-    const restart = box?.querySelector<HTMLButtonElement>(".letterbox-restart") ?? null;
-
-    // THE FRAME'S STATE IS CLASSES, NOT DATA ATTRIBUTES, and that is forced by
-    // LiveView rather than chosen: on a patched element it strips a client-set
-    // src, and on an ignored one it still merges data-* from the server's copy
-    // and deletes any the client added. Classes it leaves alone in both cases,
-    // so the letter box keeps its own mind across a re-render. `mode` is tracked in a
-    // plain variable because reading it back out of a class list would be
-    // guessing at what we ourselves wrote.
-    // A TEXT LETTER IS A MODE LIKE THE OTHER TWO. It was missing, so a letter
-    // that was only words fell through every branch and landed in the box as a
-    // blank wash — indistinguishable from having no letter at all, which is the
-    // one thing the box must never say by mistake.
-    const MODES = ["is-empty", "is-voice", "is-face", "is-text"];
-    const STATES = ["is-present", "is-live", "is-absent"];
-    let mode = "empty";
-    let src = "";
-
-    const setLetter = (nextMode: string, nextState: string) => {
-      if (!box) return;
-      box.classList.remove(...MODES, ...STATES);
-      box.classList.add(`is-${nextMode}`, `is-${nextState}`);
-      mode = nextMode;
-    };
-
-    // Which element the current mode is actually driving. Everything that acts
-    // on "the media" goes through here, so play, replay and teardown can never
-    // disagree about what they are addressing.
-    const current = (): HTMLMediaElement | null =>
-      mode === "face" ? video : mode === "voice" ? audio : null;
-
-    // Pausing alone leaves the last frame of the previous person frozen on
-    // screen and the file still downloading. Dropping the src and calling
-    // load() is what actually stops the transfer and blanks the picture.
-    const stopMedia = () => {
-      for (const m of [video, audio]) {
-        if (!m) continue;
-        m.pause();
-        if (m.getAttribute("src")) {
-          m.removeAttribute("src");
-          m.load();
-        }
-      }
-    };
-
-    const showLetter = (el: HTMLElement) => {
-      if (!box) return;
-      // `dataset.letterKind`, and the spelling is the whole story. Renaming the
-      // frame to the letter box rewrote `dataset.frame` into `dataset.letterbox`
-      // along with every class — but the row's attribute is `data-letter-kind`,
-      // so this read `undefined` for every row in the list and the box has shown
-      // nothing at all since. Nothing caught it because the tests assert on what
-      // the SERVER renders, which was correct the whole time. A rename is not a
-      // safe operation on a string that crosses a boundary.
-      const nextMode = el.dataset.letterKind || "empty";
-      const nextSrc = el.dataset.media || "";
-      const nextState = el.dataset.state || "present";
-      const nextBody = el.dataset.body || "";
-
-      // Re-selecting the row that is already playing must not restart it.
-      if (mode === nextMode && src === nextSrc) {
-        setLetter(nextMode, nextState);
-        return;
-      }
-
-      stopMedia();
-      setLetter(nextMode, nextState);
-      // THE WORDS THEMSELVES, for a letter that is only words. A real letter
-      // box takes letters, and the two kinds that play were the only ones this
-      // one would hold. Set before the media branch returns, because a text
-      // letter has nothing to play and leaves by that door.
-      if (words) words.textContent = nextBody;
-      src = nextSrc;
-      // A new person has arrived, so the previous one's finished-clip control
-      // must go with them.
-      box.classList.remove("is-ended");
-
-      const media = current();
-      if (!media || !nextSrc) return;
-
-      media.src = nextSrc;
-
-      // ASK BEFORE PLAYING, rather than play and handle the refusal. Catching
-      // the rejection was the wrong shape: on iOS a clip that has already been
-      // refused unmuted does not reliably start when you set muted and call
-      // play() again — the decision is made at the first call. So the state is
-      // read UP FRONT and the right call is made once.
-      //
-      // A face with no activation yet plays MUTED, which is always permitted,
-      // so you see the person immediately; the first press unmutes it. A voice
-      // is left alone — silent audio is nothing at all, so it keeps its sound
-      // and takes the replay control if the browser says no.
-      const activated = navigator.userActivation ? navigator.userActivation.hasBeenActive : true;
-      media.muted = nextMode === "face" && !activated;
-
-      // AUTOPLAY WITH SOUND NEEDS A USER ACTIVATION, and a scroll is not one —
-      // on a phone especially, flicking the list to settle a row is not a
-      // gesture the browser will accept. That is policy, not a failure.
-      //
-      // What was wrong was the response to it. A refusal used to show the
-      // replay control and stop, which left a FACE sitting frozen: the person
-      // is right there, the clip is loaded, and nothing moves until you tap.
-      // So a face retries MUTED — you see them immediately, which is most of
-      // what a face is for — and unmutes itself the moment any real gesture
-      // arrives. A VOICE gets no such fallback, because silent audio is
-      // nothing at all; it keeps the replay control, which is the honest offer.
-      media.play().catch(() => {
-        if (src !== nextSrc) return;
-        // Belt and braces for a browser with no userActivation API: a face that
-        // is still refused falls back to muted, a voice offers the replay.
-        if (nextMode !== "face") {
-          box.classList.add("is-ended");
-          return;
-        }
-        media.muted = true;
-        media.play().catch(() => box.classList.add("is-ended"));
-      });
-    };
-
-    const hideLetter = () => {
-      if (!box) return;
-      stopMedia();
-      setLetter("empty", "present");
-      src = "";
-      box.classList.remove("is-ended");
-    };
-
-    // A clip that runs out has not gone away — the person is still selected and
-    // the letter box still theirs, so it keeps the last picture and offers the clip
-    // again rather than blanking.
-    for (const m of [video, audio]) {
-      m?.addEventListener("ended", () => box?.classList.add("is-ended"));
-    }
-
-    restart?.addEventListener("click", (e) => {
-      // The letter box beneath toggles size on click. Replay is a different intent
-      // that happens to live inside it, so it must not also resize.
-      e.stopPropagation();
-      const media = current();
-      if (!media) return;
-      media.currentTime = 0;
-      media.play().catch(() => {});
-      box?.classList.remove("is-ended");
-    });
-
-    // ── OPENING A BOX ───────────────────────────────────────────────────────
-    // ONE TOGGLE FOR ALL THREE, and it used to be the letter box's alone. That
-    // was right while it was the only box holding more than it could show; the
-    // doing box truncates somebody's own typing and the mood box knows a family
-    // it has no room to name, so all three have a second reading now.
+    // THE SHARED MEDIA ELEMENT IS GONE WITH THE BOX. One <video> was borrowed by
+    // every row in turn, because nineteen of them would each hold a buffer for a
+    // picture nobody was looking at — and the price of sharing was tearing it
+    // down on the way out as deliberately as it was set up on the way in.
     //
-    // A CLASS, AND ONLY A CLASS. The size lives in one attribute and CSS decides
-    // what that is worth in pixels — which is also what lets the OTHER boxes get
-    // out of the way in the stylesheet rather than here.
-    //
-    // ONE AT A TIME. Opening a second while the first is open would leave two
-    // 18rem boxes fighting over a rail that fits one, so taking a box closes
-    // whichever was already taken.
-    const boxes = () =>
-      Array.from(document.querySelectorAll<HTMLElement>(".scope-boxes .around-box, #letterbox"));
-
-    const label = (el: HTMLElement, open: boolean) => {
-      const what = el.id === "letterbox" ? "the letter" : el.dataset.opens || "it";
-      el.setAttribute("aria-label", `${open ? "Collapse" : "Expand"} ${what}`);
-    };
-
-    const toggleExpand = (el: HTMLElement) => {
-      const open = !el.classList.contains("is-expanded");
-      for (const other of boxes()) {
-        other.classList.remove("is-expanded");
-        label(other, false);
-      }
-      if (open) {
-        el.classList.add("is-expanded");
-        label(el, true);
-      }
-    };
-
-    // DELEGATED FROM THE CLUSTER, because the two new boxes are patched by the
-    // server on every settle — a listener bound per box at mount would be bound
-    // to elements that are no longer in the page a scroll later. The letter box
-    // survives patches and could have kept its own; one path for all three is
-    // fewer things to keep in step.
-    const cluster = document.querySelector<HTMLElement>(".scope-boxes");
-    const onBoxPress = (e: Event) => {
-      const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
-      // Replay is a different intent that happens to live inside the box, and so
-      // is putting a caret in a field.
-      if (!el || (e.target as HTMLElement).closest?.(".letterbox-restart")) return;
-      if (writing(e.target)) return;
-      toggleExpand(el);
-    };
-    cluster?.addEventListener("click", onBoxPress);
-    // role="button" earns a keyboard, and a keyboard expects both of these.
-    // ── AND NOT WHILE SOMEBODY IS WRITING ───────────────────────────────────
-    // role="button" earns a keyboard and a keyboard expects Enter and Space to
-    // press. Then a TEXTAREA moved inside one of these boxes, and those are the
-    // two keys writing is made of: every space and every line break was caught
-    // here and preventDefault'd, so the doing field silently ate them —
-    // "mending the fence" came out "mendingthefence" and Return did nothing at
-    // all. The symptom looked like a broken input; the cause was a listener two
-    // elements up claiming keys it had every right to before the box had
-    // anything in it you could type into.
-    const writing = (el: EventTarget | null) =>
-      !!(el as HTMLElement)?.closest?.("input, textarea, [contenteditable]");
-
-    cluster?.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      if (writing(e.target)) return;
-      const el = (e.target as HTMLElement).closest?.(".around-box, #letterbox") as HTMLElement | null;
-      if (!el) return;
-      e.preventDefault();
-      toggleExpand(el);
-    });
+    // EVERY FRAME OWNS ITS OWN NOW, on the item itself, and that is affordable
+    // for the same reason it was not before: a frame is 3.5rem of a row rather
+    // than a 7.5rem box, and only the handful of people who have captured
+    // anything carry one at all.
+    // THE BOXES THAT EXPANDED ARE GONE, and so is everything that opened them.
+    // They were a cluster on the right rail answering the band — a mood, a
+    // capture, the last letter somebody sent you — and each could be taken to
+    // 18rem to be read properly. What they held now lives on the item itself:
+    // the capture fills the frame, the words fill the block under it, and there
+    // is nothing left beside the band to open.
 
     let settleTimer: number | undefined;
     // A snap scrolls, which settles, which may snap again. Bounded, so a snap
@@ -373,7 +166,6 @@ export const Scopes = {
       // Out of reach — the band is genuinely empty and says so.
       if (!near || Math.abs(near.delta) > rowHeight()) {
         scroll.classList.remove("has-selection");
-        hideLetter();
         report(null);
         snaps = 0;
         return;
@@ -420,7 +212,6 @@ export const Scopes = {
       clear();
       el.classList.add("is-focused");
       scroll.classList.add("has-selection");
-      showLetter(el);
       report(rows().indexOf(el));
     };
 
@@ -446,7 +237,6 @@ export const Scopes = {
         clear();
         // The letter box leaves with the selection. Sound continuing over a moving
         // list would be a voice with nobody attached to it.
-        hideLetter();
         window.clearTimeout(settleTimer);
         settleTimer = window.setTimeout(settle, 140);
       },
@@ -464,7 +254,7 @@ export const Scopes = {
     //
     // CAPTURE, so the decision is made before the press reaches whatever it
     // landed on — the same phase, and for the same reason, as the confirm hook.
-    const INSIDE = "#round-form, .round-picker, .app-foot, .scope-boxes";
+    const INSIDE = "#round-form, .round-picker, .app-foot";
     const onOutside = (e: Event) => {
       if (!document.getElementById("round-form")) return;
       if ((e.target as HTMLElement).closest?.(INSIDE)) return;
@@ -495,32 +285,11 @@ export const Scopes = {
     };
     document.addEventListener("pointerdown", unhush);
 
-    // THE FRAME STOPS WHEN THE PANEL OPENS, and this is why it takes an observer
-    // rather than a line of CSS. The letter box answers the BAND, and once the band
-    // has been picked up and turned into a header there is no band left for it
-    // to answer — so app.css hides it. But HIDING A MEDIA ELEMENT DOES NOT
-    // SILENCE IT: `visibility: hidden`, `display: none` and removal from the
-    // tree all leave a <video> playing, and the result would be a voice coming
-    // out of nowhere over an open panel, with no visible thing to press to stop
-    // it. So the class that hides it also has to tear the media down.
-    //
-    // The class arrives on #scopes from the server, and a hook is told about
-    // patches to its OWN element, not to the root three levels above it.
-    // Watching the attribute is the one way to hear about it.
-    let wasOpen = root.classList.contains("is-open");
-    const watchPanel = new MutationObserver(() => {
-      const open = root.classList.contains("is-open");
-      if (open === wasOpen) return;
-      wasOpen = open;
-      // Closing puts back what the selection still says is chosen, so coming
-      // out of the panel does not leave an empty box beside a settled row.
-      if (open) hideLetter();
-      else {
-        const focused = rows().find((i) => i.classList.contains("is-focused"));
-        if (focused) showLetter(focused);
-      }
-    });
-    watchPanel.observe(root, { attributes: true, attributeFilter: ["class"] });
+    // THE PANEL USED TO HAVE TO BE WATCHED. Opening it hid the box on the rail
+    // and closing it put back whatever the selection still said was chosen — and
+    // a hook is told about patches to its OWN element, not to the root three
+    // levels above it, so the only way to hear about the class was to observe
+    // the attribute. The box is gone and there is nothing left to tear down.
 
     window.addEventListener("resize", settle);
     // A frame's grace so the flex layout has resolved a real height to measure.
@@ -547,7 +316,6 @@ export const Scopes = {
       // is now holding a letter read off an element that is no longer in the
       // page — and if that row's letter changed (somebody wrote while you were
       // looking at them) the box would be showing the old one.
-      showLetter(focused);
     };
 
     let pending = 0;

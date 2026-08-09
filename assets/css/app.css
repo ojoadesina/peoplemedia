@@ -627,7 +627,6 @@ html[data-theme="dark"] {
    that read fine across a wide band all but sealed a short one shut. Vertical
    arms are sized against the height they sit in. */
 .focus-box::before,
-.letterbox::before,
 .band::before,
 .stage::before,
 .live-reticle::before {
@@ -651,11 +650,6 @@ html[data-theme="dark"] {
     linear-gradient(var(--rg-bracket) 0 0) 0 100% / var(--b) var(--ay) no-repeat,
     linear-gradient(var(--rg-bracket) 0 0) 100% 100% / var(--ax) var(--b) no-repeat,
     linear-gradient(var(--rg-bracket) 0 0) 100% 100% / var(--b) var(--ay) no-repeat;
-}
-/* 61px square: 14px arms leave 33px open on every side. */
-.letterbox::before {
-  --ax: 14px;
-  --ay: 14px;
 }
 /* 512x72: 24px arms leave 464px open across, 18px arms leave 36px down. The
    vertical pair grew with the box — a two-line row made the band taller — and
@@ -719,19 +713,9 @@ html[data-theme="dark"] {
    contents cannot leak past its edge. So the surface breathes instead, and the
    same element takes a face, or a call, with nothing about its shape changing.
 
-   The pulse rides the SCREEN rather than .letterbox, because .letterbox owns the
+   The pulse rides the SCREEN rather than the box, because the box owns the
    opacity the selection fades in and out — one element animating both would
    have the heartbeat fighting the reveal. */
-/* THE MODE is a data attribute the hook writes, so all three states are one
-   element and switching between them is one assignment rather than a rebuild.
-
-   VOICE breathes, because there is nothing to look at and the sound is the
-   whole message. FACE holds still — a picture that pulsed would be a fault, not
-   a feature. EMPTY does neither and simply sits there, which is what "no signal"
-   should look like. */
-.letterbox.is-voice .letterbox-screen {
-  animation: frame-voice 1.5s ease-in-out infinite;
-}
 @keyframes frame-voice {
   0%,
   100% {
@@ -740,79 +724,6 @@ html[data-theme="dark"] {
   50% {
     opacity: 1;
   }
-}
-
-/* ── LIVE ──────────────────────────────────────────────────────────────────────
-   The third state, and the only one that says something about the LINE rather
-   than about the person at the other end of it. Present means reachable; live
-   means open right now.
-
-   It shows in two places at once. The SCREEN breathes even with nothing coming
-   through, which is the point — a live line with no voice and no face is still
-   a live line, and an empty screen sitting perfectly still could not say that.
-   It is scoped to the empty mode on purpose: a face that pulsed would look like
-   a fault, and voice already breathes for its own reasons.
-
-   The FRAME breathes with it, on the same period, so the two read as one thing
-   being alive rather than two things blinking. This is the only state that
-   touches the brackets at all — they otherwise mean "aimed", which is a fact
-   about the band and has nothing to do with the line. */
-.letterbox.is-live.is-empty .letterbox-screen {
-  animation: frame-voice 1.5s ease-in-out infinite;
-}
-/* ── THE WORDS ────────────────────────────────────────────────────────────────
-   A text letter is the only kind this app can actually write yet, and until now
-   it was the only kind the box could not show — it fell through to a blank wash
-   that read as "nothing here", which is the one thing this box must never say by
-   mistake.
-
-   CLIPPED, NOT SHORTENED. At 56px (44px on a phone) there is room for a few
-   words and no more, and where the sentence stops is arbitrary — so it is cut by
-   the box rather than by an ellipsis, which would claim the cut was a decision.
-   Pressing the box opens it; that is what asks for the rest.
-
-   NOT UPPERCASE, and no tracking. Everything else on this surface is set in
-   capitals because it is the app talking. This is a person talking. */
-.letterbox-words {
-  display: none;
-  position: absolute;
-  inset: 0;
-  padding: 0.3rem 0.35rem;
-  overflow: hidden;
-  font-size: 0.5rem;
-  line-height: 1.25;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--color-primary-700);
-  overflow-wrap: anywhere;
-}
-[data-theme="dark"] .letterbox-words {
-  color: var(--color-primary-200);
-}
-.letterbox.is-text .letterbox-words {
-  display: block;
-}
-
-/* OPENED, it is a letter rather than a glimpse: room to breathe, a readable
-   size, and it scrolls if the person had more to say than fits. */
-.letterbox.is-expanded .letterbox-words {
-  padding: 1rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  overflow-y: auto;
-}
-
-/* THE RETICLE. The arms travel OUTWARD and close back onto the frame, over and
-   over, the way a sight opens and then locks. It is inset that moves, not
-   transform: scaling the pseudo-element would thicken the 3px arms along with
-   everything else, and a sight whose lines fatten as it opens reads as zooming
-   rather than as searching. Inset leaves every arm exactly as drawn and only
-   changes where it is.
-
-   It closes SHARPLY and opens gently — ease-in on the way home, with the locked
-   position held to 100% — so the moment of acquiring is the part you notice. */
-.letterbox.is-live::before {
-  animation: frame-live 1.9s cubic-bezier(0.33, 0, 0.2, 1) infinite;
 }
 @keyframes frame-live {
   0% {
@@ -829,178 +740,22 @@ html[data-theme="dark"] {
     opacity: 1;
   }
 }
-
-/* ENDED stops the breathing. A pulse means a voice is arriving, so carrying on
-   after the clip has finished would be the interface lying about the line. It
-   settles at full opacity rather than mid-breath, so the surface the replay
-   control sits on is not itself a moving target. */
-.letterbox.is-ended .letterbox-screen {
-  animation: none;
-  opacity: 1;
-}
-
-/* ABSENT drains the screen of temperature. It beats the utility on the element
-   because an id plus an attribute outranks a class, and because this rule is
-   unlayered while Tailwind's utilities are not. */
-.letterbox.is-absent .letterbox-screen {
-  background-color: var(--rg-absent);
-}
-
-/* The video only exists once there is a face to put in it. Hidden rather than
-   removed, so the element keeps its buffer between selections. */
-.letterbox-video {
-  display: none;
-}
-.letterbox.is-face .letterbox-video {
-  display: block;
-}
-
-/* THE REPLAY CONTROL appears only once there is something to replay. It is a
-   real button rather than a click target painted on the screen, so it reaches
-   the keyboard and announces itself to a screen reader. */
-.letterbox-restart {
-  display: none;
-}
-.letterbox.is-ended .letterbox-restart {
-  display: flex;
-}
-
-/* EXPANDED. The brackets are drawn in absolute pixels, so they do not scale
-   with the box the way a border would — at 18rem the 14px arms read as specks.
-   They grow to match, which is the whole reason this rule exists rather than
-   living inline with the sizes. */
-.letterbox.is-expanded::before {
-  --ax: 42px;
-  --ay: 42px;
-}
-/* Above the list it now overlaps. */
-/* The size lives here rather than inline with the rest of the frame's classes,
-   and that is forced rather than chosen: every piece of the frame's state had to
-   leave `data-*` behind. LiveView merges data attributes onto an ignored element
-   from the SERVER's copy and deletes any the client added — so a hook-set
-   data-mode would survive exactly until the next patch. Classes are untouched by
-   that merge, so the frame's whole state is expressed in them, and the sizes
-   that keyed off `data-expanded:` had to come with it. */
-/* EXPANDING STAYS IN THE ROW, AND THE ROW MAKES ROOM. Lifting the frame out to
-   `position: absolute` was the wrong fix twice over: anchored to the cluster's
-   top-left it jumped to the far end of a right-aligned row before it grew, and
-   then it grew over whatever happened to be under it. A box that leaves its
-   place to get bigger reads as a different box arriving.
-
-   So it grows where it stands, and the two controls beside it get out of the
-   way — which is the only thing that was actually in short supply. `display:
-   none` rather than a fade, because the frame's own transition is doing the
-   moving and two things easing at once on the same line would fight.
-
-   IT NEVER CROSSES THE LIST, on either layout, and the two do it differently
-   because the cluster is in a different place:
-
-     BESIDE THE BAND, on a wide screen, it opens symmetrically into rail the
-     list does not reach. 18rem square in a column that has hundreds of pixels
-     of empty rail to its right — nothing to collide with in either direction.
-
-     STACKED ABOVE THE BAND, below 66rem, it takes the FULL WIDTH the two
-     hidden controls were using and grows UPWARD into the empty page, because
-     the cluster is anchored by its bottom there. Downward was the version that
-     kept landing on the names.
-
-     9.5rem IS THE CEILING, not a preference. Measured on the narrower of the
-     two — the phone — the room runs from sixteen pixels under the mark down to
-     the cluster's own bottom edge, and that is 156px. Anything taller has to
-     take it from the band or the list, which is the one thing this box is not
-     allowed to do. The tablet has 174px and takes the same figure so the two
-     screens behave identically.
-
-     THE STRAPLINE STANDS DOWN so the frame can have that room. It is a standing
-     sentence with nothing to do with what is on screen, and this surface
-     already has the idiom: the mark, the line and the boxes all yield when
-     something takes the page over. Getting the height without it would mean
-     drawing a face through the words. */
-.letterbox.is-expanded {
-  width: 18rem;
-  height: 18rem;
-  padding: 1rem;
-}
-/* ANY EXPANDED BOX TAKES THE RAIL, and the others get out of its way.
-
-   IT WAS THE LETTER BOX'S PRIVILEGE ALONE, which was right while it was the only
-   box with more to show than it could. All three have more now — a doing that
-   was truncated, a mood among forty-seven others — so the rule is about
-   EXPANSION rather than about which box did it, and a fourth box would inherit
-   it without anybody remembering to come back here. */
-.boxes-run:has(.is-expanded) > :not(.is-expanded) {
-  display: none;
-}
-/* WRITTEN AT TWO LEVELS, and it has to be. As `.scope-boxes > :not(.is-expanded)`
-   — which is what it was, back when the boxes were direct children — it hides
-   the RUN the moment anything inside it opens, and an open box inside a
-   `display: none` parent measures zero and draws nothing.
-
-   THE LEAD DOES NOT HIDE, IT YIELDS. Its whole job is to hold the band's column
-   so the boxes land after it; an open box does not land anywhere, it takes what
-   it needs. Dropped to a basis of nothing it still GROWS, so it hands the run
-   whatever is spare and the open box stays on the rail's right edge where it
-   was pressed — hidden outright, the run would spring to the left of the track
-   and an 18rem box would open over the middle of the list. */
-.scope-boxes:has(.is-expanded) > .boxes-lead {
-  flex-basis: 0;
-}
-/* Sized like the letter box, because they are the same object at the same
-   moment: one thing on the rail, opened. */
-.around-box.is-expanded {
-  width: 18rem;
-  height: 18rem;
-}
-.around-box.is-expanded .around-full {
-  display: flex;
-}
-.around-box.is-expanded .around-brief {
-  display: none;
-}
 .around-full {
   display: none;
 }
 @media (max-width: 66rem) {
-  .around-box.is-expanded {
-    width: 100%;
-    height: 9.5rem;
-  }
-  /* AND HERE THE RUN TAKES THE WHOLE TRACK, because `width: 100%` on the box
-     inside it needs something definite to be a percentage OF. A run that hugs
-     its contents makes that circular — the box asks the run, the run asks the
-     box — and a circular measurement resolves to zero. On a wide screen the box
-     opens at a stated 18rem and the question never arises. */
-  .scope-boxes:has(.is-expanded) .boxes-run {
-    flex-basis: 100%;
-  }
 }
 @media (max-width: 66rem) {
-  .letterbox.is-expanded {
-    width: 100%;
-    height: 9.5rem;
-  }
-  #scopes:has(.scope-boxes .is-expanded) .lede,
-  #scopes:has(.scope-boxes .is-expanded) .list-tags {
+  #scopes:has(.is-expanded) .lede,
+  #scopes:has(.is-expanded) .list-tags {
     opacity: 0;
     visibility: hidden;
   }
-}
-.letterbox.is-expanded .letterbox-restart svg {
-  width: 2.5rem;
-  height: 2.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* Held at the bright end, not the faint one: with the motion gone these are
      just surfaces, and they should read as present rather than switched off. */
-  .letterbox.is-voice .letterbox-screen,
-  .letterbox.is-live.is-empty .letterbox-screen,
-  .letterbox.is-live::before {
-    animation: none;
-    opacity: 1;
-    /* Back on the frame, not stranded wherever the sweep was cancelled. */
-    inset: 0;
-  }
 }
 
 /* The list fades out at BOTH ends rather than stopping at an edge, so rows
@@ -1228,12 +983,6 @@ html[data-theme="dark"] {
    does not silence it — a hidden element, or a detached one, goes on playing —
    so a purely visual rule here would have left a voice coming out of nowhere
    over an open panel. */
-#scopes.is-open .letterbox,
-#scopes.is-open .around-box {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
 .bar.is-picked .focus-box {
   background-color: var(--color-light-100);
 }
@@ -1300,21 +1049,12 @@ html[data-theme="dark"] {
 #scopes.is-open .mark-slot,
 #scopes.is-open .lede,
 #scopes.is-open .list-tags,
-#scopes.is-open .boxes-run > button,
 .list-away .scopes-scroll {
   opacity: 0;
   visibility: hidden;
   transition:
     opacity 220ms ease-out,
     visibility 0s 220ms;
-}
-.mark-slot,
-.lede,
-.list-tags,
-.boxes-run > button {
-  transition:
-    opacity 220ms ease-out,
-    visibility 0s;
 }
 
 /* THE LIST STANDS DOWN rather than leaving. Fading keeps the box, and the box is
@@ -1537,33 +1277,6 @@ html:not([data-theme]) .presence-row .stream-name {
 .scopes-scroll:not(.has-selection):not(.is-scrolling) ~ .bar .focus-empty {
   opacity: 1;
 }
-/* `~ .scope-boxes .letterbox`, NOT `~ .letterbox`, and that changed when the frame
-   stopped being a box pinned to the rail and became the third box in the
-   cluster. The sibling combinator matches the SIBLING itself, so the moment the
-   frame moved inside `.scope-boxes` the old selector stopped matching and the
-   frame would simply never have appeared — silently, since an invisible frame
-   looks exactly like a frame with nothing to show. The cluster is still a
-   following sibling of the scroller, so the mechanism is intact; it is one
-   level deeper. */
-/* THE LETTER BOX STANDS THERE EMPTY TOO, and its old law is retired with a
-   note rather than deleted.
-
-   IT WAS "A LETTER BOX WITH NO LETTER SHOULD NOT BE ON THE WALL", and that was
-   right while it was the only thing on the rail: one box coming and going reads
-   as an answer arriving. It is one of THREE now, and the same rule applied to
-   all three left the entire right half of the screen blank until something
-   settled — a surface that reads as half-drawn rather than as waiting. Three
-   empty boxes are a rail; one empty box was a gap. */
-.scope-boxes .letterbox {
-  opacity: 1;
-}
-/* HERE, WITH THE CAMERA OFF. The commonest around there is, and the third box
-   says so by breathing rather than by holding a word — it is the one box whose
-   subject is not something you chose. It will hold a face or a voice when there
-   is one; until then the honest content is the fact of somebody being there. */
-.presence-box {
-  animation: presence-breathe 2.4s ease-in-out infinite;
-}
 /* THE WHOLE BOX, so it breathes rather than blinking: no scale, because a box
    that changed size would push the two beside it about. Opacity alone. */
 @keyframes presence-breathe {
@@ -1576,10 +1289,6 @@ html:not([data-theme]) .presence-row .stream-name {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .presence-box {
-    animation: none;
-    opacity: 0.7;
-  }
 }
 
 /* ── SOMEBODY ARRIVING ────────────────────────────────────────────────────────
@@ -1642,36 +1351,6 @@ html:not([data-theme]) .presence-row .stream-name {
   .scopes-item.is-fresh {
     animation: none;
   }
-}
-
-/* ── THE AROUND BOXES ─────────────────────────────────────────────────────────
-   THEY ARRIVE WITH THE SELECTION, exactly as the letter box does and by exactly
-   the same mechanism — a sibling combinator off the scroller's own class. What
-   they hold is a fact about the person under the band, so there is nothing for
-   them to say while the list is moving.
-
-   AN EMPTY ONE STAYS, though. The letter box's law is the opposite — a letter
-   box with no letter should not be on the wall — and the difference is that
-   there is exactly one letter box and it is anchored to the app's right edge. If
-   these collapsed, it would slide left every time a silent person passed through
-   the band. So they keep their slot, hold nothing, and draw nothing. */
-.around-box {
-  transition:
-    opacity 300ms ease-out,
-    width 300ms ease-out,
-    height 300ms ease-out;
-}
-/* THEY STAND THERE EMPTY RATHER THAN NOT STANDING THERE. The letter box's own
-   law is the opposite — a letter box with no letter should not be on the wall —
-   and the difference is that these three are the RAIL. Gone, the whole right
-   half of the screen was blank until something settled, so the surface read as
-   half-drawn rather than as waiting; and every settle then popped three boxes
-   into existence beside a band that had only moved a row.
-
-   An empty one holds its wash and says nothing, which is the same thing an
-   empty band does at the top of the list. */
-.scope-boxes .around-box {
-  opacity: 1;
 }
 
 /* THE MOOD'S OWN COLOUR, and the only one in the app that means only itself.
@@ -1757,12 +1436,6 @@ html:not([data-theme]) .presence-row .stream-name {
    correspondence to read. An empty box in the cluster is a promise of an answer
    that is not coming; a letter box with no letter should not be on the wall.
    `:not(.is-expanded)` so it cannot vanish under a finger that just opened it. */
-/* AN EMPTY ONE HOLDS ITS WASH AND SAYS NOTHING, which is what the band at the
-   top of the list does when no row has reached it. It keeps its brackets,
-   because they mean AIMING and it is still the thing the band is aimed at. */
-.scope-boxes .letterbox.is-empty .letterbox-screen {
-  background-color: var(--rg-absent);
-}
 
 /* ── THE PANEL LIST ───────────────────────────────────────────────────────────
    The relationship list's mechanism, one level in — a band a third down, rows
@@ -2533,7 +2206,6 @@ textarea {
      Twice the head, which lines it up with the head and the block under it
      together: the whole item, which is what a capture of somebody belongs
      against. */
-  --person-frame: 7.5rem;
   --join-h: 0.5rem;
   --plate-h: 4rem;
   /* FIXED, so the letter box never moves. Most people are around silently, so
@@ -2747,350 +2419,8 @@ textarea {
    agree by construction. A margin was added here to correct a drift that turned
    out to be measured wrong — the box was already level and the correction was
    what tilted it. Nothing to add. */
-/* THE BOX SHARES THE BAND'S CENTRE LINE, not its top edge. It is 7.5rem and the
-   band is 3.5rem, so aligning their tops hung four rems of box below the thing it
-   is meant to sit beside — which is what "it does not balance" was pointing at.
-   There is no padding on it and never was: the screen fills it exactly. What was
-   out of true was the two boxes' relationship, not the box's own insides. */
-.scope-boxes {
-  transform: translateY(calc((var(--band-h) - var(--person-frame)) / 2));
-  position: absolute;
-  /* THE BAND'S TOP EDGE, NOT ITS CENTRE, and the boxes stand on it. Centred and
-     pulled back half its height it resolves to the same resting line — but the
-     boxes EXPAND, and a centred cluster grows in both directions at once: up
-     through the caption and down through the names in one movement. Stood on the
-     band's own top edge it grows one way, downward, over the list it is an answer
-     about. Same place at rest, one direction under pressure. */
-  top: var(--list-top);
-  right: 0;
-  left: 0;
-  /* ── A TRACK, AT EVERY WIDTH ────────────────────────────────────────────────
-     THE RAIL IS NOT ALWAYS LONG ENOUGH FOR BOTH, and the answer used to be to
-     move the boxes above the band on a narrow screen. That put a row of grey
-     rectangles over the top of the list, answering a band they were no longer
-     beside — and on a phone, where every pixel above the names is already
-     spoken for, it read as noise.
 
-     SO THEY OVERFLOW INSTEAD OF MOVING. The cluster is a horizontal scroller
-     with `.boxes-lead` holding the band's column; the lead GROWS, so wherever
-     there is spare rail it takes it and the boxes end flush right exactly where
-     they always sat, with nothing to scroll because nothing has to. Where there
-     is none the track overflows and the first box shows at the edge, and you
-     pull the rest in the way you pull a row's actions in.
 
-     ONE MECHANISM AND NO BREAKPOINT, which is the point. The old arrangement
-     needed a second layout, a band pushed down to clear it, and a picker offset
-     that knew the boxes had wrapped. */
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-.scope-boxes::-webkit-scrollbar {
-  display: none;
-}
-/* SPARE RAIL BELONGS TO THE LEAD. `flex: 1` on the spacer and `0 0 auto` on the
-   run is what makes one rule serve both screens: the wide one has slack and the
-   spacer eats it, the narrow one has none and the run hangs off the end. Growing
-   the RUN instead would have stretched a one-word box into a banner, which is
-   what a `right: 0` cluster was there to prevent. */
-.boxes-lead {
-  flex: 1 0 calc(var(--list-w) + 0.75rem);
-  scroll-snap-align: start;
-}
-
-/* ── TWO VIEWS, ON A PHONE ONLY ────────────────────────────────────────────────
-   A WIDE SCREEN HAS ROOM FOR BOTH AT ONCE, so it shows both at once and this
-   whole arrangement is inert there — the lead grows into the spare rail and
-   nothing scrolls, exactly as it always did. A phone does not, and the answer
-   that fits everything onto one screen anyway is the answer that makes everything
-   on it smaller.
-
-   SO THE PHONE GETS TWO SNAP VIEWS: the list, and the person frame. `mandatory`
-   rather than `proximity` because there is no useful state between them — half a
-   list beside half a capture is neither — and the lead is exactly one view wide,
-   so a swipe lands on one or the other and cannot stop in between.
-
-   THE FRAME TAKES THE FULL VIEW when it is the thing you swiped to. At 7.5rem in
-   a 100vw page it was a stamp in a field; given the view it was swiped for, it is
-   the size of the thing it is showing. */
-@media (max-width: 40rem) {
-  .boxes-lead {
-    flex: 1 0 100%;
-  }
-  .boxes-run {
-    flex: 0 0 100%;
-    scroll-snap-align: start;
-    justify-content: center;
-  }
-  .scope-boxes .letterbox {
-    width: calc(100vw - 2rem);
-    height: calc(100vw - 2rem);
-    max-height: 60vh;
-    max-width: 60vh;
-  }
-}
-.boxes-run {
-  flex: 0 0 auto;
-  scroll-snap-align: end;
-  /* THE SHEET, AND IT IS OPAQUE ON PURPOSE — see the note in the template. */
-  background-color: var(--color-light-50);
-}
-[data-theme="dark"] .boxes-run {
-  background-color: var(--color-dark-950);
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .boxes-run {
-    background-color: var(--color-dark-950);
-  }
-}
-/* AN OPEN BOX IS NOT ON THE TRACK ANY MORE. `overflow-x` cannot be scrolled
-   without `overflow-y` becoming a scroller too, so an 18rem box growing out of a
-   band-high strip would be clipped to the strip. Everything but the open one is
-   `display: none` by then — there is nothing left to scroll — so the track
-   simply stops being one. */
-.scope-boxes:has(.is-expanded) {
-  overflow: visible;
-}
-
-/* ── WHEN THE RAIL RUNS OUT ────────────────────────────────────────────────────
-   NOTHING MOVES ANY MORE. The cluster is a track and it simply overflows, so the
-   layout below 66rem is the layout above it, and the caption is behind the band
-   on both. What is left here is the one thing that is genuinely about having
-   less room rather than about where anything goes. */
-@media (max-width: 66rem) {
-  /* AN UNANSWERED BOX GETS OUT OF THE WAY, and harder on a small screen. Here
-     the cluster is level with the band and therefore directly over the list, and
-     a grey rectangle saying "—" is a great deal of furniture for an answer
-     nobody has given yet. Held this far back it reads as a slot waiting rather
-     than as a box shouting — and on a phone, where all you see at rest is its
-     leading edge, faint is the difference between an invitation and a smudge. */
-  .scope-boxes .around-box:not([data-family]):not(.is-expanded) {
-    opacity: 0.45;
-  }
-  .scope-boxes .around-box:not([data-family]):hover,
-  .scope-boxes .around-box:not([data-family]):focus-visible {
-    opacity: 1;
-  }
-}
-
-/* ── THE PHONE ─────────────────────────────────────────────────────────────────
-   ONE BREAKPOINT, AND IT ONLY MOVES TOKENS. Every rule on this surface is
-   already written against the shell's numbers, so the phone is a different set
-   of numbers rather than a different set of rules — no duplicated layout, and
-   nothing that can drift out of step with the desktop version.
-
-   --list-w stops being a fixed 32rem and becomes FLUID: whatever the rail is,
-   less the room the trailing box needs beside it. That single change is what
-   makes the left view fit a phone at all, and because the band, the scroller,
-   the tags and the panel's own column are all sized from it, they adapt
-   together. The reserve is sized for the widest trailing thing — the two
-   country counts, not the little frame — so the row cannot overflow in either
-   mode. The right view (the live room) is already `hidden lg:block` and stays
-   gone here; a room of faces cannot be shown honestly in one column. */
-@media (max-width: 40rem) {
-  .app-root {
-    --app-gutter: 1rem;
-    --list-pad: 1.25rem;
-    /* VIEWPORT-BASED, not a percentage. As `calc(100% - Xrem)` this compounds
-       the moment it is used inside something already sized by it — the panel's
-       stage sits in a column that is itself --list-w wide, and rendered at
-       118px instead of 238px. A length measured off the viewport cannot nest
-       wrongly, because it does not depend on its parent at all. */
-    /* AND IT GIVES UP A STRIP SO THE FIRST BOX HAS SOMEWHERE TO STAND. It took
-       the whole rail while the boxes lived above the band — that was the point
-       of moving them, the band being the thing you are actually reading. The
-       boxes are beside it again, and a track whose first item is entirely off
-       the edge is a track nobody knows is there: what makes a scroller
-       discoverable is seeing part of the next thing.
-
-       A LEADING EDGE, NOT A WHOLE BOX. 3.5rem is enough to show the mood's
-       colour and the start of its word — enough to say "there is more here and
-       it is about them" — and it is the most the band can spare on the screen
-       where its own name has the least room. */
-    /* THE LIST TAKES THE WHOLE VIEW ON A PHONE. It gave up 3.5rem so a sliver of
-       the person frame could peek at the edge and say "there is more here" — a
-       fair trade while the box was squeezed onto the same screen. It is a SECOND
-       VIEW now, one snap away, so there is nothing to peek: the strip the peek
-       cost is back in the names, which is the one column a phone cannot spare. */
-    --list-w: calc(100vw - 2rem);
-    /* THE ROW CLOSES UP WITH THE TYPE. A row is air around a two-line block,
-       and the block shrinks here — the type clamp bottoms out at its smallest
-       — so a row held at the desktop's 5rem would be mostly empty, and a phone
-       is the one screen with no page to spare. Held at roughly the same ratio
-       of block to row the wide screen has, which is what keeps the rhythm the
-       same rather than merely the numbers smaller.
-
-       --panel-row-h is deliberately NOT moved with it. The panel's box is
-       welded to its row by a translate of half a row written as a fixed -2.5rem
-       (`-translate-y-10`), so changing the row here would slide the box off the
-       line the row is holding, on the one screen where the two are hardest to
-       see out of step. */
-    --row-h: 9.75rem;
-    --place-h: 3rem;
-    --band-h: 3.5rem;
-    /* Halved with the desktop's, 3.5rem to 1.75, and it matters more here: a
-       phone has the least page to spend and the most reason not to spend it on
-       empty space above a mark. */
-    --head-top: 1.75rem;
-    --foot-bottom: 1.5rem;
-    --act-h: 3.5rem;
-    /* The same arithmetic from this screen's own head-top, and the same 2rem of
-       air between mark and line: 1.75 + 1.75 + 2. */
-    --body-top: 5.5rem;
-    /* WHERE THE LETTERS SHEET RESTS, measured from the PANEL's own top and not
-       the viewport's — it is positioned inside the panel, and adding
-       --panel-top here counted it twice and dropped the sheet 88px too low.
-
-       IT USED TO BE THE FRAME'S HEIGHT PLUS AIR, which put it at 172px and
-       covered the live room completely: the frame had the top of the panel and
-       the sheet had everything under it. With the frame gone the sheet comes up
-       to where the room's own label and the head of its first row still show
-       above it, and the letters — which are the subject — take the rest. Drag
-       the handle down for the room, as before. */
-    --sub-top: 5rem;
-    /* Three boxes across a phone, and they fit with room to spare — the rail is
-       ~358px at 390 and the cluster asks for ~324. The mood box is sized to hold
-       the LONGEST word in the vocabulary whole (`grateful`, `grieving`,
-       `restless`), because a truncated feeling is a different feeling. The doing
-       box truncates instead, and can afford to: its top line is the kind of
-       thing and its bottom line is somebody's own words, which are already
-       capped at sixty. */
-    --mood-w: 7rem;
-  }
-
-  /* A 3px arm is a corner mark on a desktop and a blunt stroke on a phone, where
-     every box it marks is smaller. The weight is ONE token, so thinning it here
-     thins every bracket on the surface at once — but it has to be set at the
-     same strength it was declared at: --b lives on #scopes, and an id beats a
-     class no matter which media query the class sits in. */
-  #scopes,
-  #panel {
-    --b: 2px;
-  }
-
-  /* THE PHONE NEEDS NO LAYOUT FOR THE TRAILING BOXES. The frame, and separately
-     the two counts, each used to be re-placed and re-laid-out for this screen;
-     they are one cluster now, they take their height from the band, and the
-     rule that stacks them above it already fired 26rem ago. */
-
-  /* THE RESERVE ABOVE THE LIST IS GONE. It was 5.8rem — a 3.8rem frame plus
-     air — held permanently so the list would not rise and fall as the frame
-     came and went above it. That frame does not sit above the stage box any
-     more; it is one of three boxes INSIDE it, stacked over the band, at a
-     position that never changes. So the reserve was buying stillness that is
-     now free, and charging a phone 93px of dead page at the top of every list
-     to do it. The markup's own mt-12 is the gap.
-   */
-
-  /* ── THE PANEL, AS TWO VIEWS ─────────────────────────────────────────────
-     A phone cannot put the record stream and the live room side by side, and
-     shrinking both until they fit is how you get two things that are each too
-     small to use. So they stop being columns and become LAYERS.
-
-     FIRST VIEW — what is playing (the box, full width under the header) and who
-     is in the room. It simply sits in the page.
-
-     SECOND VIEW — the record stream, riding over it as a draggable subpanel
-     that opens by default. Drag it down and the first view is revealed behind.
-     It starts below the box and can never reach the header, because a panel
-     that covers the thing it belongs to has lost its anchor. */
-  .panel-views {
-    display: block;
-    padding-top: 0;
-  }
-  /* THE ROOM STARTS AT THE TOP NOW. Its padding used to be the frame's height
-     plus air, because the frame was pinned across the top of the panel as a
-     full-width header video; with the frame gone there is nothing to clear. */
-  .live-grid {
-    display: block;
-    width: 100%;
-    padding-top: 0.5rem;
-  }
-  /* WHEN THE PANEL BAND HAS SOMETHING, THE ROOM GETS OUT OF THE WAY. Choosing a
-     letter means you are working in the stream, so the room stops being the
-     subject — the sheet climbs into the space it was holding and the letters
-     get the screen. It comes back the moment the band is empty again. */
-  #scopes:has(.panel-scroll.has-selection) .panel-letters {
-    top: 0.5rem;
-  }
-  #scopes:has(.panel-scroll.has-selection) .live-grid {
-    opacity: 0;
-  }
-  .live-grid {
-    transition: opacity 240ms ease-out;
-  }
-  .panel-letters {
-    /* ABSOLUTE, against the panel, and said explicitly. It rendered correctly
-       as `fixed` only because the panel happens to establish a containing
-       block; a rule that works by accident of an ancestor's transform breaks
-       the day that transform is removed. */
-    position: absolute;
-    inset: var(--sub-top) 0 0 0;
-    z-index: 30;
-    height: auto;
-    padding-inline: var(--app-gutter);
-    background-color: var(--color-light-50);
-    transform: translateY(var(--sub-y, 0px));
-    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  [data-theme="dark"] .panel-letters {
-    background-color: var(--color-dark-950);
-  }
-  @media (prefers-color-scheme: dark) {
-    html:not([data-theme]) .panel-letters {
-      background-color: var(--color-dark-950);
-    }
-  }
-  /* While a finger is on it the panel follows exactly, with no easing between
-     the touch and the panel — a transition here reads as lag, not smoothness. */
-  .panel-letters.is-dragging {
-    transition: none;
-  }
-  .sub-handle {
-    display: flex;
-    justify-content: center;
-    padding: 0.85rem 0 0.35rem;
-    cursor: grab;
-    touch-action: none;
-  }
-  .sub-handle span {
-    width: 2.5rem;
-    height: 3px;
-    background-color: var(--color-neutral-300);
-  }
-  [data-theme="dark"] .sub-handle span {
-    background-color: var(--color-neutral-700);
-  }
-  @media (prefers-color-scheme: dark) {
-    html:not([data-theme]) .sub-handle span {
-      background-color: var(--color-neutral-700);
-    }
-  }
-  /* the record heading and its box start under the handle, not over it */
-  .panel-letters > p {
-    position: static;
-    padding-top: 0.25rem;
-  }
-  /* THE LETTERS BAND KEEPS THE GUTTER, like the list's band does. It was
-     running edge to edge of the screen while every row inside it was inset,
-     and the cause is a quiet one: .panel-letters carries the gutter as
-     PADDING, and an absolutely positioned child resolves `left: 0` and
-     `width: 100%` against the PADDING BOX — so the box sat outside the very
-     padding that was supposed to be holding it in. The rows are in flow and
-     obeyed it, which is why only the band looked wrong.
-
-     Said in the box's own terms instead: in from each edge by the gutter, the
-     same measure the main page's band takes from the rail. */
-  .panel-letters .stage {
-    top: calc(var(--panel-row-h) * 1.5 + 2.5rem);
-    left: var(--app-gutter);
-    width: calc(100% - var(--app-gutter) * 2);
-  }
-  .panel-letters .panel-scroll ul {
-    padding-top: calc(var(--panel-row-h) * 2.5 + 2.5rem);
-  }
-}
 
 /* THE RAIL. Every band of the page — the header, the body, the panel — wears
    this and nothing else, which is the whole reason their left edges agree. */
@@ -3152,9 +2482,7 @@ textarea {
    than four corners because it changes the thing itself rather than annotating
    it. */
 .bar .focus-box::before,
-.bar .focus-box::after,
-.scope-boxes .letterbox::before,
-.scope-boxes .letterbox::after {
+.bar .focus-box::after {
   content: none !important;
 }
 

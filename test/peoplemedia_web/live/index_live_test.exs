@@ -77,7 +77,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # THE PLATE SAYS WHAT THE MARK USED TO. A mark that named what a frame held
     # was a caption on a picture; the frame shows what it holds, and the plate
     # says what they are round with in their own words.
-    assert rows =~ "word"
+    assert rows =~ "frame"
 
     # STRANGERS GET ONE TOO, and that is the whole point of moving it off the
     # letters: they have no correspondence at all and they are still either round
@@ -153,26 +153,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ ~s(data-state="live")
   end
 
-  test "the row hands the box the words, and the hook reads the name it is given",
-       %{conn: conn} do
-    {:ok, _live, html} = live(conn, ~p"/")
-
-    # THE WORDS TRAVEL WITH THE KIND. A text letter is the only kind anyone can
-    # write yet, so a box that could only hold the two that play was a box for
-    # recordings.
-    assert html =~ ~s(data-body="hello")
-
-    # AND THE HOOK MUST READ THE ATTRIBUTE THAT IS ACTUALLY THERE. This is not
-    # paranoia about a typo — renaming the frame to the letter box rewrote
-    # `dataset.frame` into `dataset.letterbox` while the markup kept
-    # `data-letter-kind`, so the box showed nothing at all for a whole release
-    # and every server-side assertion above still passed. A string that crosses
-    # from Elixir to TypeScript has to be checked on both sides or neither.
-    hook = File.read!("assets/js/hooks/scopes.ts")
-    assert hook =~ "dataset.letterKind", "the hook reads a data attribute the row does not carry"
-    assert hook =~ "dataset.body"
-  end
-
   test "picking a person lifts them into a header and opens the panel", %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
@@ -228,7 +208,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     # to stay, because hiding a media element does not silence it and only
     # scopes.ts can tear the media down. Render it conditionally and a voice
     # goes on playing over an open panel from a box nobody can see or press.
-    assert opened =~ ~s(id="letterbox")
   end
 
   test "losing the selection closes the panel with it", %{conn: conn} do
@@ -290,31 +269,6 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
     assert has_element?(live, ~s(#bar.is-live))
     assert html =~ "focus-dot"
-  end
-
-  test "the rail answers the band, and the head of the list answers the list", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/")
-
-    # The cluster is placed by app.css against the stage box, so it carries no
-    # position and no width of its own — either here would be a second opinion
-    # about where the rail is. Its OWN class attribute, not the subtree: the
-    # frame's replay control is legitimately absolute inside it.
-    boxes = boxes_html(live)
-    own = Regex.run(~r/<div class="(scope-boxes[^"]*)"/, boxes, capture: :all_but_first)
-    refute hd(own) =~ "absolute"
-    refute hd(own) =~ "ml-auto"
-    refute hd(own) =~ "--list-w"
-
-    # THE SPLIT IS THE POINT. The cluster's own comment used to claim all three
-    # boxes "answered the band" while two of them answered the LIST — the same
-    # whichever name had scrolled in. Those two are a caption at the head now,
-    # and what is left on the rail genuinely is about the person under the band.
-    assert boxes =~ ~s(id="letterbox")
-    refute boxes =~ "list-scope"
-
-    tags = tags_html(live)
-    assert tags =~ "list-scope"
-    refute tags =~ "letterbox"
   end
 
   test "the act opens the launcher; the launcher's own master closes it",

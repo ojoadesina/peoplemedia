@@ -71,7 +71,17 @@ defmodule PeoplemediaWeb.IndexLive do
   """
   use PeoplemediaWeb, :live_view
 
-  alias Peoplemedia.{Directory, Letters, Notifications, Presence, Relationships, Rounds, Words}
+  alias Peoplemedia.{
+    Clock,
+    Directory,
+    Letters,
+    Notifications,
+    Presence,
+    Relationships,
+    Rounds,
+    Words
+  }
+
   alias Phoenix.LiveView.JS
 
   # HOW LONG A NEW ROUND WAITS BEFORE IT JOINS THE LIST. Long enough that it
@@ -964,8 +974,8 @@ defmodule PeoplemediaWeb.IndexLive do
   defp item_age(item) do
     case item[:round][:at] || item[:letter][:when] do
       nil -> nil
-      %NaiveDateTime{} = at -> at |> Letters.since() |> String.upcase()
-      %DateTime{} = at -> at |> Letters.since() |> String.upcase()
+      %NaiveDateTime{} = at -> at |> Clock.since() |> String.upcase()
+      %DateTime{} = at -> at |> Clock.since() |> String.upcase()
       word -> String.upcase(word)
     end
   end
@@ -1982,15 +1992,18 @@ defmodule PeoplemediaWeb.IndexLive do
                       </span>
                     </div>
 
-                    <div class="flex h-2 pl-(--list-pad)" aria-hidden="true">
+                    <div :if={plate_says(item)} class="flex h-2 pl-(--list-pad)" aria-hidden="true">
                       <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
                     </div>
 
-                    <div class={[
-                      "word flex h-16 items-center gap-3 px-(--list-pad)",
-                      (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
-                        "bg-neutral-100/50 dark:bg-dark-900/40"
-                    ]}>
+                    <div
+                      :if={plate_says(item)}
+                      class={[
+                        "word flex h-16 items-center gap-3 px-(--list-pad)",
+                        (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
+                          "bg-neutral-100/50 dark:bg-dark-900/40"
+                      ]}
+                    >
                       <p class={[
                         "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
                         (item[:round] && "text-neutral-900 dark:text-dark-100") ||
@@ -2207,202 +2220,18 @@ defmodule PeoplemediaWeb.IndexLive do
                takes the rest. --%>
           <%!-- A GROUND WHILE THE FORM IS IN IT, because the doing box grows
                downward as you write and the names are directly underneath. --%>
-          <%!-- ── AND ON A PHONE THEY SIT BESIDE IT ANYWAY, ON A TRACK ────────
-               THEY USED TO STACK ABOVE THE BAND when the rail ran out, which is
-               the honest thing to do with boxes that will not fit — and it made
-               a row of grey rectangles float over the top of the list with
-               nothing under them, answering a band they were no longer next to.
-               Noise, and the wrong kind: furniture you cannot dismiss.
+          <%!-- THE TRAILING BOX IS GONE, AND SO IS THE TRACK IT RODE ON. It held
+               the last letter somebody had sent you — the reason this surface
+               existed, back when a letter was the thing that passed between two
+               people. Words pass between them now, and they are IN the round
+               rather than beside it.
 
-               SO THE CLUSTER IS A SCROLL TRACK AT EVERY WIDTH. A lead spacer
-               holds the band's own column and GROWS to fill whatever rail is
-               left, so on a wide screen the boxes end up flush right exactly
-               where they always were and nothing scrolls, because nothing has
-               to. On a phone the spacer cannot grow — the band already has the
-               width — so the track overflows and the first box shows at the
-               edge. Pull it and the rest come in.
+               THE CAPTURE DID NOT GO WITH IT. A face, a voice or a still fills
+               the frame block on the item itself, which is where it belongs: a
+               capture is of the PERSON, and the person is the line with their
+               name on it. Nothing is lost by taking the box away.
 
-               ONE MECHANISM, NO BREAKPOINT. The old layout needed a second set
-               of rules for the phone, a band pushed down 2.75rem to make room
-               above it, and a picker offset that knew the boxes had wrapped.
-               All three are gone: the boxes are beside the band on every screen
-               and the only thing that changes is how much of them you can see
-               without asking. --%>
-          <div class={[
-            "scope-boxes pointer-events-none z-20 flex items-start",
-            @going && "bg-light-50 dark:bg-dark-950"
-          ]}>
-            <%!-- THE BAND'S OWN COLUMN, HELD OPEN AND EMPTY. It is what puts the
-                 boxes after the band rather than on top of it, and it takes no
-                 presses — the band underneath is still the thing you are
-                 pressing when you press here. --%>
-            <div class="boxes-lead" aria-hidden="true"></div>
-            <%!-- THE BOXES TRAVEL AS ONE SHEET, and the sheet is why it has a
-                 ground. Pulled in on a phone they cross the band's tail, and
-                 half of what is in them is a WASH — a mood at 18%, a frame at
-                 15% — which was mixed against the page on the argument that
-                 these "sit on the page rather than over the list". That stopped
-                 being true the moment they could be dragged over it. An opaque
-                 sheet under them makes it true again, and costs nothing on a
-                 wide screen where it is the page colour on the page. --%>
-            <div class="boxes-run flex items-start gap-3">
-              <%!-- THE SAME THREE BOXES, ASKING. Going round puts the questions
-                 exactly where the answers will be, so nothing moves between
-                 filling the form in and reading it back. --%>
-              <%!-- AND SO DOES THE MOOD BOX. `—` is the placeholder and the
-                 answer replaces it, the same way the doing box works one step to
-                 the left. A label reading MOOD over a dash was two lines to say
-                 nothing. --%>
-              <%!-- THE MOOD CONTROL WENT WITH IT. Going round asks two
-                   questions now and both are fields in the form itself — a
-                   control for a form that lives outside the form is one that
-                   can be lost by moving the form, which is how this was lost
-                   once already. What is left on this rail is the person frame. --%>
-
-              <%!-- THE FRAME'S PLACE, and it is empty because a frame is CAPTURED
-                 and there is nothing to capture with yet. It pulses rather than
-                 sitting blank: an unfilled round frame is somebody here with
-                 nothing to show, which is a real state and the commonest one. --%>
-              <%!-- THE WHOLE BOX BREATHES, not a dot inside it. A small mark
-                 pulsing in the middle of a still square reads as a status light
-                 bolted to a container; the frame IS the thing that is empty, so
-                 the frame is what should say so. It is also what a captured one
-                 will fill, and a box that changed shape when it got contents
-                 would be two objects. --%>
-              <div
-                :if={@going}
-                aria-label="A frame, when there is one"
-                class="around-box presence-box pointer-events-auto relative size-(--band-h) shrink-0 bg-primary-600/15 dark:bg-primary-500/20"
-              >
-              </div>
-
-              <%!-- ONLY TWO BOXES ON THE RAIL NOW. The doing moved on to the ROW,
-                 where it is legible without being chosen — so a third box
-                 repeating it beside the band would be the same fact twice, and
-                 the one that only appears once somebody has been settled would
-                 be the redundant one. What is left is what a row cannot hold: a
-                 colour, and a frame. --%>
-              <%!-- TWO: HOW THEY ARE, and the one place on this surface that
-                 carries a colour of its own.
-
-                 THE BAND COULD NOT HAVE IT. Tinting the selection by mood was
-                 the obvious move and it is the one thing that cannot work: the
-                 band already uses colour to say THIS IS THE CHOSEN ONE, so a
-                 second meaning on the same property leaves neither readable —
-                 scroll to somebody and the wash goes amber, and there is no way
-                 to tell whether the amber is the selection or the person.
-
-                 A BOX THAT MEANS ONLY MOOD CANNOT LIE. It is a dedicated object,
-                 it sits nowhere near the unread marks, and it puts the colour
-                 directly beside the word — which is how a colour language is
-                 learned in the first place.
-
-                 THE WORD KEEPS THE ORDINARY INK. The wash carries the hue and
-                 the hue never reaches full strength, because the moment a mood is
-                 as loud as terracotta, terracotta stops meaning "look here". --%>
-              <%!-- THE MOOD IS ON THE PLATE NOW, at the trailing edge of the round
-                 block, where it sits beside the doing it belongs to. It was a box
-                 on this rail — one answer about the settled person among the
-                 others — and having it in both places would be the same fact said
-                 twice, once where you are reading and once where you are not.
-
-                 WHAT IS LEFT HERE IS THE PERSON FRAME, and it is the only thing
-                 that still genuinely answers the band: a capture of THEM, which
-                 no block in the column can hold because the column is a column of
-                 names and a face is not a name. --%>
-
-              <%!-- THREE: THE LETTER BOX — the last letter the settled person
-                 sent YOU, and the reason this surface exists. It is the only
-                 box here that is an ANSWER rather than a control, which is why
-                 it is the only one that comes and goes and the only one wearing
-                 brackets.
-
-                 It was called the frame, which named the drawing rather than
-                 the contents, and it held whatever the row's newest letter was
-                 — as often your own, so the box could answer you with your own
-                 words. It holds the last INCOMING one now, and holds nothing at
-                 all when there is none: see `Directory.letterbox/1`, where a
-                 stranger and a one-sided correspondence come out the same way,
-                 because you cannot be shown a letter that was never written to
-                 you and you cannot be shown one written to somebody else.
-
-                 ITS WHOLE STATE IS ITS CLASS, and the class is the client's.
-                 Which letter is in the box depends on where the list has
-                 settled, which is a fact about a scroll position in one browser
-                 — the server renders `is-empty` because that is all it can
-                 honestly say, and the hook writes the truth over it.
-
-                 SO THE CLASS IS EXEMPT, and leaving it out cost the box twice
-                 over. A patch reset it to `is-empty`, so the letter the hook had
-                 just put there vanished on the very next round trip — which is
-                 the same round trip the settle itself causes, so the box flashed
-                 once and went. Before the empty box was HIDDEN that read as a
-                 blank square and was survivable; once an empty box meant "no
-                 letter, show nothing", it read as the box being broken.
-
-                 The two MEDIA elements inside carry their own state separately
-                 (see the Media hook) because an attribute exemption cannot help
-                 a playing clip. --%>
-              <div
-                :if={@list_mode == :people && !@going}
-                id="letterbox"
-                phx-mounted={JS.ignore_attributes(["class"])}
-                role="button"
-                tabindex="0"
-                aria-label="Expand the letter"
-                class="letterbox is-empty pointer-events-auto relative flex size-(--person-frame) shrink-0 cursor-pointer items-center justify-center transition-[opacity,width,height,padding] duration-300"
-              >
-                <%!-- The screen is inset from the frame so the brackets bracket the
-                   picture rather than cropping it, and square on every corner —
-                   a screen has corners, and rounding them makes it a widget. --%>
-                <div class="letterbox-screen relative h-full w-full overflow-hidden bg-primary-600/15 dark:bg-primary-500/20">
-                  <%!-- THE WORDS, and the one thing on this surface set in the
-                     case it was written in. Everything else is the app talking
-                     and is therefore in capitals; a letter is a person talking,
-                     and putting somebody's own sentence in capitals is the app
-                     raising its voice on their behalf.
-
-                     Clipped rather than shortened: at 56px there is room for a
-                     few words, and the box is a glimpse — pressing it is what
-                     asks for the rest. --%>
-                  <span class="letterbox-words"></span>
-                  <video
-                    id="letterbox-video"
-                    phx-hook="Media"
-                    class="letterbox-video h-full w-full object-cover"
-                    playsinline
-                    preload="metadata"
-                  >
-                  </video>
-                  <%!-- Sits ON the screen, covering it: after a clip ends the
-                     screen is the only thing there, and a control tucked into
-                     the corner of a 45px square is a target nobody can hit. --%>
-                  <button
-                    type="button"
-                    class="letterbox-restart absolute inset-0 hidden items-center justify-center bg-light-950/15 text-light-50 transition-colors hover:bg-light-950/30 dark:bg-dark-950/25 dark:hover:bg-dark-950/40"
-                    aria-label="Play again"
-                  >
-                    <%!-- A three-quarter arc with an arrowhead, which reads as
-                       "again"; heroicons' closed two-arrow loop says "sync". --%>
-                    <svg
-                      viewBox="0 0 1024 1024"
-                      fill="currentColor"
-                      stroke="currentColor"
-                      stroke-width="0"
-                      aria-hidden="true"
-                      class="size-4"
-                    >
-                      <path d="M909.1 209.3l-56.4 44.1C775.8 155.1 656.2 92 521.9 92 290 92 102.3 279.5 102 511.5 101.7 743.7 289.8 932 521.9 932c181.3 0 335.8-115 394.6-276.1 1.5-4.2-.7-8.9-4.9-10.3l-56.7-19.5a8 8 0 0 0-10.1 4.8c-1.8 5-3.8 10-5.9 14.9-17.3 41-42.1 77.8-73.7 109.4A344.77 344.77 0 0 1 655.9 829c-42.3 17.9-87.4 27-133.8 27-46.5 0-91.5-9.1-133.8-27A341.5 341.5 0 0 1 279 755.2a342.16 342.16 0 0 1-73.7-109.4c-17.9-42.4-27-87.4-27-133.9s9.1-91.5 27-133.9c17.3-41 42.1-77.8 73.7-109.4 31.6-31.6 68.4-56.4 109.3-73.8 42.3-17.9 87.4-27 133.8-27 46.5 0 91.5 9.1 133.8 27a341.5 341.5 0 0 1 109.3 73.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.6 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c-.1-6.6-7.8-10.3-13-6.2z" />
-                    </svg>
-                  </button>
-                </div>
-                <%!-- No controls, so the UA never renders any — the screen is the
-                   only thing a voice is allowed to look like. --%>
-                <audio id="letterbox-audio" phx-hook="Media" class="letterbox-audio" preload="none">
-                </audio>
-              </div>
-            </div>
-          </div>
+               WHAT TAKES THIS RAIL NOW is the launcher — see .view-launcher. --%>
 
           <%!-- BAND AND FRAME ARE ONE ROW, so the two can never fall out of line.
                The band answers "which one", the frame answers "and what are they

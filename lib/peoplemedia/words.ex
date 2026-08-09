@@ -11,7 +11,7 @@ defmodule Peoplemedia.Words do
   import Ecto.Query, warn: false
 
   alias Peoplemedia.Repo
-  alias Peoplemedia.Words.Word
+  alias Peoplemedia.Words.{Read, Word}
 
   def say(round_id, person_id, body, opts \\ []) do
     %Word{}
@@ -39,6 +39,15 @@ defmodule Peoplemedia.Words do
   def for_rounds([], _viewer_id), do: %{}
 
   def for_rounds(round_ids, viewer_id) do
+    # HOW FAR THIS READER HAS GOT IN EACH OF THEM, in one query beside the words
+    # themselves. A visitor has no marks and therefore no seen words, which is
+    # correct rather than a special case: they have not seen any.
+    seen =
+      Read
+      |> where([r], r.round_id in ^round_ids and r.person_id == ^(viewer_id || -1))
+      |> Repo.all()
+      |> Map.new(&{&1.round_id, &1.seen_id})
+
     Word
     |> where([w], w.round_id in ^round_ids)
     |> order_by([w], asc: w.id)
@@ -54,9 +63,48 @@ defmodule Peoplemedia.Words do
          # round", which is a fact about the round the way the count is.
          images: Enum.sum(Enum.map(words, &length(&1.images))),
          said: Enum.count(words, &(&1.person_id == viewer_id)),
-         heard: Enum.count(words, &(&1.person_id != viewer_id))
+         heard: Enum.count(words, &(&1.person_id != viewer_id)),
+         # WHAT IS STILL WAITING FOR THIS READER. No mark means none seen, which
+         # is the resting state — so a round you have never opened is entirely
+         # unseen, which is exactly what it is.
+         unseen: Enum.count(words, &(&1.id > Map.get(seen, round_id, 0)))
        }}
     end)
+  end
+
+  @doc """
+  MARK A ROUND SEEN, UP TO ITS NEWEST WORD.
+
+  LOOKING AT IT IS READING IT. Asking for a second press to admit you have seen
+  something is asking you to do the app's bookkeeping — the same rule the letters
+  this replaces were opened under.
+
+  IT ONLY EVER MOVES FORWARD. `seen_id` takes the greater of what is there and
+  what has arrived, so a stale patch or a second reader's race cannot walk it
+  backwards and re-light a round somebody has already read.
+  """
+  def see(nil, _round_id), do: :nobody
+  def see(_person_id, nil), do: :no_round
+
+  def see(person_id, round_id) do
+    newest =
+      Word
+      |> where([w], w.round_id == ^round_id)
+      |> select([w], max(w.id))
+      |> Repo.one()
+
+    case newest do
+      nil ->
+        :nothing_said
+
+      id ->
+        %Read{}
+        |> Read.changeset(%{person_id: person_id, round_id: round_id, seen_id: id})
+        |> Repo.insert(
+          on_conflict: [set: [seen_id: id, updated_at: NaiveDateTime.utc_now(:second)]],
+          conflict_target: [:person_id, :round_id]
+        )
+    end
   end
 
   @doc "Every word in one round, oldest first — the thread, as it was said."
