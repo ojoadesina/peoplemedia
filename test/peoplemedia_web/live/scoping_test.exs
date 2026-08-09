@@ -17,21 +17,39 @@ defmodule PeoplemediaWeb.ScopingTest do
   # THE TWO WORDS THE SWIPE UNCOVERS, in order: what the tie can become, and
   # WRITE. Markup taken out of the way — asserting on rendered indentation is
   # asserting on the formatter.
-  defp acts_of(row) do
-    Regex.scan(~r/<button[^>]*class="row-scope.*?<\/button>/s, row)
-    |> List.flatten()
-    |> Enum.map(fn b ->
-      b |> String.replace(~r/<[^>]*>/, " ") |> String.replace(~r/\s+/, " ") |> String.trim()
-    end)
+  # THE TIE IS ON THE PERSON'S PAGE NOW, not behind a drag on their row. Open
+  # them and read the one word the door is wearing.
+  defp tie_on(live, id) do
+    html = render_click(live, "open_item", %{"id" => id})
+
+    case Regex.run(~r/class="[^"]*row-scope[^"]*"[^>]*>\s*([A-Z]+)\s*</s, html) do
+      [_, word] -> word
+      nil -> :absent
+    end
   end
 
-  # The tie's own word — the first of the two.
-  defp act_of(row), do: acts_of(row) |> List.first()
+  defp id_of(live, who) do
+    render(live)
+    |> String.split(~s(<li ))
+    |> Enum.find(&(&1 =~ who and &1 =~ "scopes-item"))
+    |> case do
+      nil -> nil
+      row -> Regex.run(~r/phx-value-id="(\d+)"/, row) |> Enum.at(1) |> String.to_integer()
+    end
+  end
 
   # The scope room's two controls, on their own. The attribute is matched with a
   # space before and nothing word-like after, because Tailwind's `disabled:`
   # VARIANT sits in the class list either way — a plainer match reads that as
   # the attribute and passes whether or not the control is actually shut.
+  # A STRANGER'S ID, off their row, so a test can open their page.
+  defp stranger_id(live) do
+    render(live)
+    |> String.split(~s(<li ))
+    |> Enum.find(&(&1 =~ "scopes-item" and &1 =~ "phx-value-id"))
+    |> then(&(Regex.run(~r/phx-value-id="(\d+)"/, &1) |> Enum.at(1) |> String.to_integer()))
+  end
+
   defp field_in(html), do: Regex.run(~r/<input[^>]*name="label"[^>]*>/, html) |> List.first()
 
   defp forward_in(html),
@@ -45,53 +63,32 @@ defmodule PeoplemediaWeb.ScopingTest do
   end
 
   describe "the swipe" do
-    test "each row offers the one act that applies to it", %{conn: conn} do
-      # A STRANGER CAN BE SCOPED. That is the only thing you can do to a name
-      # you do not hold.
+    # ONE ACT, ON THE PERSON'S PAGE. There were two on every row, behind a
+    # sideways drag: the tie, and WRITE. Writing went with the letters, and the
+    # drag went because a horizontal gesture on every row claimed the axis the
+    # surface needed for its own views. What is left is the tie, on the page
+    # about the two of you.
+    test "a person's page offers the one act that applies to them", %{conn: conn, me: me} do
       {:ok, live, _} = live(conn, ~p"/")
-      unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
 
-      rows = Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, unscoped) |> List.flatten()
-      assert length(rows) == stranger_count()
+      [{scope, them} | _] = Relationships.held_by(me.id)
+      assert tie_on(live, them.id) == "UNSCOPE"
+      assert scope.name
 
-      # TWO ACTS ON EVERY ROW. The first is what the tie can become and changes
-      # with it; the second is always WRITE, because who may write to whom is a
-      # question about permission this app has not answered — and hiding the
-      # button was answering it "never".
-      assert Enum.all?(rows, &(acts_of(&1) == ["SCOPE", "WRITE"]))
-      assert Enum.all?(rows, &(&1 =~ ~s(data-open-room="scope")))
-
-      # SOMEONE YOU HOLD CAN BE LET GO OF, which is the act that had no button
-      # at all — scoping was the one decision here you could not take back.
-      {:ok, _live, scoped} = live(conn, ~p"/")
-      rows = Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, scoped) |> List.flatten()
-      assert rows != []
-      assert Enum.all?(rows, &(acts_of(&1) == ["UNSCOPE", "WRITE"]))
-      assert Enum.all?(rows, &(&1 =~ ~s(data-open-room="write")))
-    end
-
-    test "the row is a two-page snap scroller and nothing more", %{conn: conn} do
-      {:ok, live, _} = live(conn, ~p"/")
-      html = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-      row = stranger_row(html)
-
-      # The browser does the dragging, the momentum and the resting.
-      assert row =~ "snap-x"
-      assert row =~ "snap-mandatory"
-      assert row =~ "overscroll-x-contain"
-      # Two pages: the row, and the action.
-      assert row |> String.split("snap-start") |> length() == 3
+      unscoped(live)
+      stranger = Peoplemedia.Repo.get_by!(Peoplemedia.People.Person, name: "AMINA")
+      assert tie_on(live, stranger.id) == "SCOPE"
     end
 
     test "the press tells the server WHO and the hook WHICH ROOM", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       html = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-      row = stranger_row(html)
+      page = render_click(live, "open_item", %{"id" => stranger_id(live)})
 
       # Neither half can do this alone: the panel's open state lives in the
       # browser and the target lives in the process.
-      assert row =~ ~s(phx-click="pick_person")
-      assert row =~ ~s(data-open-room="scope")
+      assert page =~ ~s(phx-click="pick_person")
+      assert page =~ ~s(data-open-room="scope")
     end
   end
 
@@ -223,24 +220,28 @@ defmodule PeoplemediaWeb.ScopingTest do
   describe "the row keeps up" do
     # The word on the uncovered action for one person, whichever list they are
     # in — :absent when that list does not hold them at all.
-    defp act_for(html, who) do
-      Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, html)
-      |> List.flatten()
-      |> Enum.find(&(&1 =~ who))
-      |> case do
+    # The word on one person's page, whichever list they are in — :absent when
+    # that list does not hold them at all.
+    defp act_for(live, who) do
+      case id_of(live, who) do
         nil -> :absent
-        row -> act_of(row)
+        id -> tie_on(live, id)
       end
     end
 
     defp unscoped(live), do: live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+
+    defp act_for_unscoped(live, who) do
+      unscoped(live)
+      act_for(live, who)
+    end
 
     test "it says what is outstanding, so a second ask is never offered",
          %{conn: conn, me: me} do
       them = person("NEWCOMER")
       {:ok, live, _} = live(conn, ~p"/")
 
-      assert act_for(unscoped(live), "NEWCOMER") == "SCOPE"
+      assert act_for_unscoped(live, "NEWCOMER") == "SCOPE"
 
       render_click(live, :pick_person, %{"id" => them.id, "act" => "scope"})
       render_submit(live, :scope_send, %{"label" => "cousin"})
@@ -249,14 +250,14 @@ defmodule PeoplemediaWeb.ScopingTest do
       # true step and refused a second ask — but being offered the act and then
       # told no is worse than never being offered it. The row is where you
       # decide, so the row is where it has to be true.
-      assert act_for(render(live), "NEWCOMER") == "ASKED"
+      assert act_for(live, "NEWCOMER") == "ASKED"
 
       # THEY ANSWER FROM SOMEWHERE ELSE, and my row has to hear about it — this
       # is the notify their own handler sends. Asserting it still said ASKED
       # would be asserting that the update does not arrive.
       {:ok, _} = Relationships.scope_back(them.id, me.id, "OJO")
       {:ok, _} = Notifications.notify(me.id, "scope_back", them.id)
-      assert act_for(render(live), "NEWCOMER") == "FINALISE"
+      assert act_for(live, "NEWCOMER") == "FINALISE"
 
       render_click(live, :scope_accept, %{"id" => them.id})
 
@@ -264,8 +265,8 @@ defmodule PeoplemediaWeb.ScopingTest do
       # the other one under the word YOU gave them. A row shows one name now, and
       # for somebody you hold that is the label, not their own: two on a line
       # read as a headline over a byline.
-      assert act_for(render(live), "NEWCOMER") == :absent
-      assert act_for(unscoped(live), "COUSIN") == "UNSCOPE"
+      assert act_for(live, "NEWCOMER") == :absent
+      assert act_for_unscoped(live, "COUSIN") == "UNSCOPE"
       assert Relationships.related?(me.id, them.id)
     end
 
@@ -274,7 +275,7 @@ defmodule PeoplemediaWeb.ScopingTest do
       {:ok, _} = Relationships.request_scope(them.id, me.id, "FRIEND")
 
       {:ok, live, _} = live(conn, ~p"/")
-      assert act_for(unscoped(live), "INBOUND") == "ANSWER"
+      assert act_for_unscoped(live, "INBOUND") == "ANSWER"
     end
   end
 
@@ -297,21 +298,25 @@ defmodule PeoplemediaWeb.ScopingTest do
       {:ok, live, _} = live(conn, ~p"/")
 
       render_click(live, :unscope, %{"id" => them.id})
-      unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
 
-      assert act_for(unscoped, String.upcase(them.name)) == "SCOPE"
+      # Let go, they are a stranger — so it is the PEOPLE list they turn up in,
+      # and the word on their page is the ask rather than the undo.
+      unscoped(live)
+      assert act_for(live, String.upcase(them.name)) == "SCOPE"
     end
 
-    test "the first press never reaches here — the browser holds it", %{conn: conn} do
-      {:ok, _live, html} = live(conn, ~p"/")
+    test "the first press never reaches here — the browser holds it",
+         %{conn: conn, me: me} do
+      {:ok, live, html} = live(conn, ~p"/")
+      [{_scope, them} | _] = Relationships.held_by(me.id)
 
       # THE ARMING IS ENTIRELY A FACT ABOUT A GESTURE, so it lives in the page:
       # the hook stops the first click before LiveView sees it and asks in the
       # toast. Putting it on the server would mean a half-armed process that a
       # reload or a second tab could get out of step with.
-      row = Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, html) |> List.flatten() |> hd()
-      assert row =~ ~s(data-unscope=)
-      assert row =~ ~s(phx-click="unscope")
+      page = render_click(live, "open_item", %{"id" => them.id})
+      assert page =~ ~s(data-unscope=)
+      assert page =~ ~s(phx-click="unscope")
       assert html =~ ~s(id="toast")
       assert html =~ ~s(phx-hook="Confirm")
 

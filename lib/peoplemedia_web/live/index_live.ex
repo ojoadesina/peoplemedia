@@ -310,6 +310,38 @@ defmodule PeoplemediaWeb.IndexLive do
     {:noreply, socket |> assign(selected: index) |> put_current()}
   end
 
+  # ── OPENING SOMEBODY, IN ONE PRESS ──────────────────────────────────────────
+  # IT USED TO TAKE TWO, and neither was a decision: you scrolled a row into the
+  # band, then pressed the band. The first was the price of having a band at all
+  # — a column of small rows needs one of them nominated before it can be pressed
+  # — and with an item the size of the thing it is about there is nothing to
+  # nominate.
+  #
+  # LOOKING AT A ROUND IS READING IT. Asking for a second press to admit you have
+  # seen what is in one is asking you to do the app's bookkeeping.
+  #
+  # IT STILL SETS `selected`, because everything downstream of the old band reads
+  # it. The index is found here rather than sent, so the client never has to know
+  # what position anybody is in.
+  def handle_event("open_item", %{"id" => id}, socket) do
+    id = to_id(id)
+    index = Enum.find_index(socket.assigns.list, &(&1[:id] == id))
+    item = index && Enum.at(socket.assigns.list, index)
+
+    Words.see(
+      socket.assigns.current_person && socket.assigns.current_person.id,
+      item[:round][:id]
+    )
+
+    {:noreply,
+     socket
+     |> assign(selected: index, mode: :open)
+     |> put_current()
+     |> put_subject()
+     |> reread()
+     |> put_list()}
+  end
+
   def handle_event("deselect", _params, socket) do
     # There is no such thing as an open view of nobody.
     {:noreply, socket |> assign(selected: nil, mode: :list) |> put_current()}
@@ -1115,16 +1147,17 @@ defmodule PeoplemediaWeb.IndexLive do
     )
   end
 
-  # WHAT THE UNCOVERED ACTION SAYS. The row is where you decide, so it is where
-  # the state has to be true — offering SCOPE to somebody you asked yesterday
-  # invites an act that will then be refused, which is a worse experience than
-  # never offering it. The word matches the step the room will open at.
-  defp row_act(%{label: label}) when not is_nil(label), do: "UNSCOPE"
-  defp row_act(%{phase: "waiting_back"}), do: "ASKED"
-  defp row_act(%{phase: "waiting_accept"}), do: "ANSWERED"
-  defp row_act(%{phase: "respond"}), do: "ANSWER"
-  defp row_act(%{phase: "review"}), do: "FINALISE"
-  defp row_act(_), do: "SCOPE"
+  # THE TIE'S OWN WORD, and it says which change is OUTSTANDING rather than
+  # always saying the first one. Offering SCOPE to somebody you asked yesterday
+  # invites an act that has already happened, and the only thing standing between
+  # that and a duplicate was the context layer refusing it afterwards. A duplicate
+  # you cannot reach is better than one that is politely declined.
+  defp tie_act(%{label: label}) when not is_nil(label), do: "UNSCOPE"
+  defp tie_act(%{phase: "waiting_back"}), do: "ASKED"
+  defp tie_act(%{phase: "waiting_accept"}), do: "ANSWERED"
+  defp tie_act(%{phase: "respond"}), do: "ANSWER"
+  defp tie_act(%{phase: "review"}), do: "FINALISE"
+  defp tie_act(_), do: "SCOPE"
 
   # ── WHICH STEP THE SCOPE ROOM OPENS AT ──────────────────────────────────────
   # THE ROOM ASKS THE QUESTION THAT IS ACTUALLY OUTSTANDING, rather than always
@@ -1795,361 +1828,255 @@ defmodule PeoplemediaWeb.IndexLive do
                   ]
                 }
               >
-                <%!-- ── THE ROW SWIPES ────────────────────────────────────
-                       A HORIZONTAL SCROLLER WITH TWO SNAP POINTS, and no
-                       JavaScript at all: the row is one page and the action is
-                       the next, `snap-mandatory` makes it rest on one or the
-                       other, and the browser does the dragging, the momentum and
-                       the rubber-banding for free. A hand-written swipe would be
-                       three of those four re-invented worse.
+                <%!-- THE ROW NO LONGER SWIPES, AND THAT IS WHAT FREES THE PAGE.
+                     It was a horizontal scroller on EVERY row, holding the tie
+                     and a way to write — and two horizontal gestures cannot
+                     share the same pixels. Whatever the surface wanted to do
+                     with a sideways drag, the row claimed it first, which is
+                     why the two views beside this list never responded to one.
 
-                       overscroll-x-contain is what keeps a sideways drag from
-                       becoming a browser back-gesture, and `touch-pan-*` is what
-                       keeps it from fighting the VERTICAL list it sits inside —
-                       two scrollers at right angles in the same pixel, each
-                       needing the other to keep out of its axis. --%>
-                <div class="row-swipe flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
-                  <%!-- ── THE ROUND FRAME: A HEAD AND A PLATE ──────────────
-                       AN ITEM IS TWO BLOCKS JOINED BY A STROKE, and the pair is
-                       the round frame. The HEAD says who — a name, and the marks
-                       that say how it stands with you. The PLATE says what they
-                       are round with — what they are up to, and how they are.
+                     THE TIE MOVES TO THE PERSON'S PAGE, where it belongs
+                     anyway: what you are to each other is a fact about the two
+                     of you, and it was reachable only by a gesture nobody is
+                     told about. Writing goes nowhere, because letters are
+                     gone — you say a word inside a round, from the plus on the
+                     block below.
 
-                       THEY WERE ONE LINE, which made the person a property of
-                       what they had done: a byline over the thing you were being
-                       shown. Split, the person is a block in their own right
-                       standing over a block of their own round, and the column
-                       reads as PEOPLE WITH THINGS UNDER THEM rather than as posts
-                       that happen to be signed.
+                     ONE HORIZONTAL GESTURE ON THE WHOLE SURFACE now, and it
+                     means one thing. --%>
+                <%!-- PRESSING A PERSON OPENS THEIR PAGE, and it is on both
+                     blocks because the two are one item — a stroke saying they
+                     belong together while only the top half answered would be
+                     the item contradicting itself. It rode the swipe's first
+                     page until the swipe went; the press has to be stated on
+                     the blocks themselves now. --%>
+                <div
+                  id={pictured(item) && "capture-#{item[:id]}"}
+                  phx-hook={pictured(item) && "Capture"}
+                  phx-mounted={pictured(item) && JS.ignore_attributes(["class"])}
+                  phx-click={@list_mode == :people && "open_item"}
+                  phx-value-id={item[:id]}
+                  class={[
+                    "frame relative flex h-14 items-center gap-3 overflow-hidden",
+                    "px-(--list-pad) text-md bg-neutral-100 dark:bg-dark-900"
+                  ]}
+                >
+                  <%!-- A FACE FRAME IS THE CAPTURE. Not a panel with a
+                         thumbnail in it — the whole block is the video, edge to
+                         edge, with everything the frame says laid over it. A
+                         face is what somebody captured OF themselves, so on
+                         their own frame it is the substrate rather than an
+                         attachment to one. Muted and looped because the point
+                         is that it moves; `playsinline` is what stops iOS
+                         taking it fullscreen the moment it starts. --%>
+                  <video
+                    :if={capture(item) == "face"}
+                    src={capture_src(item)}
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    aria-hidden="true"
+                    class="absolute inset-0 size-full object-cover"
+                  >
+                  </video>
+                  <img
+                    :if={capture(item) == "still"}
+                    src={capture_src(item)}
+                    alt=""
+                    class="absolute inset-0 size-full object-cover"
+                  />
+                  <%!-- A FLAT VEIL, NOT A RAMP. It was a gradient — two of
+                         them over the life of this block, top-to-bottom and
+                         then left-to-right — and a gradient is a thing the
+                         compositor has to interpolate on every frame it is
+                         drawn over. Over a PLAYING VIDEO that is every frame,
+                         on every one of these in the column.
 
-                       THE PLATE IS ALWAYS DRAWN, EMPTY OR NOT. The band settles
-                       a row by its position, so every item has to be the same
-                       height or the thing under the brackets stops being one
-                       whole item — and an item that changed height with what
-                       somebody happened to be doing would make the column's beat
-                       a function of the news. Empty, it holds its wash and says
-                       nothing, which is what every empty thing on this surface
-                       does.
+                         One flat translucent black does the same job: hold the
+                         picture down far enough for the type to read. The
+                         text-shadow does the rest, which is what it was always
+                         for — a video is a moving background, so nothing static
+                         can be relied on to be dark where a word happens to
+                         fall. --%>
+                  <span
+                    :if={pictured(item)}
+                    class="capture-scrim absolute inset-0 bg-black/35"
+                    aria-hidden="true"
+                  >
+                  </span>
 
-                       THE STROKE IS THE JOIN AND IT IS ALSO THE GAP. The 0.5rem
-                       is this element's own height rather than a gap between the
-                       two, so the air between the blocks and the mark crossing it
-                       are one measurement and cannot drift apart. It stands a
-                       gutter in, where the name above it and the doing below it
-                       both start, so it reads as belonging to the words rather
-                       than to the box. --%>
-                  <%!-- ── AN ITEM IS A FRAME AND A WORD ─────────────────────
-                       THE FRAME IS THE PERSON AND WHAT THEY CAPTURED. It was
-                       called the frame HEAD while it was the top half of
-                       something; it is not a half, it is the frame — the same
-                       object the rail has been holding a place for, and what
-                       goes in it is a face, a voice or a still.
+                  <%!-- A VOICE HAS NO PICTURE, so the FRAME is what reports
+                         it. Not a scrubber on the bottom edge — a scrubber is a
+                         control drawn small because it is furniture, and there
+                         is nothing here to drag. The played part of the voice is
+                         the filled part of the block, left to right, read the
+                         way you read a glass rather than a dial.
 
-                       THE WORD IS WHAT WAS SAID. Two blocks, joined by a stroke
-                       in the gap, and the pair is one item. --%>
-                  <div class="flex h-full w-full shrink-0 snap-start flex-col justify-center">
-                    <div
-                      id={pictured(item) && "capture-#{item[:id]}"}
-                      phx-hook={pictured(item) && "Capture"}
-                      phx-mounted={pictured(item) && JS.ignore_attributes(["class"])}
+                         SAGE, BECAUSE IT REPORTS. Warm asks and cool reports,
+                         and progress is a statement rather than a request. At
+                         15%, the strength every wash on this surface is held at,
+                         because it spans the whole block and anything stronger
+                         would make the name readable on one half and not the
+                         other.
+
+                         IT IS AN EMPTY TRACK UNTIL THERE IS PLAYBACK TO REPORT.
+                         Nothing on the list knows how far into a voice anybody
+                         has got yet, so the bar stands at zero — which is
+                         honest, and is what tells a voice from an empty frame
+                         until the number arrives. --%>
+                  <span
+                    :if={capture(item) == "voice"}
+                    class="absolute inset-x-0 bottom-0 h-1 bg-secondary-600/15 dark:bg-secondary-400/15"
+                    aria-hidden="true"
+                  >
+                  </span>
+
+                  <p class="scopes-line relative min-w-0 flex-1 truncate tracking-[0.1em]">
+                    {String.upcase(item[:label] || item[:name])}
+                  </p>
+
+                  <span
+                    :if={@list_mode == :location}
+                    class="relative shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                  >
+                    {item.scopes} · {item.unscopes}
+                  </span>
+
+                  <%!-- WHICH WAY THE WORDS HAVE GONE, on the person rather
+                         than on what they said. The head is always there; a word
+                         block is not, so a pair drawn on it left half the column
+                         carrying no marks at all. --%>
+                  <.letter_flow
+                    :if={word_flow(item)}
+                    letter={word_flow(item)}
+                    class="relative shrink-0 text-xl"
+                  />
+
+                  <%!-- AND HOW MANY WORDS ARE IN THERE. It sat on the word
+                         block, which is where the words are — and the count is
+                         not about the words, it is about the ROUND: whether
+                         there is a conversation in there or just the sentence
+                         you are looking at. That is a fact about the person you
+                         are deciding whether to open, so it belongs on the line
+                         you decide from.
+
+                         MORE THAN ONE AND IT STACKS. The number tells you how
+                         many once you have read it; the pile tells you there is
+                         more than one before you have. Tilted APART rather than
+                         offset — two upright cards a few pixels adrift read as
+                         one card with a printing error.
+
+                         IT LIGHTS ONLY WHEN A LETTER IS UNOPENED, because the
+                         arrow beside it does and a grey deck under a terracotta
+                         arrow said the words waiting inside were a separate,
+                         calmer matter. A FILL rather than ink: it holds a
+                         number. --%>
+                  <span :if={word_count(item) > 0} class="relative shrink-0">
+                    <span
+                      :if={word_count(item) > 1}
                       class={[
-                        "frame relative flex h-14 items-center gap-3 overflow-hidden",
-                        "px-(--list-pad) text-md bg-neutral-100 dark:bg-dark-900"
+                        "absolute inset-0 rotate-6",
+                        (unread?(item) && "bg-primary-400 dark:bg-primary-700") ||
+                          "bg-neutral-300 dark:bg-dark-700"
                       ]}
+                      aria-hidden="true"
                     >
-                      <%!-- A FACE FRAME IS THE CAPTURE. Not a panel with a
-                           thumbnail in it — the whole block is the video, edge to
-                           edge, with everything the frame says laid over it. A
-                           face is what somebody captured OF themselves, so on
-                           their own frame it is the substrate rather than an
-                           attachment to one. Muted and looped because the point
-                           is that it moves; `playsinline` is what stops iOS
-                           taking it fullscreen the moment it starts. --%>
-                      <video
-                        :if={capture(item) == "face"}
-                        src={capture_src(item)}
-                        autoplay
-                        muted
-                        loop
-                        playsinline
-                        aria-hidden="true"
-                        class="absolute inset-0 size-full object-cover"
-                      >
-                      </video>
-                      <img
-                        :if={capture(item) == "still"}
-                        src={capture_src(item)}
-                        alt=""
-                        class="absolute inset-0 size-full object-cover"
-                      />
-                      <%!-- A FLAT VEIL, NOT A RAMP. It was a gradient — two of
-                           them over the life of this block, top-to-bottom and
-                           then left-to-right — and a gradient is a thing the
-                           compositor has to interpolate on every frame it is
-                           drawn over. Over a PLAYING VIDEO that is every frame,
-                           on every one of these in the column.
+                    </span>
+                    <span class={[
+                      "relative flex h-5 min-w-5 items-center justify-center px-1.5",
+                      "text-sm tracking-[0.08em]",
+                      word_count(item) > 1 && "-rotate-6",
+                      (unread?(item) &&
+                         "bg-primary-600 text-light-50 dark:bg-primary-500 dark:text-dark-950") ||
+                        "bg-neutral-300 text-neutral-600 dark:bg-dark-700 dark:text-dark-200"
+                    ]}>
+                      {word_count(item)}
+                    </span>
+                  </span>
+                </div>
 
-                           One flat translucent black does the same job: hold the
-                           picture down far enough for the type to read. The
-                           text-shadow does the rest, which is what it was always
-                           for — a video is a moving background, so nothing static
-                           can be relied on to be dark where a word happens to
-                           fall. --%>
-                      <span
-                        :if={pictured(item)}
-                        class="capture-scrim absolute inset-0 bg-black/35"
-                        aria-hidden="true"
-                      >
-                      </span>
+                <div :if={plate_says(item)} class="flex h-2 pl-(--list-pad)" aria-hidden="true">
+                  <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
+                </div>
 
-                      <%!-- A VOICE HAS NO PICTURE, so the FRAME is what reports
-                           it. Not a scrubber on the bottom edge — a scrubber is a
-                           control drawn small because it is furniture, and there
-                           is nothing here to drag. The played part of the voice is
-                           the filled part of the block, left to right, read the
-                           way you read a glass rather than a dial.
+                <div
+                  :if={plate_says(item)}
+                  phx-click={@list_mode == :people && "open_item"}
+                  phx-value-id={item[:id]}
+                  class={[
+                    "word flex h-16 items-center gap-3 px-(--list-pad)",
+                    (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
+                      "bg-neutral-100/50 dark:bg-dark-900/40"
+                  ]}
+                >
+                  <p class={[
+                    "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
+                    (item[:round] && "text-neutral-900 dark:text-dark-100") ||
+                      "text-neutral-500 dark:text-neutral-400"
+                  ]}>
+                    {plate_says(item)}
+                  </p>
 
-                           SAGE, BECAUSE IT REPORTS. Warm asks and cool reports,
-                           and progress is a statement rather than a request. At
-                           15%, the strength every wash on this surface is held at,
-                           because it spans the whole block and anything stronger
-                           would make the name readable on one half and not the
-                           other.
-
-                           IT IS AN EMPTY TRACK UNTIL THERE IS PLAYBACK TO REPORT.
-                           Nothing on the list knows how far into a voice anybody
-                           has got yet, so the bar stands at zero — which is
-                           honest, and is what tells a voice from an empty frame
-                           until the number arrives. --%>
-                      <span
-                        :if={capture(item) == "voice"}
-                        class="absolute inset-x-0 bottom-0 h-1 bg-secondary-600/15 dark:bg-secondary-400/15"
-                        aria-hidden="true"
-                      >
-                      </span>
-
-                      <p class="scopes-line relative min-w-0 flex-1 truncate tracking-[0.1em]">
-                        {String.upcase(item[:label] || item[:name])}
-                      </p>
-
-                      <span
-                        :if={@list_mode == :location}
-                        class="relative shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
-                      >
-                        {item.scopes} · {item.unscopes}
-                      </span>
-
-                      <%!-- WHICH WAY THE WORDS HAVE GONE, on the person rather
-                           than on what they said. The head is always there; a word
-                           block is not, so a pair drawn on it left half the column
-                           carrying no marks at all. --%>
-                      <.letter_flow
-                        :if={word_flow(item)}
-                        letter={word_flow(item)}
-                        class="relative shrink-0 text-xl"
-                      />
-
-                      <%!-- AND HOW MANY WORDS ARE IN THERE. It sat on the word
-                           block, which is where the words are — and the count is
-                           not about the words, it is about the ROUND: whether
-                           there is a conversation in there or just the sentence
-                           you are looking at. That is a fact about the person you
-                           are deciding whether to open, so it belongs on the line
-                           you decide from.
-
-                           MORE THAN ONE AND IT STACKS. The number tells you how
-                           many once you have read it; the pile tells you there is
-                           more than one before you have. Tilted APART rather than
-                           offset — two upright cards a few pixels adrift read as
-                           one card with a printing error.
-
-                           IT LIGHTS ONLY WHEN A LETTER IS UNOPENED, because the
-                           arrow beside it does and a grey deck under a terracotta
-                           arrow said the words waiting inside were a separate,
-                           calmer matter. A FILL rather than ink: it holds a
-                           number. --%>
-                      <span :if={word_count(item) > 0} class="relative shrink-0">
-                        <span
-                          :if={word_count(item) > 1}
-                          class={[
-                            "absolute inset-0 rotate-6",
-                            (unread?(item) && "bg-primary-400 dark:bg-primary-700") ||
-                              "bg-neutral-300 dark:bg-dark-700"
-                          ]}
-                          aria-hidden="true"
-                        >
-                        </span>
-                        <span class={[
-                          "relative flex h-5 min-w-5 items-center justify-center px-1.5",
-                          "text-sm tracking-[0.08em]",
-                          word_count(item) > 1 && "-rotate-6",
-                          (unread?(item) &&
-                             "bg-primary-600 text-light-50 dark:bg-primary-500 dark:text-dark-950") ||
-                            "bg-neutral-300 text-neutral-600 dark:bg-dark-700 dark:text-dark-200"
-                        ]}>
-                          {word_count(item)}
-                        </span>
-                      </span>
-                    </div>
-
-                    <div :if={plate_says(item)} class="flex h-2 pl-(--list-pad)" aria-hidden="true">
-                      <span class="w-0.5 bg-neutral-400 dark:bg-dark-600"></span>
-                    </div>
-
-                    <div
-                      :if={plate_says(item)}
+                  <%!-- PICTURES IN THE ROUND, PILED. A word is speech plus
+                         attached documents and it is the only thing here that
+                         takes an upload; the stack says there are some without
+                         saying how many, which is what a glance wants. --%>
+                  <span :if={word_images(item) > 0} class="relative size-5 shrink-0">
+                    <img
+                      :if={word_images(item) > 1}
+                      src={word_thumb(1)}
+                      alt=""
+                      class="absolute inset-0 size-full rotate-6 object-cover"
+                    />
+                    <img
+                      src={word_thumb(0)}
+                      alt=""
                       class={[
-                        "word flex h-16 items-center gap-3 px-(--list-pad)",
-                        (item[:round] && "bg-neutral-100 dark:bg-dark-900") ||
-                          "bg-neutral-100/50 dark:bg-dark-900/40"
+                        "relative size-full object-cover",
+                        word_images(item) > 1 && "-rotate-6"
                       ]}
+                    />
+                  </span>
+
+                  <%!-- WHEN, AND IT MOVED DOWN HERE WITH THE THING IT DATES. A
+                         round is identified by when it was made and the words
+                         are what is in it, so the age belongs on the block that
+                         holds them — the frame above says WHO, and a date is not
+                         an answer to who. --%>
+                  <span
+                    :if={item_age(item)}
+                    class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
+                  >
+                    {item_age(item)}
+                  </span>
+
+                  <%!-- AND THE WAY IN. Saying something is the one act an item
+                         offers, and until now it had nowhere to be performed
+                         from: you opened the person's page and found it there.
+                         It stands at the outer edge, last on the block, where
+                         the thing you do sits on every other surface here — the
+                         act at the foot, the send in a form. --%>
+                  <button
+                    :if={item[:round] && @list_mode == :people}
+                    type="button"
+                    phx-click="open_item"
+                    phx-value-id={item[:id]}
+                    aria-label="Say something"
+                    class="flex size-5 shrink-0 cursor-pointer items-center justify-center text-neutral-400 transition-colors hover:text-primary-600 dark:text-neutral-500 dark:hover:text-primary-500"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      class="size-[1.15em]"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="butt"
+                      aria-hidden="true"
                     >
-                      <p class={[
-                        "min-w-0 flex-1 truncate text-md tracking-[0.08em]",
-                        (item[:round] && "text-neutral-900 dark:text-dark-100") ||
-                          "text-neutral-500 dark:text-neutral-400"
-                      ]}>
-                        {plate_says(item)}
-                      </p>
-
-                      <%!-- PICTURES IN THE ROUND, PILED. A word is speech plus
-                           attached documents and it is the only thing here that
-                           takes an upload; the stack says there are some without
-                           saying how many, which is what a glance wants. --%>
-                      <span :if={word_images(item) > 0} class="relative size-5 shrink-0">
-                        <img
-                          :if={word_images(item) > 1}
-                          src={word_thumb(1)}
-                          alt=""
-                          class="absolute inset-0 size-full rotate-6 object-cover"
-                        />
-                        <img
-                          src={word_thumb(0)}
-                          alt=""
-                          class={[
-                            "relative size-full object-cover",
-                            word_images(item) > 1 && "-rotate-6"
-                          ]}
-                        />
-                      </span>
-
-                      <%!-- WHEN, AND IT MOVED DOWN HERE WITH THE THING IT DATES. A
-                           round is identified by when it was made and the words
-                           are what is in it, so the age belongs on the block that
-                           holds them — the frame above says WHO, and a date is not
-                           an answer to who. --%>
-                      <span
-                        :if={item_age(item)}
-                        class="shrink-0 text-sm tracking-[0.08em] text-neutral-400 dark:text-neutral-500"
-                      >
-                        {item_age(item)}
-                      </span>
-
-                      <%!-- AND THE WAY IN. Saying something is the one act an item
-                           offers, and until now it had nowhere to be performed
-                           from: you opened the person's page and found it there.
-                           It stands at the outer edge, last on the block, where
-                           the thing you do sits on every other surface here — the
-                           act at the foot, the send in a form. --%>
-                      <button
-                        :if={item[:round] && @list_mode == :people}
-                        type="button"
-                        phx-click="open_item"
-                        phx-value-id={item[:id]}
-                        aria-label="Say something"
-                        class="flex size-5 shrink-0 cursor-pointer items-center justify-center text-neutral-400 transition-colors hover:text-primary-600 dark:text-neutral-500 dark:hover:text-primary-500"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="size-[1.15em]"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="butt"
-                          aria-hidden="true"
-                        >
-                          <path d="M12 5v14M5 12h14" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <%!-- WHAT THE SWIPE UNCOVERS: TWO ACTS, NOT ONE.
-
-                       It offered exactly one — SCOPE for a stranger, WRITE for
-                       somebody you hold — on the reasoning that each row has one
-                       thing that applies to it. That was wrong in both
-                       directions. A scoped person had no way to be UNSCOPED at
-                       all, which made scoping the one decision here you could
-                       not take back; and a stranger could not be written to,
-                       which is a rule about who may write to whom rather than a
-                       fact about what a row is, and one this app has not decided
-                       yet.
-
-                       SO: THE TIE, AND THE LETTER. The first changes what you
-                       are to each other and says which change is outstanding —
-                       see `row_act/1`. The second is always the same word.
-
-                       TWO THINGS ON ONE PRESS: the server is told who, and the
-                       hook opens the room. The panel's open state lives in the
-                       browser and the target lives in the process, so neither
-                       can do this alone. --%>
-                  <div :if={@list_mode == :people} class="flex h-full shrink-0 snap-start">
-                    <%!-- UNSCOPING IS NOT DONE ON ONE PRESS. Everything else
-                         behind this swipe opens a room and asks something; this
-                         one would act, immediately and irreversibly, on a
-                         control you reach by dragging — which is exactly the
-                         gesture a thumb makes by accident on a moving list. So
-                         it ARMS instead, and the toast asks for the second
-                         press. The reference calls this the irreversible-X law
-                         and applies it everywhere a press cannot be taken back.
-
-                         `phx-click` stays on it either way: the confirmation
-                         lives in the browser because it is about a gesture, and
-                         the hook stops the first press from reaching here. --%>
-                    <button
-                      type="button"
-                      data-open-room={(item[:label] && "") || "scope"}
-                      data-unscope={(item[:label] && item.id) || nil}
-                      phx-click={(item[:label] && "unscope") || "pick_person"}
-                      phx-value-id={item.id}
-                      phx-value-act="scope"
-                      class={
-                        [
-                          "row-scope flex h-full cursor-pointer items-center px-8",
-                          "text-(length:--sub-type) tracking-(--sub-track) transition-colors",
-                          # UNSCOPING WEARS THE COLOUR, and it is the only thing
-                          # behind this swipe that does. Terracotta on this surface
-                          # means "look here" — it is on an unread mark and on the
-                          # one button in a room that commits — and undoing a tie
-                          # two people agreed to is the only act here that deserves
-                          # it. Both themes, because a wash that exists in one is
-                          # a button that disappears in the other.
-                          (item[:label] &&
-                             "bg-primary-600/15 text-primary-700 hover:bg-primary-600/25 dark:bg-primary-500/25 dark:text-primary-200 dark:hover:bg-primary-500/35") ||
-                            "bg-neutral-150 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-50"
-                        ]
-                      }
-                    >
-                      {row_act(item)}
-                    </button>
-
-                    <%!-- WRITING IS OFFERED TO EVERYONE. Whether a letter to
-                         somebody who has not scoped you should arrive is a
-                         question about permission, and this app has not answered
-                         it yet — hiding the button was answering it by accident,
-                         and answering it "never". --%>
-                    <button
-                      type="button"
-                      data-open-room="write"
-                      phx-click="pick_person"
-                      phx-value-id={item.id}
-                      phx-value-act="write"
-                      class="row-scope flex h-full cursor-pointer items-center bg-neutral-150 px-8 text-(length:--sub-type) tracking-(--sub-track) text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-50"
-                    >
-                      WRITE
-                    </button>
-                  </div>
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
                 </div>
               </li>
             </ul>
@@ -2542,6 +2469,37 @@ defmodule PeoplemediaWeb.IndexLive do
         class="panel fixed inset-x-0 top-(--panel-top) bottom-0 z-20"
       >
         <div class="rail h-full">
+          <%!-- ── WHAT YOU ARE TO EACH OTHER ─────────────────────────────────
+               THE TIE LIVES ON THE PERSON'S PAGE NOW. It was behind a sideways
+               drag on their row, which is a gesture nobody is told about and
+               which — being horizontal, on every row — claimed the whole axis
+               the surface needed for something else.
+
+               AND IT BELONGS HERE ANYWAY. What you are to each other is a fact
+               about the two of you, so it goes where the two of you are rather
+               than on a line in a column of everybody. The word says which
+               change is outstanding — see `tie_act/1` — so the door never
+               invites an ask that has already been made.
+
+               NOT ON YOUR OWN PAGE. You are not scoped to yourself. --%>
+          <div :if={@subject[:id] && @mode == :open} class="panel-tie absolute top-6 right-0 z-30">
+            <button
+              type="button"
+              data-open-room={(@subject[:label] && "") || "scope"}
+              data-unscope={(@subject[:label] && @subject.id) || nil}
+              phx-click={(@subject[:label] && "unscope") || "pick_person"}
+              phx-value-id={@subject.id}
+              phx-value-act="scope"
+              class={[
+                "row-scope cursor-pointer px-3 py-1 text-sm tracking-[0.08em] transition-colors",
+                (@subject[:label] &&
+                   "bg-primary-600/15 text-primary-700 hover:bg-primary-600/25 dark:bg-primary-500/25 dark:text-primary-200") ||
+                  "bg-neutral-200 text-neutral-600 hover:bg-neutral-300 dark:bg-dark-800 dark:text-dark-200"
+              ]}
+            >
+              {tie_act(@subject)}
+            </button>
+          </div>
           <div class="panel-views flex h-full items-start gap-14 pt-8">
             <div
               id="panel-letters"

@@ -275,15 +275,11 @@ export const Scopes = {
     };
     scroll.addEventListener("click", onRowClick);
 
-    // THE FIRST REAL GESTURE BUYS THE SOUND BACK. A clip that fell back to
-    // muted has no way of knowing when the browser changed its mind, so the
-    // next press anywhere is taken as the answer. Cheap enough to leave on:
-    // it does nothing at all unless something is actually playing hushed.
-    const unhush = () => {
-      const m = current();
-      if (m && m.muted) m.muted = false;
-    };
-    document.addEventListener("pointerdown", unhush);
+    // THE FIRST GESTURE USED TO BUY THE SOUND BACK. A clip that autoplay had
+    // forced to muted has no way of knowing when the browser changes its mind,
+    // so the next press anywhere was taken as the answer. There is no shared
+    // clip on this surface any more — a capture plays muted inside its own frame
+    // and nothing here is asking to be heard.
 
     // THE PANEL USED TO HAVE TO BE WATCHED. Opening it hid the box on the rail
     // and closing it put back whatever the selection still said was chosen — and
@@ -334,8 +330,7 @@ export const Scopes = {
       cancelAnimationFrame(pending);
       watchPanel.disconnect();
       scroll.removeEventListener("click", onRowClick);
-      document.removeEventListener("pointerdown", unhush);
-      window.removeEventListener("resize", settle);
+        window.removeEventListener("resize", settle);
     };
   },
 
