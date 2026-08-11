@@ -55,13 +55,6 @@ defmodule PeoplemediaWeb.ScopingTest do
   defp forward_in(html),
     do: Regex.run(~r/<button[^>]*form="scope-form".*?>/s, html) |> List.first()
 
-  defp stranger_row(html) do
-    html
-    |> then(&Regex.scan(~r/<li [^>]*class="scopes-item.*?<\/li>/s, &1))
-    |> List.flatten()
-    |> Enum.find(&(&1 =~ "row-scope"))
-  end
-
   describe "the swipe" do
     # ONE ACT, ON THE PERSON'S PAGE. There were two on every row, behind a
     # sideways drag: the tie, and WRITE. Writing went with the letters, and the
@@ -82,7 +75,7 @@ defmodule PeoplemediaWeb.ScopingTest do
 
     test "the press tells the server WHO and the hook WHICH ROOM", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
-      html = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
+      live |> element(~s(button[phx-click="scope_box"])) |> render_click()
       page = render_click(live, "open_item", %{"id" => stranger_id(live)})
 
       # Neither half can do this alone: the panel's open state lives in the

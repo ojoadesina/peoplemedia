@@ -10,6 +10,7 @@ defmodule Peoplemedia.Words do
   """
   import Ecto.Query, warn: false
 
+  alias Peoplemedia.Clock
   alias Peoplemedia.Repo
   alias Peoplemedia.Words.{Read, Word}
 
@@ -107,12 +108,53 @@ defmodule Peoplemedia.Words do
     end
   end
 
-  @doc "Every word in one round, oldest first — the thread, as it was said."
-  def thread(round_id) do
+  @doc """
+  Every word in these rounds, oldest first, read from where the viewer stands —
+  `%{round_id => [word]}`.
+
+  ONE QUERY FOR A WHOLE PAGE, like every other list-shaped answer in this app. A
+  person's page is a stack of rounds and asking each of them separately would be
+  one round trip per block on a column that is redrawn every time a panel opens.
+
+  OLDEST FIRST, WHICH IS THE OPPOSITE OF THE PAGE'S OWN ORDER, and deliberately:
+  the rounds run newest-first because the last thing somebody did is what you
+  came for, and the words inside one run in the order they were said because that
+  is the only order a conversation can be read in.
+  """
+  def threads_for([], _viewer_id), do: %{}
+
+  def threads_for(round_ids, viewer_id) do
     Word
-    |> where([w], w.round_id == ^round_id)
+    |> where([w], w.round_id in ^round_ids)
     |> order_by([w], asc: w.id)
+    # WHO SAID IT COMES WITH THE ROW. The page names whoever left each word, and
+    # a thread that had to be handed the other person's name separately would be
+    # one more thing for a caller to get wrong.
+    |> preload(:person)
     |> Repo.all()
+    |> Enum.group_by(& &1.round_id, &read_from(&1, viewer_id))
+  end
+
+  @doc "Every word in one round, oldest first, read from where the viewer stands."
+  def thread(round_id, viewer_id \\ nil),
+    do: [round_id] |> threads_for(viewer_id) |> Map.get(round_id, [])
+
+  # THE VIEWER'S READING OF A ROW BOTH OF THEM CAN SEE. One row, two readings,
+  # and no way for the two sides to hold different versions of what was said.
+  #
+  # YOUR OWN WORDS SAY "YOU" RATHER THAN YOUR NAME, because a round read from
+  # where you stand is a conversation and not a transcript.
+  defp read_from(%Word{} = w, viewer_id) do
+    mine = w.person_id == viewer_id
+
+    %{
+      id: w.id,
+      body: w.body,
+      images: w.images,
+      mine?: mine,
+      by: (mine && "YOU") || String.upcase(w.person.name),
+      when: Clock.since(w.inserted_at)
+    }
   end
 
   def limit, do: Word.limit()

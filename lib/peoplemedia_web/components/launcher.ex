@@ -359,48 +359,18 @@ defmodule PeoplemediaWeb.Launcher do
           />
         </div>
 
-        <%!-- ── WRITE ──────────────────────────────────────────────────────
-             WORDS TO ONE PERSON, and nothing else any more. It briefly asked
-             three questions and produced a round; going round happens on the
-             surface now, in the band's own place, so this room is back to the
-             one job the swipe opens it for.
+        <%!-- ── THE WRITE ROOM IS GONE ─────────────────────────────────────
+             IT WROTE A LETTER, and a letter is not a thing this app has. What
+             passes between two people is WORDS, and a word is said INSIDE A
+             ROUND — so it is written where the round is, on the surface, and
+             not in a room off to one side addressed to a person. That is Law 5
+             and the guide's own shape: a round surfaces somebody, the words are
+             what happens in it.
 
-             IT IS A WORD IN WAITING. Threaded speech with attachments is what
-             this becomes; the shape is right and the model has not arrived. --%>
-        <div data-room="write" class="launcher-body min-h-0 flex-1 overflow-y-auto" hidden>
-          <.room_title>
-            {(@scope_target && String.upcase(@scope_target.name)) || "WRITE"}
-          </.room_title>
-
-          <p
-            :if={@scope_error}
-            class={[heading_cls(), "px-(--list-pad) pt-6 text-primary-600 dark:text-primary-500"]}
-          >
-            {String.upcase(@scope_error)}
-          </p>
-
-          <%!-- THE ONE PLACE THE APP DOES NOT SHOUT. Everything else on this
-               surface is set in capitals because it is the app talking; what you
-               say to somebody is you talking, and putting your own words in
-               capitals would be the app raising its voice on your behalf. --%>
-          <form :if={@scope_stage == :write} id="write-form" phx-submit="write_letter" class="pt-6">
-            <p class={[heading_cls(), "px-(--list-pad)"]}>
-              {(@scope_target && "TO #{String.upcase(@scope_target.name)}") || "TO NOBODY YET"}
-            </p>
-            <textarea
-              name="body"
-              rows="5"
-              placeholder="SAY SOMETHING"
-              class="compose-field max-h-(--compose-max) w-full resize-none overflow-y-auto bg-transparent pt-6 text-(length:--row-type) tracking-(--row-track) text-light-900 outline-none dark:text-dark-100"
-            ></textarea>
-          </form>
-
-          <p :if={@scope_stage != :write} class={[heading_cls(), "px-(--list-pad) pt-10"]}>
-            SWIPE A NAME TO WRITE TO THEM
-          </p>
-
-          <.foot form="write-form" icon={(@scope_stage == :write && :check) || :none} label="Send it" />
-        </div>
+             NOTHING REPLACES IT HERE. Saying something in somebody's round is
+             the person's page's job, and the page is held until it is properly
+             designed — a composer parked in the launcher meanwhile would be a
+             door into a room that has not been built. --%>
       </div>
     </div>
     """
@@ -601,8 +571,8 @@ defmodule PeoplemediaWeb.Launcher do
 
         <%!-- THE FORWARD, and the only solid thing in the row. It is the
            reference's check button, flattened: one square that means "do it",
-           the same object whether the room is asking for a name, a code or a
-           letter. What was here before was a full-width band with SCOPE THEM
+           the same object whether the room is asking for a name or a code.
+           What was here before was a full-width band with SCOPE THEM
            written across it — a button as wide as the screen for an act that
            is one press, and nothing at all like the pair it sits beside. --%>
         <button

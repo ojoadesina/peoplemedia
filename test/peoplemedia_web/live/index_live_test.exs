@@ -96,7 +96,7 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     {:ok, _live, html} = live(conn, ~p"/")
     rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
 
-    for glyph <- rows |> String.split(~s(class="letter-glyph)) |> tl() do
+    for glyph <- rows |> String.split(~s(class="capture-glyph)) |> tl() do
       refute glyph |> String.split("</span>") |> hd() =~ "is-lit"
     end
   end
@@ -115,32 +115,29 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     refute html =~ "px-[1.95rem]"
   end
 
-  test "the letter box holds the last letter they sent, and nothing when there is none",
+  test "a row carries no correspondence, because there is none to carry",
        %{conn: conn} do
     {:ok, live, html} = live(conn, ~p"/")
 
-    # THE ROW CARRIES THE BOX AS DATA and always has — the hook reads these on
-    # settle. What is in it is the newest INCOMING letter's kind, because the
-    # box is the one thing on this surface that answers you; a box holding the
-    # thread's newest entry would as often hold your own letter back at you.
-    #
-    # The cast is written so this cannot pass by accident: two of the six
-    # threads end on a letter of THEIRS that is not text.
-    kinds =
-      Regex.scan(~r/data-letter-kind="(\w+)"/, html, capture: :all_but_first) |> List.flatten()
+    # THE ROW USED TO CARRY A LETTER AS DATA — its kind, its media and its body,
+    # on the `<li>`, for the box on the rail to read on settle. All three are
+    # gone with the box and with letters themselves. They are asserted ABSENT
+    # rather than simply deleted from this file because a stale `data-` attribute
+    # is the one kind of dead code nothing complains about: no compiler sees it,
+    # no test fails on it, and it goes on shipping a key nobody sets.
+    for dead <- ~w(data-letter-kind data-media data-body), do: refute(html =~ dead)
 
-    assert "voice" in kinds
-    assert "face" in kinds
+    # WHAT A ROW SAYS INSTEAD IS ITS ROUND, and the cast is written so this
+    # cannot pass by accident: some are round with words in them, some are round
+    # and silent, some are not round at all.
+    assert html =~ ~s(class="frame )
+    assert html =~ ~s(class="word )
 
-    # A THREAD THAT ONLY EVER WENT ONE WAY HAS NOTHING TO SHOW, and neither does
-    # a person you do not hold — a letter is written to a scope, so a stranger's
-    # thread is not empty, it does not exist. Both arrive as "empty", and the
-    # hook draws nothing for it.
-    assert "empty" in kinds
-
+    # AND A STRANGER IS NOT A DIFFERENT SHAPE OF ROW. A letter was written to a
+    # SCOPE, so a stranger could never have one and their half of the list was
+    # built out of five blank keys. A round is something anybody can have gone.
     unscoped = live |> element(~s(button[phx-click="scope_box"])) |> render_click()
-    strangers = Regex.scan(~r/data-letter-kind="(\w+)"/, unscoped, capture: :all_but_first)
-    assert Enum.all?(List.flatten(strangers), &(&1 == "empty"))
+    assert unscoped =~ ~s(class="frame )
 
     # PRESENCE IS READ OFF A REAL AROUND NOW, and both answers are in the cast —
     # `present` used to be hardcoded for everybody, so this assertion passed on a
@@ -173,9 +170,9 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     assert has_element?(live, "#panel")
     assert opened =~ "DAD"
     assert opened =~ "MICHAEL"
-    # The panel names its two views. LETTERS, not RECORD: "record" names the act
-    # of capturing, which a typed letter never went through.
-    assert opened =~ "LETTERS"
+    # The panel names its two views. ROUNDS, because rounds are what is listed —
+    # a round is the block and the words are what is inside one.
+    assert opened =~ "ROUNDS"
     assert opened =~ "LIVE"
     refute opened =~ "RECORD"
 
@@ -185,29 +182,29 @@ defmodule PeoplemediaWeb.IndexLiveTest do
 
   test "the panel is named for what it is, in markup as well as on screen", %{conn: conn} do
     {:ok, live, _html} = live(conn, ~p"/")
-    # A thread with a text letter in it, so the third kind reaches the panel too.
+    # Somebody with a round and words in it, so the rows reach the panel too.
     render_hook(live, "select", %{"index" => 4})
     opened = live |> element(".focus-box") |> render_click()
 
-    # "presence" named the medium, which made a written letter unnameable. The
-    # ids, the classes and the hook say panel now, not just the heading.
-    for id <- ~w(panel panel-letters panel-scroll panel-item panel-when),
+    # "presence" named the medium, and then "letters" named a thing this app no
+    # longer has. The ids, the classes and the hook all say what is actually
+    # under a name: their rounds, and the words in them.
+    for id <- ~w(panel panel-words panel-scroll panel-round panel-item panel-when),
         do: assert(opened =~ id)
 
     assert opened =~ ~s(phx-hook="Panel")
     refute opened =~ "presence-"
     refute opened =~ "PresencePanel"
+    refute opened =~ "letter"
 
-    # The panel's own empty band is the same ellipsis the list's is.
-    assert opened =~ "focus-dot"
-    assert opened =~ "rotate(-45 12 12)"
-
-    # THE FRAME IS HIDDEN BUT NOT REMOVED, and that is load-bearing rather than
-    # incidental. app.css takes it out of sight when the panel opens — it
-    # answers the band, and the band has become a header — but the ELEMENT has
-    # to stay, because hiding a media element does not silence it and only
-    # scopes.ts can tear the media down. Render it conditionally and a voice
-    # goes on playing over an open panel from a box nobody can see or press.
+    # THE STAGE STAYS, EMPTY OF MACHINERY. It was the letter player — a video, an
+    # audio element and a progress bar — and a word has no file to play. What is
+    # left is the band itself: a wash the rows scroll through, which is the one
+    # job it can still honestly do.
+    assert opened =~ ~s(class="stage )
+    refute opened =~ "stage-video"
+    refute opened =~ "stage-audio"
+    refute opened =~ "stage-progress"
   end
 
   test "losing the selection closes the panel with it", %{conn: conn} do
@@ -403,10 +400,4 @@ defmodule PeoplemediaWeb.IndexLiveTest do
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end
-
-  defp boxes_html(live), do: live |> element(".scope-boxes") |> render()
-
-  # How many people the list is actually showing. `scopes-item` is the row and
-  # nothing else wears it, so counting them is counting the list.
-  defp rows_in(html), do: html |> String.split(~s(class="scopes-item)) |> length() |> Kernel.-(1)
 end

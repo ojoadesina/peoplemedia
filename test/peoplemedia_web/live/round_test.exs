@@ -142,35 +142,36 @@ defmodule PeoplemediaWeb.RoundTest do
     # and stands empty until somebody speaks — which reads correctly: here is
     # somebody, and nobody has said anything yet.
     test "and a round with nothing said in it says nothing", %{conn: conn} do
-      {:ok, live, html} = live(conn, ~p"/")
+      {:ok, live, _} = live(conn, ~p"/")
+      settle(live, "BIG BROTHER")
 
-      rows = html |> String.split(~s(class="scopes-item)) |> tl() |> Enum.join()
-      refute rows =~ "THE WITCHERS, FINALLY"
+      # BIG BROTHER IS ROUND AND NOBODY HAS SPOKEN IN IT. The item is ONE block:
+      # no second block, and no stroke joining it to one. It used to draw both
+      # either way and fall back to whatever else it could find, which put a
+      # sentence nobody had said in the most prominent line of the item.
+      item = item_for(live, "BIG BROTHER")
+      assert item =~ ~s(class="frame )
+      refute item =~ ~s(class="word )
 
-      # AND NO BLOCK AT ALL. Nobody in the fixtures has said anything, so not one
-      # item carries a second block or the stroke that joins it to one.
-      refute rows =~ ~s(class="word )
-
-      settle(live, "MUM")
-      refute render_click(live, "toggle_open") =~ "THE WITCHERS, FINALLY"
+      # AND NOT A COUNT EITHER. Nothing was said, so there is nothing to count
+      # and no deck to draw — a badge reading zero is a badge that has never
+      # meant anything.
+      refute item =~ ~s(class="word-flow )
     end
 
-    # THE SLOTS STAY so the letter box, which is anchored to the app's right
-    # edge, does not slide sideways every time somebody with no round passes
-    # under the band.
-    test "and hold nothing, but keep their slot, for somebody merely here", %{conn: conn} do
+    # WHAT WAS SAID IS THE SECOND BLOCK, and the block is only there because
+    # something was said in it.
+    test "and a round with words in it carries them", %{conn: conn} do
       {:ok, live, _} = live(conn, ~p"/")
       settle(live, "DAD")
 
-      # AN EMPTY PLATE HOLDS ITS WASH AND SAYS NOTHING, which is what every empty
-      # thing on this surface does — and it is still drawn, because the band
-      # settles on position and an item that shrank when nothing was happening
-      # would move every item under it.
       item = item_for(live, "DAD")
-      refute item =~ "HAPPY"
-      refute item =~ "THE WITCHERS"
-      refute item =~ ~s(class="word )
-      refute item =~ ~s(data-family=")
+      assert item =~ ~s(class="word )
+      assert item =~ "JUST FINISHED THE MARKING"
+      # THE ARROWS SAY WHOSE VOICES ARE IN IT. Only theirs is, so only the
+      # incoming one is drawn.
+      assert item =~ "Somebody has spoken in this round"
+      refute item =~ "You have spoken in this round"
     end
 
     test "nothing at all for somebody who is not here", %{conn: conn} do
@@ -299,7 +300,10 @@ defmodule PeoplemediaWeb.RoundTest do
       render_submit(live, :round_send, %{})
 
       assert %{number: 2} = Rounds.live(me.id)
-      assert [%{number: 2}, %{number: 1}] = Rounds.history(me.id)
+      # READ AS THEMSELVES. `history/3` filters by audience like every other
+      # round read, and these were made on the PEOPLE tab — private, to the
+      # people this person holds. Your own rounds are always yours to see.
+      assert [%{number: 2}, %{number: 1}] = Rounds.history(me.id, me.id)
     end
 
     # THE AUDIENCE IS THE TAB YOU ARE STANDING ON, never a question. PEOPLE is

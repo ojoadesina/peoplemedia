@@ -3,8 +3,8 @@ defmodule Peoplemedia.Directory do
   The people, the places, and what the list makes of them.
 
   FIXTURE DATA IS DOWN TO ONE THING NOW: the roll of countries and their
-  populations. People, scopes and letters are rows; this file's job is what it
-  always said it was — turning them into what a ROW says, which is a different
+  populations. People, scopes, rounds and words are rows; this file's job is what
+  it always said it was — turning them into what a ROW says, which is a different
   question from what any of the tables hold.
 
   It lives in its own module so a LiveView can be about the SURFACE. That was
@@ -13,12 +13,13 @@ defmodule Peoplemedia.Directory do
   reads it keeps working". The spine has arrived and the promise held: the views
   above never moved.
   """
+  alias Peoplemedia.Clock
   alias Peoplemedia.Presence
-  alias Peoplemedia.Letters
   alias Peoplemedia.People.Person
   alias Peoplemedia.Relationships
   alias Peoplemedia.Rounds
   alias Peoplemedia.Repo
+  alias Peoplemedia.Words
 
   # WORLD COUNTRIES — the LOCATION list. A scroll of places rather than people;
   # what settles in the band is a country, and its box shows how many are there
@@ -36,8 +37,13 @@ defmodule Peoplemedia.Directory do
                 Argentina)
 
   @doc """
-  The people this person holds, each carrying its thread of letters and the
-  one-line SUMMARY the row reads.
+  The people this person holds, each carrying what their row says.
+
+  WHAT A ROW SAYS IS A ROUND NOW, not a correspondence. It used to fetch a thread
+  of letters per person and boil it down to a one-line summary — a query per name
+  to fill a column only one of them is ever read through. A round and its words
+  come back for the whole list in one pass, and what is under a name comes back
+  when that name is opened; see `page_of/2`.
 
   A VISITOR HOLDS NOBODY. Not an error and not an empty page — the surface has
   two lists, and someone without a passport simply has everything in the other
@@ -50,8 +56,6 @@ defmodule Peoplemedia.Directory do
     standing = standing_for(Enum.map(held, fn {_scope, person} -> person.id end), owner_id)
 
     Enum.map(held, fn {scope, person} ->
-      letters = Letters.thread_of(scope.relationship_id, owner_id)
-
       %{
         id: person.id,
         # The LABEL is the owner's word for them; the NAME is their own. The row
@@ -59,11 +63,8 @@ defmodule Peoplemedia.Directory do
         # because the two live in different tables.
         label: String.upcase(scope.name),
         name: String.upcase(person.name),
-        country: person.country,
-        letters: letters,
-        letter: summarise(letters)
+        country: person.country
       }
-      |> Map.merge(letterbox(letters))
       |> Map.merge(standing[person.id])
     end)
     |> by_round()
@@ -72,19 +73,12 @@ defmodule Peoplemedia.Directory do
   @doc """
   YOU, as the panel reads a person — the subject of your own page.
 
-  IT IS NOT A LIST ROW, which is why it carries less than one. A row needs a
-  frame, a media, a body and a one-line summary because it has to say the state
-  of a correspondence in three marks while scrolling past; a panel subject only
-  needs a name and the letters under it. Giving it the row's keys as well would
-  be furnishing a place nothing looks.
+  IT IS NOT A LIST ROW, which is why it carries less than one: a panel subject
+  needs a name, and what goes under it is read when the page opens rather than
+  carried on the row — see `page_of/2`.
 
   `label` IS NIL BECAUSE YOU DO NOT CALL YOURSELF ANYTHING. A label is the word
   you gave somebody, and the header falls back to the name — which is your own.
-
-  WHAT IS UNDER IT IS YOUR LETTERHEADS, not everything you have ever written.
-  The letters you sent to one person live in that person's panel, where the
-  answers to them are; this page is the other kind — the things you said out
-  loud, which have nowhere else to be read back.
   """
   def me(nil), do: nil
 
@@ -94,8 +88,7 @@ defmodule Peoplemedia.Directory do
       self: true,
       label: nil,
       name: String.upcase(person.name),
-      country: person.country,
-      letters: Letters.broadcasts_by(person.id)
+      country: person.country
     }
     # YOUR OWN ROUND READS BACK TO YOU, and it is the only place you can check
     # what you are telling everybody else. It goes through the same filter as
@@ -136,31 +129,52 @@ defmodule Peoplemedia.Directory do
     |> by_round()
   end
 
+  @doc """
+  A PERSON'S PAGE: their rounds, newest first, each carrying what was said in it.
+
+  READ WHEN A PAGE OPENS, NOT WITH THE LIST. It is one person's worth of history
+  and the list is a country's worth of people — hanging it off every row would be
+  a query per name to fill a column only one of them is ever looked at through.
+  That is exactly what the thread of letters on every row used to be.
+
+  EXPIRED ROUNDS ARE IN IT and that is the whole point of keeping them: expiry
+  stopped a round SURFACING somebody on somebody else's list, which is a different
+  question from whether it happened. Law 4.
+
+  WHAT IT DOES NOT DO YET is interleave your rounds with theirs. The guide asks
+  for both sides in one place and the page is held until it is properly designed;
+  what is here is the half that has an answer — theirs, as they may be seen.
+  """
+  def page_of(nil, _viewer_id), do: []
+
+  def page_of(person_id, viewer_id) do
+    rounds = Rounds.history(person_id, viewer_id)
+    words = Words.threads_for(Enum.map(rounds, & &1.id), viewer_id)
+
+    Enum.map(rounds, fn round ->
+      Map.merge(round, %{words: Map.get(words, round.id, []), when: Clock.since(round.at)})
+    end)
+  end
+
   defp phases_for(owner_id) do
     %{incoming: incoming, outgoing: outgoing} = Relationships.pending_scopes_for(owner_id)
 
     for e <- incoming ++ outgoing, e.other, into: %{}, do: {e.other.id, e.phase}
   end
 
-  # A stranger has no label, because a label is a thing you gave someone, and an
-  # EMPTY thread rather than no thread at all.
+  # A stranger has no label, because a label is a thing you gave someone.
   #
-  # That distinction cost a crash. `letters` was simply absent here, so anything
-  # that opened a stranger — the band, the panel — went looking for a key that
-  # was not there and died. "No letters" and "not a thing that can have letters"
-  # are different claims, and only the first one is true of a person: a stranger
-  # is somebody you have not written to yet, not somebody unwritable.
+  # AND NOTHING ELSE SEPARATES THEM FROM A ROW YOU HOLD. It used to carry five
+  # more keys — an empty thread, a null summary, a blank frame — because the row
+  # was built out of a correspondence and a stranger has none, and any of them
+  # missing crashed whatever opened them. A row is built out of a round now, and
+  # a round is something a stranger can perfectly well have gone.
   defp stranger(%Person{} = person, standing) do
     %{
       id: person.id,
       label: nil,
       name: String.upcase(person.name),
-      country: person.country,
-      frame: "empty",
-      media: nil,
-      body: nil,
-      letters: [],
-      letter: nil
+      country: person.country
     }
     |> Map.merge(standing[person.id])
   end
@@ -187,15 +201,13 @@ defmodule Peoplemedia.Directory do
     rounds = Rounds.live_for(ids, viewer_id)
     last = Rounds.last_round_for(ids, viewer_id)
 
-    # ONE QUERY FOR THE WHOLE LIST, like every other answer here. A status is a
-    # column on the person, so it costs a single select rather than a join.
     # WHAT WAS SAID IN THEM. Asked for every live round at once, and only for the
     # live ones: an expired round is off the surface, so its words have nothing
     # to be drawn on.
-    words = Peoplemedia.Words.for_rounds(Enum.map(Map.values(rounds), & &1.id), viewer_id)
+    words = Words.for_rounds(Enum.map(Map.values(rounds), & &1.id), viewer_id)
 
-    # STATUS AND CAPTURE COME OFF THE SAME PASS, because they are both columns on
-    # the person and asking twice would be two selects for one row.
+    # ONE SELECT FOR THE WHOLE LIST, like every other answer here. The capture is
+    # a pair of columns on the person, so it costs a select rather than a join.
     people =
       Person
       |> Repo.all()
@@ -206,14 +218,10 @@ defmodule Peoplemedia.Directory do
       {id,
        %{
          state: (MapSet.member?(here, id) && "present") || "absent",
-         # WHAT THEY ARE UP TO WHEN THEY ARE NOT ROUND — standing, unexpiring,
-         # and not an invitation. It rides beside the round rather than being
-         # folded into it: a caller that could not tell them apart would show a
-         # status where a round belongs the first time somebody went quiet.
-         status: people[id] && people[id].status,
-         # THE FRAME'S OWN TWO, and they beat anything a letter carries: a capture
-         # is a fact about them, and the letterbox below is a fact about the two
-         # of you.
+         # THE FRAME'S OWN TWO. A capture is a fact about the PERSON, which is why
+         # it is read off their row rather than off anything that has passed
+         # between you — the frame drew the last letter somebody had sent you
+         # once, and went blank for everybody you had never written to.
          capture_kind: people[id] && people[id].capture_kind,
          capture: people[id] && people[id].capture,
          # THE WORDS RIDE WITH THE ROUND THEY ARE IN, so a caller that has one has
@@ -243,30 +251,6 @@ defmodule Peoplemedia.Directory do
   # underneath — `Enum.sort_by/2` is stable, which is what keeps that true.
   defp round_key(%{last_round: seq}) when is_integer(seq), do: {0, -seq}
   defp round_key(_never), do: {1, 0}
-
-  # ── THE LETTER BOX ──────────────────────────────────────────────────────────
-  # What the bracketed box beside the band holds: THE LAST LETTER THEY SENT YOU,
-  # and nothing else.
-  #
-  # NOT THE LAST LETTER IN THE THREAD. A thread's newest entry is as often your
-  # own, and a box that showed you your own letter back would be a mirror where
-  # an answer should be — the box is the one place on this surface that is a
-  # reply rather than a control.
-  #
-  # AND NOT SHOWN AT ALL when there is none. That covers two cases with one
-  # rule: a correspondence that has only ever gone one way, and a person you do
-  # not hold — a stranger has no thread to read, because a letter is written to
-  # a SCOPE, so "no authority" and "no letters" arrive here as the same empty
-  # list. There is no state in which this box shows a letter you may not see.
-  # THE WORDS COME WITH IT. A letter box that could only hold the two kinds
-  # that play was a box for recordings, and a real one takes letters — which,
-  # for now, is the only kind anybody can actually write.
-  defp letterbox(letters) do
-    case Enum.find(letters, &(&1.from == "them")) do
-      nil -> %{frame: "empty", media: nil, body: nil}
-      last -> %{frame: last.kind, media: last.media, body: last.body}
-    end
-  end
 
   # A place with nobody in it. Not a missing answer — a real count of zero.
   @none %{scopes: 0, unscopes: 0}
@@ -350,55 +334,4 @@ defmodule Peoplemedia.Directory do
 
   defp add(%{scopes: a, unscopes: b}, %{scopes: c, unscopes: d}),
     do: %{scopes: a + c, unscopes: b + d}
-
-  # ── WHAT A ROW SAYS ABOUT A THREAD ──────────────────────────────────────────
-  # The list row is not a letter, it is the STATE OF THE CORRESPONDENCE, said in
-  # three marks. Everything it shows is derived from the thread rather than
-  # stored beside it, so a row can never disagree with the letters it stands for.
-  #
-  #   THE KIND MARK, on the left, is the LATEST letter's kind — the shape of the
-  #   last thing that happened here. It LIGHTS when that letter came from them
-  #   and you have not opened it: colour on this surface means "look here", and
-  #   an unopened letter is the only thing on a row that is asking for you.
-  #   It only ever lights for an incoming letter — lighting the mark on one of
-  #   YOUR letters would say you had not read your own.
-  #
-  #   THE TWO ARROWS, on the right, are the correspondence's two directions,
-  #   and each answers a different question:
-  #
-  #     ↓ INCOMING — has this person ever written? Shown if they have, lit if
-  #       their newest letter is still unopened by you, faded once you read it.
-  #
-  #     ↑ OUTGOING — is the last word yours? Shown ONLY while the newest letter
-  #       in the thread is one of yours, lit once they have opened it, faded
-  #       while they have not. It EXPIRES the moment they write back, which is
-  #       the point of the rule: an arrow still up for a letter you sent last
-  #       week would read as a reply that has not landed, when in truth the
-  #       conversation has moved on past it.
-  #
-  # So both arrows showing means "you had the last word and it arrived"; ↓ alone
-  # means the ball is theirs to have thrown and yours to catch; neither means
-  # nothing has ever passed between you.
-  defp summarise([]), do: nil
-
-  defp summarise([latest | _] = letters) do
-    %{
-      kind: latest.kind,
-      when: latest.when,
-      unread: latest.from == "them" and not latest.read,
-      # HOW MANY HAVE COME IN AND NOT BEEN OPENED. The marks say THAT something
-      # is waiting; this says how much, which is the one number a row is allowed
-      # to carry — it counts a thing you have not done rather than a thing anybody
-      # has achieved, so Law 2 does not reach it.
-      waiting: Enum.count(letters, &(&1.from == "them" and not &1.read)),
-      incoming: opened(Enum.find(letters, &(&1.from == "them"))),
-      outgoing: if(latest.from == "you", do: opened(latest))
-    }
-  end
-
-  # nil means "there is no such letter, so draw no arrow" — which is a different
-  # answer from either :read or :unread and must not collapse into them.
-  defp opened(nil), do: nil
-  defp opened(%{read: true}), do: :read
-  defp opened(%{read: false}), do: :unread
 end

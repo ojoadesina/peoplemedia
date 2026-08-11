@@ -481,8 +481,8 @@ defmodule PeoplemediaWeb.PassportLive.Panel do
             {(@person.around_hidden && "HIDDEN — NOBODY SEES YOU HERE") || "SHOWING WHEN YOU ARE HERE"}
           </button>
           <p class={hint_cls()}>
-            Hidden means nobody sees that you are around, or what you are doing. Your letters
-            still arrive.
+            Hidden means nobody sees that you are around, or what you are doing. Words said
+            to you still arrive.
           </p>
         </div>
 

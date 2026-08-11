@@ -57,8 +57,8 @@ defmodule Peoplemedia.Notifications do
     do: Phoenix.PubSub.subscribe(Peoplemedia.PubSub, @surface)
 
   # A DIFFERENT WORD FROM `:stir`, and the difference is who it is about.
-  # `:stir` says something happened to YOU — a handshake answered, a letter
-  # arrived — and a surface that sat on one of those would be withholding your
+  # `:stir` says something happened to YOU — a handshake answered, a round begun
+  # with you — and a surface that sat on one of those would be withholding your
   # own business from you. This says somebody ELSE moved, which is news the
   # reader did not ask for and can be brought in gently, or held until they ask.
   def stir_all,

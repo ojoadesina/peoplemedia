@@ -4,7 +4,7 @@ defmodule Peoplemedia.People do
 
   This is deliberately thin. Reading people for the LIST is `Peoplemedia.Directory`'s
   job, because a list row is a person seen THROUGH a scope — with the label you
-  gave them and the letters between you — and that is a different question from
+  gave them and the rounds between you — and that is a different question from
   "who is this". This context answers the second one.
   """
   import Ecto.Query, warn: false

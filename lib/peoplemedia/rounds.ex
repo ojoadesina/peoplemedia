@@ -136,39 +136,25 @@ defmodule Peoplemedia.Rounds do
 
   def live_for(person_ids, viewer_id) do
     at = now()
-    # WHO HAS SCOPED THE VIEWER. A private round with no target goes to the
-    # people its creator holds, so whether you may see one is a fact about THEIR
-    # scopes: they scoped you, so you are in the audience. One small query rather
-    # than a correlated subquery per row.
-    holders = viewer_id |> Relationships.holders_of() |> MapSet.to_list()
 
-    Repo.all(
-      from(r in Round,
-        join: p in Person,
-        on: p.id == r.person_id,
-        where: r.person_id in ^person_ids and r.expires_at > ^at and p.around_hidden == false,
-        # ── WHO MAY SEE IT ────────────────────────────────────────────────────
-        # THIS WAS MISSING ENTIRELY, and the surface was the wrong place to
-        # notice: a private round rendered exactly like a public one, so it
-        # looked correct while being shown to strangers. Audience is a fact
-        # about the ROW and it belongs in the read, where no caller can skip it.
-        where:
-          r.audience == "public" or
-            r.person_id == ^to_id(viewer_id) or
-            r.target_id == ^to_id(viewer_id) or
-            (r.audience == "private" and is_nil(r.target_id) and r.person_id in ^holders),
-        order_by: [asc: r.person_id, desc: r.inserted_at, desc: r.id],
-        distinct: r.person_id,
-        select: r
-      )
+    from(r in Round,
+      join: p in Person,
+      on: p.id == r.person_id,
+      where: r.person_id in ^person_ids and r.expires_at > ^at and p.around_hidden == false,
+      order_by: [asc: r.person_id, desc: r.inserted_at, desc: r.id],
+      distinct: r.person_id,
+      select: r
     )
+    # ── WHO MAY SEE IT ──────────────────────────────────────────────────────
+    # THIS WAS MISSING ENTIRELY ONCE, and the surface was the wrong place to
+    # notice: a private round rendered exactly like a public one, so it looked
+    # correct while being shown to strangers. Audience is a fact about the ROW
+    # and it belongs in the read, where no caller can skip it.
+    |> visible_to(viewer_id)
+    |> Repo.all()
     |> Map.new(&{&1.person_id, read(&1)})
   end
 
-  # A VISITOR HAS NO ID, and comparing a column to nil in SQL is never true —
-  # which is the honest answer here: somebody with no passport is in nobody's
-  # private audience and is not the target of anything. -1 makes that explicit
-  # rather than relying on nil's behaviour in a pinned comparison.
   defp to_id(nil), do: -1
   defp to_id(id), do: id
 
@@ -196,19 +182,13 @@ defmodule Peoplemedia.Rounds do
     # creator to the top of a STRANGER'S list. They could not see what it said
     # and did not need to — being at the front is the claim, and the claim was
     # visible. Position is content.
-    holders = viewer_id |> Relationships.holders_of() |> MapSet.to_list()
-    me = to_id(viewer_id)
-
-    Repo.all(
-      from(r in Round,
-        where: r.person_id in ^person_ids,
-        where:
-          r.audience == "public" or r.person_id == ^me or r.target_id == ^me or
-            (r.audience == "private" and is_nil(r.target_id) and r.person_id in ^holders),
-        group_by: r.person_id,
-        select: {r.person_id, max(r.id)}
-      )
+    from(r in Round,
+      where: r.person_id in ^person_ids,
+      group_by: r.person_id,
+      select: {r.person_id, max(r.id)}
     )
+    |> visible_to(viewer_id)
+    |> Repo.all()
     |> Map.new()
   end
 
@@ -219,15 +199,40 @@ defmodule Peoplemedia.Rounds do
   them: expiry stopped them SURFACING the person on somebody else's list, which
   is a different question from whether they happened.
   """
-  def history(person_id, limit \\ 30) do
-    Repo.all(
-      from(r in Round,
-        where: r.person_id == ^person_id,
-        order_by: [desc: r.inserted_at, desc: r.id],
-        limit: ^limit
-      )
+  def history(person_id, viewer_id \\ nil, limit \\ 30) do
+    from(r in Round,
+      where: r.person_id == ^person_id,
+      order_by: [desc: r.inserted_at, desc: r.id],
+      limit: ^limit
     )
+    |> visible_to(viewer_id)
+    |> Repo.all()
     |> Enum.map(&read/1)
+  end
+
+  # ── WHO MAY SEE A ROUND ─────────────────────────────────────────────────────
+  # ONE CLAUSE, WRITTEN ONCE, AND EVERY READ COMPOSES IT. It was copied out three
+  # times, which is three chances for the fourth read to be written without it —
+  # and a read without it does not fail, it leaks: a private round comes back
+  # looking exactly like a public one. `history/3` was that fourth read.
+  #
+  # A VISITOR HAS NO ID, and comparing a column to nil in SQL is never true —
+  # which is the honest answer here: somebody with no passport is in nobody's
+  # private audience and is not the target of anything. -1 makes that explicit
+  # rather than relying on nil's behaviour in a pinned comparison.
+  defp visible_to(query, viewer_id) do
+    # WHO HAS SCOPED THE VIEWER. A private round with no target goes to the
+    # people its creator holds, so whether you may see one is a fact about THEIR
+    # scopes: they scoped you, so you are in the audience. One small query rather
+    # than a correlated subquery per row.
+    holders = viewer_id |> Relationships.holders_of() |> MapSet.to_list()
+    me = to_id(viewer_id)
+
+    from(r in query,
+      where:
+        r.audience == "public" or r.person_id == ^me or r.target_id == ^me or
+          (r.audience == "private" and is_nil(r.target_id) and r.person_id in ^holders)
+    )
   end
 
   @doc "One round by id, read the way a surface wants it, or nil."

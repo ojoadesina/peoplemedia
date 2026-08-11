@@ -250,7 +250,7 @@ html[data-theme="dark"] {
 
 /* ── THE MARK ──────────────────────────────────────────────────────────────────
    TWO SQUARES, which is what this surface already means by "a face":
-   letter_glyph draws a face as two rectangles and a voice as one, with the
+   capture_glyph draws a face as two rectangles and a voice as one, with the
    mouth exactly as wide as the eyes' span. The mark is that same glyph at mark
    scale, cropped to its own bounds so it fills the box.
 
@@ -470,8 +470,8 @@ html[data-theme="dark"] {
 
    The two percentages differ because the ramps do: 12% of the primary reads as
    a soft warm line on a near-white page, and needs a little more weight to read
-   at all on black. Same pattern as --rg-absent and .stage-progress, which are
-   the other two translucent fills on this surface.
+   at all on black. Same pattern as --rg-absent, the other translucent fill on
+   this surface.
 
    --rule-ink is a variable rather than a literal so the contact sheet can show
    both treatments side by side without a second copy of this geometry, and the
@@ -670,9 +670,9 @@ html[data-theme="dark"] {
   --ax: 18px;
   --ay: 18px;
 }
-/* The letters panel's box is the focus-box's twin, and wears its arms — the two
-   boxes are now within half a row of each other in height, so giving them
-   different corners would be a difference with nothing behind it. */
+/* THE PANEL'S BAND is the focus-box's twin, and wears its arms — the two boxes
+   are now within half a row of each other in height, so giving them different
+   corners would be a difference with nothing behind it. */
 .stage::before {
   --ax: 24px;
   --ay: 18px;
@@ -912,7 +912,7 @@ html[data-theme="dark"] {
 
    STILL ROUND, and that is not a lapse. Every corner here is square; this is the
    one shape in the vocabulary that is neither a rectangle nor made of them, so
-   it can never be mistaken for a face, a voice, a letter or the mark — which is
+   it can never be mistaken for a face, a voice, a still or the mark — which is
    exactly what an empty band needs to say. */
 .focus-dot {
   width: 0.5em;
@@ -1353,95 +1353,10 @@ html:not([data-theme]) .presence-row .stream-name {
   }
 }
 
-/* THE MOOD'S OWN COLOUR, and the only one in the app that means only itself.
-   The word keeps the ordinary ink; the WASH carries the hue, at a strength that
-   can never outshout an unread mark.
-
-   KEYED ON THE FAMILY, NOT THE MOOD. Forty-eight selectors would be forty-eight
-   chances for one of them to go stale the day a word is added — and the family
-   is where the colour actually lives. */
-.mood-box[data-family="joy"],
-.panel-around[data-family="joy"],
-.mood-word[data-family="joy"] {
-  --mood: var(--color-mood-joy);
-}
-.mood-box[data-family="calm"],
-.panel-around[data-family="calm"],
-.mood-word[data-family="calm"] {
-  --mood: var(--color-mood-calm);
-}
-.mood-box[data-family="love"],
-.panel-around[data-family="love"],
-.mood-word[data-family="love"] {
-  --mood: var(--color-mood-love);
-}
-.mood-box[data-family="anger"],
-.panel-around[data-family="anger"],
-.mood-word[data-family="anger"] {
-  --mood: var(--color-mood-anger);
-}
-.mood-box[data-family="sorrow"],
-.panel-around[data-family="sorrow"],
-.mood-word[data-family="sorrow"] {
-  --mood: var(--color-mood-sorrow);
-}
-.mood-box[data-family="flat"],
-.panel-around[data-family="flat"],
-.mood-word[data-family="flat"] {
-  --mood: var(--color-mood-flat);
-}
-.mood-box[data-family="fear"],
-.panel-around[data-family="fear"],
-.mood-word[data-family="fear"] {
-  --mood: var(--color-mood-fear);
-}
-/* MIXED, NOT LAID OVER. These sit on the page rather than over the list, so an
-   alpha wash would be blending against a background that never changes —
-   compositing it once is the same colour and none of the transparency. */
-.mood-box[data-family],
-.panel-around[data-family],
-.mood-word[data-family] {
-  background-color: color-mix(in srgb, var(--mood) 18%, var(--color-light-50));
-}
-[data-theme="dark"] .mood-box[data-family],
-[data-theme="dark"] .panel-around[data-family],
-[data-theme="dark"] .mood-word[data-family] {
-  background-color: color-mix(in srgb, var(--mood) 22%, var(--color-dark-950));
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .mood-box[data-family],
-  html:not([data-theme]) .panel-around[data-family],
-  html:not([data-theme]) .mood-word[data-family] {
-    background-color: color-mix(in srgb, var(--mood) 22%, var(--color-dark-950));
-  }
-}
-/* A CHOSEN WORD TAKES ITS FAMILY AT FULL BREADTH. Same hue, more of it — the
-   difference between "this is the anger row" and "this is the one I picked"
-   without reaching for a second colour. */
-.mood-word[data-family].is-picked {
-  background-color: color-mix(in srgb, var(--mood) 42%, var(--color-light-50));
-}
-[data-theme="dark"] .mood-word[data-family].is-picked {
-  background-color: color-mix(in srgb, var(--mood) 46%, var(--color-dark-950));
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .mood-word[data-family].is-picked {
-    background-color: color-mix(in srgb, var(--mood) 46%, var(--color-dark-950));
-  }
-}
-
-/* AND NOT AT ALL WHEN THERE IS NOTHING IN IT. `is-empty` means the settled
-   person has never written to you — either because the correspondence has only
-   ever gone one way, or because you do not hold them and so there is no
-   correspondence to read. An empty box in the cluster is a promise of an answer
-   that is not coming; a letter box with no letter should not be on the wall.
-   `:not(.is-expanded)` so it cannot vanish under a finger that just opened it. */
-
 /* ── THE PANEL LIST ───────────────────────────────────────────────────────────
    The relationship list's mechanism, one level in — a band a third down, rows
-   scrolling through it — but the chosen box does the frame's job itself. There
-   is no frame off to the side: the STAGE sits at the band, behind the rows, and
-   the chosen row's own name reads over it. */
+   scrolling through it, and whichever settles there is chosen. The band sits
+   BEHIND the rows so the chosen word reads over it. */
 .panel-item {
   transition:
     height 320ms ease-out,
@@ -1451,44 +1366,31 @@ html:not([data-theme]) .presence-row .stream-name {
   color: var(--rg-accent);
 }
 
-/* ── QUIET IS FOR THE MARKS WITH NOTHING TO SAY ───────────────────────────────
-   A filled rectangle is the heaviest shape this surface draws, and the list
-   puts one at the head of every row, so the column wants holding down. But it
-   is NOT a uniform column: a handful of those marks sit on rows with an
-   unopened letter, and those are the only thing on this page asking anything of
-   you. Turning the whole column down flattens exactly the difference the marks
-   exist to draw — and terracotta held at 60% is a terracotta that cannot then
-   get any louder.
+/* ── A ROUND THAT IS STILL UP ─────────────────────────────────────────────────
+   ONE DOT, BREATHING, and it is the same object the band uses to say the list is
+   live — round, sized in em so it tracks the heading's type, and moving rather
+   than merely coloured. The eye catches motion; a static dot in a warm colour is
+   a bullet point.
 
-   So `is-lit` stays at full strength and everything else is soft. Opacity
-   rather than a paler colour for the soft ones, because a mark has to hold over
-   three different things — the page, the band's wash, and a face playing in the
-   panel's box — and only opacity means the same on all three.
-
-   THE BAND GIVES IT BACK to the rest: the row you are on states its kind
-   plainly while the ones you are not stay out of the way.
-
-   THE FLOW ARROWS ARE NOT LIFTED WITH IT. They are already at their own two
-   strengths, and the lit one is a STATE rather than a highlight: brightening it
-   on the focused row would read as the letter having just changed. */
-.letter-glyph {
-  opacity: 0.55;
-  transition: opacity 200ms ease-out;
+   NOTHING MARKS AN EXPIRED ONE. Law 1: absence is silent. A round that has run
+   out is not a failure state and does not get a word for having stopped — it is
+   simply a round with no lamp on it. */
+.panel-live {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background-color: var(--color-primary-600);
+  animation: panel-live-breathe 2.6s ease-in-out infinite;
 }
-.letter-glyph.is-lit,
-.scopes-item.is-focused .letter-glyph,
-.panel-item.is-focused .letter-glyph {
-  opacity: 1;
+[data-theme="dark"] .panel-live {
+  background-color: var(--color-primary-500);
 }
-
-/* THE KIND MARK BREATHES while its letter plays — voice or face alike. The
-   hook puts is-playing on the row for exactly as long as the media runs, so the
-   mark says "playing now" in the list itself, and holds still the moment it
-   pauses or ends. */
-.panel-item.is-playing .letter-glyph {
-  animation: glyph-pulse 1.3s ease-in-out infinite;
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .panel-live {
+    background-color: var(--color-primary-500);
+  }
 }
-@keyframes glyph-pulse {
+@keyframes panel-live-breathe {
   0%,
   100% {
     opacity: 1;
@@ -1498,109 +1400,39 @@ html:not([data-theme]) .presence-row .stream-name {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .panel-item.is-playing .letter-glyph {
+  .panel-live {
     animation: none;
   }
 }
 
-/* COMMIT expands the chosen row IN THE FLOW — it grows to the box's full height
-   and the rows below it move down to make room, an accordion rather than a card
-   lifted over its neighbours. The name rides at the top of the opened row so the
-   picture fills the space beneath it rather than being covered by it. */
-.panel-item.is-expanded {
-  height: 16rem;
-  align-items: flex-start;
-  padding-top: 1.55rem;
+/* ── QUIET IS FOR THE MARKS WITH NOTHING TO SAY ───────────────────────────────
+   A filled rectangle is the heaviest shape this surface draws, and the list
+   puts one at the head of every row, so the column wants holding down. But it
+   is NOT a uniform column: a handful of those marks sit on rows with something
+   unseen in them, and those are the only thing on this page asking anything of
+   you. Turning the whole column down flattens exactly the difference the marks
+   exist to draw — and terracotta held at 60% is a terracotta that cannot then
+   get any louder.
+
+   So `is-lit` stays at full strength and everything else is soft. Opacity
+   rather than a paler colour for the soft ones, because a mark has to hold over
+   three different things — the page, the band's wash, and a capture showing in
+   the frame — and only opacity means the same on all three.
+
+   THE BAND GIVES IT BACK to the rest: the row you are on states its kind
+   plainly while the ones you are not stay out of the way.
+
+   THE FLOW ARROWS ARE NOT LIFTED WITH IT. They are already at their own two
+   strengths, and the lit one is a STATE rather than a highlight: brightening it
+   on the focused row would read as the round having just changed. */
+.capture-glyph {
+  opacity: 0.55;
+  transition: opacity 200ms ease-out;
 }
-
-/* THE BOX is the relationship list's own focus-box — its wash and brackets
-   come from .focus-box, so it stands at the band ALWAYS, not only on selection.
-   What lands in it is what changes: empty, it holds the placeholder; a voice
-   breathes it; a face fills it. Behind the rows (z-0 to their z-10) so the
-   chosen row's name reads over whatever is playing. */
-
-/* THE PLACEHOLDER holds the EMPTY band — the "--" — until a presence is loaded
-   (is-voice / is-face) or the list starts moving. Gated on the kind rather than
-   on playing, so a presence that has finished its clip still owns the band
-   instead of the placeholder flashing back over it. */
-.stage:not(.is-voice):not(.is-face):not(.is-scrolling) .focus-empty {
+.capture-glyph.is-lit,
+.scopes-item.is-focused .capture-glyph,
+.panel-item.is-focused .capture-glyph {
   opacity: 1;
-}
-
-.stage-fill {
-  opacity: 0;
-}
-
-/* THE PROGRESS IS THE PLAY EFFECT for a voice: a layer that grows from the left
-   across the box, its width the fraction the hook reports as played, so the box
-   fills like a bar instead of breathing. It is a translucent wash of the box's
-   OWN colour — a deeper terracotta over the pale one — so the played side reads
-   as the box filling with itself rather than being blacked out. It shows once
-   the voice is committed and holds where it paused. */
-.stage-progress {
-  width: var(--played, 0%);
-  background-color: color-mix(in oklab, var(--color-primary-600) 8.5%, transparent);
-  opacity: 0;
-}
-[data-theme="dark"] .stage-progress {
-  background-color: color-mix(in oklab, var(--color-primary-500) 8.5%, transparent);
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .stage-progress {
-    background-color: color-mix(in oklab, var(--color-primary-500) 8.5%, transparent);
-  }
-}
-.stage.is-voice.is-live .stage-progress {
-  opacity: 1;
-}
-
-/* FACE shows in the box. The name rides on top of a picture whose colours we do
-   not control — a bright sky would swallow terracotta text — so legibility is
-   made independent of the footage two ways at once: a scrim weighted DARK at
-   the top, where the name sits at either size, fading so the face below stays
-   clear; and a shadow on the words themselves, which reads against any shade
-   the video happens to land on. */
-.stage-video {
-  opacity: 0;
-}
-.stage.is-face .stage-video {
-  opacity: 1;
-}
-.stage.is-face .stage-fill {
-  opacity: 1;
-  background: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0.62) 0%,
-    rgb(0 0 0 / 0.32) 42%,
-    rgb(0 0 0 / 0.22) 100%
-  );
-}
-.panel-item[data-kind="face"].is-focused span {
-  text-shadow:
-    0 1px 3px rgb(0 0 0 / 0.9),
-    0 0 12px rgb(0 0 0 / 0.7);
-}
-/* The mark is drawn, not set, so it takes a drop-shadow rather than a text one
-   to hold against the picture. */
-.panel-item[data-kind="face"].is-focused .letter-glyph {
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.9));
-}
-
-/* COMMIT grows the box to full height to match the row that opened beneath it.
-   The box is top-anchored (translated up by a constant half-row, not by half
-   of ITSELF) so it grows DOWNWARD in step with the row rather than reopening
-   from the centre and drifting off the line the row is holding. */
-.stage {
-  transition: height 320ms ease-out;
-}
-.stage.is-live.is-face {
-  height: 16rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stage {
-    transition: none;
-  }
 }
 
 /* Hide the scrollbar — the band is the only cursor this list needs, and a
@@ -1887,16 +1719,6 @@ textarea {
    pinned to the left of an empty page reads as a fragment of something wider.
    It is also what the reference did, and the reason its rooms feel like places
    rather than like the app with things hidden. */
-/* THE ROOM IS NOT SHARING THE RAIL WITH A LIST, so its boxes are not bound by
-   the page's narrow slots. On a phone the page gives the doing box 8rem because
-   three of them plus a letter box have to fit beside the band; in here there are
-   two, and `heartbroken` has to fit whole — a truncated feeling is a different
-   feeling. */
-@media (max-width: 40rem) {
-  .launcher-body {
-    --mood-w: 9.5rem;
-  }
-}
 .launcher-body {
   display: flex;
   flex-direction: column;
@@ -1920,79 +1742,6 @@ textarea {
 }
 .launcher-body[hidden] {
   display: none;
-}
-
-/* ── THE LETTER'S OWN FIELD ───────────────────────────────────────────────────
-   IT TAKES THE WHOLE ROOM BEFORE IT TAKES A SCROLLBAR. `field-sizing: content`
-   grows it line by line as you write; the cap is what the room actually has
-   left once its head, its title and the two rows of buttons at the foot are
-   accounted for, so the field runs out of page at exactly the moment the page
-   runs out — not a screen early, which is what a fixed `rows` does.
-
-   NO SCROLLBAR EITHER WAY. Every scroller on this surface hides one: the list,
-   the panel, the rows. A gutter appearing down the side of your own sentence
-   the moment it gets long is the interface reacting to the letter. */
-.doing-field,
-.compose-field {
-  field-sizing: content;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.doing-field::-webkit-scrollbar,
-.compose-field::-webkit-scrollbar {
-  display: none;
-}
-
-/* THE CHECK IS NOT OFFERED UNTIL THERE IS SOMETHING TO SEND. An empty one was
-   pressable, and pressing it got you a refusal — the app inviting an act and
-   then declining it, the same fault the row's own SCOPE word was fixed for.
-
-   AND "SOMETHING" IS ANY OF THE THREE. The room asks how you are, what you are
-   doing and what you want to say, and each of those alone is a complete act — a
-   mood on its own is worth saying. So the check only goes dark when the letter
-   is empty AND nothing has been chosen. It read the field alone at first, which
-   meant a mood picked with no letter behind it left the way out greyed and the
-   quieter half of the room unreachable.
-
-   IT WEARS THE DISABLED LOOK RATHER THAN THE ATTRIBUTE, because `disabled` is
-   the server's word and the server cannot see the field: knowing would cost a
-   round trip and a full re-render on every keystroke, to answer a question the
-   browser already has in front of it.
-
-   THE SERVER STILL CHECKS. This governs the button, not the form — a keyboard
-   submit reaches `write_letter` either way, and it refuses an empty room there
-   and says so. This is the offer being honest, not the rule. */
-/* THE CHOICES ARE HIDDEN FIELDS NOW, not radios. They were radios when the room
-   asked its three questions as three lists; a box that opens onto its own grid
-   makes the choice with a press and the server holds it, so what reaches the
-   form is a value rather than a checked control — and `:checked` stopped
-   matching anything at all, which left the check greyed out over a perfectly
-   good mood. An empty value is the honest test. */
-[data-room="write"]:has(.compose-field:placeholder-shown):not(
-    :has([name="mood"]:not([value=""]), [name="activity"]:not([value=""]))
-  )
-  .launcher-foot
-  button[type="submit"] {
-  cursor: not-allowed;
-  opacity: 0.4;
-  pointer-events: none;
-}
-/* A browser without field-sizing keeps the `rows` floor and simply does not
-   grow — the letter is still writable, which is the only thing that must hold. */
-/* THE RESERVE IS THE ROOM'S OWN, NOT A GUESS. `--head-top` is what sits above
-   the room; the rest is the head, the title, the address line, and the 11rem of
-   clearance `.launcher-body` already keeps for the two stacked rows of buttons
-   at the foot. Under-reserving does not clip anything — it runs the last lines
-   of the letter underneath the check you are about to press. */
-@supports (field-sizing: content) {
-  .launcher-body {
-    --compose-max: calc(100dvh - var(--head-top) - 21rem);
-  }
-  @media (max-width: 40rem) {
-    .launcher-body {
-      --compose-max: calc(100dvh - var(--head-top) - 23rem);
-    }
-  }
 }
 
 /* ── THE ACT STEPS ASIDE ──────────────────────────────────────────────────────
@@ -2199,19 +1948,8 @@ textarea {
   --band-h: 3.5rem;
   /* THE TWO BLOCKS UNDER THE HEAD, named so the band's offset can be derived
      from them rather than restated as a number that has to be kept in step. */
-  /* THE PERSON FRAME IS ITS OWN SIZE, not the band's. It wore --band-h, which
-     was fine while a band was a strip across a line of text and the box beside it
-     held a letter's first few words. It is a CAPTURE now — a face, a voice, a
-     still — and 56px is a thumbnail of a person rather than a picture of one.
-     Twice the head, which lines it up with the head and the block under it
-     together: the whole item, which is what a capture of somebody belongs
-     against. */
   --join-h: 0.5rem;
   --plate-h: 4rem;
-  /* FIXED, so the letter box never moves. Most people are around silently, so
-     these two are empty far more often than not — and boxes that collapsed when
-     empty would slide the one box that is always the same object sideways on
-     every settle. A stable rail is worth two rectangles of air. */
   /* THE MOOD BOX'S SLOT. The doing box has none any more — it takes whatever the
      other two leave, because it is the only one holding somebody's own words and
      so the only one with no length to fix. Three fixed boxes left a strip of
@@ -2446,9 +2184,9 @@ textarea {
    conversation you have opened is an action pointed at nothing". That was true
    of a button whose whole job was to open a drawer — and this feature inverts
    it exactly. Inside somebody's page the act is pointed at the most specific
-   thing it can be: them. It is how you write to the person whose panel you are
-   reading, and hiding it there would leave the targeted letter with no door at
-   all. The reasoning is kept rather than deleted because it was right about the
+   thing it can be: them. It is how you go round WITH the person whose page you
+   are reading, and hiding it there would leave that round with no door at all.
+   The reasoning is kept rather than deleted because it was right about the
    button it was written for. */
 #scopes.is-open .app-head {
   opacity: 0;
@@ -2517,7 +2255,7 @@ textarea {
   opacity: 1;
 }
 .frame.is-ready .scopes-line,
-.frame.is-ready .letter-flow {
+.frame.is-ready .word-flow {
   color: var(--color-light-50);
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
 }
@@ -2574,5 +2312,20 @@ textarea {
   .view-launcher {
     flex: 0 0 100%;
     scroll-snap-align: start;
+  }
+
+  /* AND THE COLUMN IS THE VIEW, not 32rem inside it. `--list-w` is a fixed
+     width, and on a phone the view is narrower than it — so the scroller, the
+     band, the form and every row were all half a thumb wider than the screen
+     and everything on their right-hand edge went over it: the flow arrows, the
+     count, a word's age, the plus. The item looked like a name and a sentence
+     because the half that answers had been pushed off the page.
+
+     ONE TOKEN, SO THEY CANNOT DISAGREE. All four read `--list-w` precisely so a
+     row passing through the band never shifts sideways — see .list-box. Setting
+     the token is what keeps that true here; setting four widths would be four
+     chances for one of them to be missed. */
+  .app-root {
+    --list-w: 100%;
   }
 }

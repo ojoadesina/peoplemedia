@@ -23,7 +23,7 @@ defmodule PeoplemediaWeb.CoreComponents do
       field, the error flash. The palette carries no separate red, and it does
       not need one.
     * `secondary` (sage) means AFFIRMATION — the info flash, the presence dot,
-      and the flow arrow that says a letter of yours has been read. It is the
+      and the flow arrow that reports rather than asks. It is the
       RECEIPT colour: something completed, with nothing being asked of you.
       Terracotta asks, sage reports. Spend it sparingly, and never on a state
       the reader is meant to act on.
@@ -574,8 +574,14 @@ defmodule PeoplemediaWeb.CoreComponents do
   end
 
   @doc """
-  THE KIND MARK — a small symbol that says, before the name, what a letter
-  arrived as.
+  THE KIND MARK — a small symbol that says, before the name, what somebody
+  CAPTURED of themselves: a face, a voice, a still, or nothing at all.
+
+  IT USED TO SAY WHAT A LETTER ARRIVED AS, and the difference is not cosmetic. A
+  letter was a thing between two people, so the mark drew a fact about the two of
+  you and went blank for anybody you had not written to. A capture is a fact
+  about THE PERSON, the same whoever is looking — which is what a mark at the
+  head of a row of names should always have been.
 
   Three marks, all cut from one rectangle:
 
@@ -593,25 +599,24 @@ defmodule PeoplemediaWeb.CoreComponents do
   ## WHY TEXT IS THE MOUTH STRUCK THROUGH
 
   Because it is the only one of the three defined by ABSENCE, and a slash is
-  what a surface says "not this" with. A text letter is a letter with no face in
-  it and no voice in it — the plain case, words and nothing else — so drawing it
-  a mark of its own (a page, a line of dashes, a quote) would have made it a
-  fourth kind of thing standing beside the other two. It is not beside them, it
-  is what is left when both are taken away, and one bar tipped off the level
-  says exactly that: the mouth is there, and it is shut.
+  what a surface says "not this" with. A still is a capture with no motion in it
+  and no sound in it — the plain case, a photograph and nothing else — so drawing
+  it a mark of its own (a page, a frame, a corner) would have made it a fourth
+  kind of thing standing beside the other two. It is not beside them, it is what
+  is left when both are taken away, and one bar tipped off the level says exactly
+  that: the mouth is there, and it is shut.
 
   It rises left to right rather than falling, which is the one choice with no
   argument behind it beyond this: on a surface that reads left to right, a
   rising stroke is a MARK, and a falling one is the cross people put through a
-  mistake. Nothing is wrong with a text letter.
+  mistake. Nothing is wrong with a still.
 
   ## THE EMPTY SLOT
 
   `kind={nil}` draws nothing and still takes the width. Anything that has to
-  line up with a row carries one: a stranger's row (a letter is written to a
-  SCOPE, not to a person, so they have none), the picked header, the lens at
-  the head of the list. Without it every name in those places starts a mark's
-  width left of every name in the list.
+  line up with a row carries one: the picked header, the lens at the head of the
+  list. Without it every name in those places starts a mark's width left of every
+  name in the list.
 
   IT HAS WIDTH BUT NO HEIGHT, and that is load-bearing rather than tidy. An
   empty box with a HEIGHT has no baseline of its own, so in a
@@ -629,11 +634,11 @@ defmodule PeoplemediaWeb.CoreComponents do
 
   ## QUIET IS FOR THE ONES WITH NOTHING TO SAY
 
-  `lit` is the whole of it. A mark on a row with an unopened letter is drawn at
-  FULL strength in terracotta, because that is the one thing on this surface
+  `lit` is the whole of it. A mark on a row with something unseen in it is drawn
+  at FULL strength in terracotta, because that is the one thing on this surface
   that is asking for you and holding it back would be holding back the only
-  signal the list has. Every other mark — a letter you have read, anything in
-  the panel — is grey and soft.
+  signal the list has. Every other mark — a round you have read, anything in the
+  panel — is grey and soft.
 
   Dimming both was the mistake in between, and it is worth writing down why it
   was tempting: nineteen filled rectangles down the left DO read as a second
@@ -652,11 +657,11 @@ defmodule PeoplemediaWeb.CoreComponents do
   attr :lit, :boolean, default: false
   attr :class, :any, default: nil
 
-  def letter_glyph(assigns) do
+  def capture_glyph(assigns) do
     ~H"""
     <span
       class={[
-        "letter-glyph shrink-0 w-[1.4em]",
+        "capture-glyph shrink-0 w-[1.4em]",
         @kind && "flex h-[1.4em]",
         @lit && "is-lit",
         @class
@@ -693,63 +698,62 @@ defmodule PeoplemediaWeb.CoreComponents do
   end
 
   @doc """
-  THE FLOW — which way the last letters went, and whether they landed.
+  THE FLOW — which way a round has gone, and whose voices are in it.
 
   Two arrows on the right of a row, out on the left and in on the right, the
-  same order a page is read in: what you sent, then what came back.
+  same order a page is read in: what you said, then what came back.
 
   Each answers a DIFFERENT question, which is why they are two marks and not one
   toggle:
 
-    ↑ OUT is shown only while the newest letter in the thread is YOURS. Lit once
-      they have opened it, faded while they have not. It goes away the moment
-      they write back — an arrow still up for a letter you sent last week would
-      read as a reply still in flight, when the conversation has long since
-      moved past it.
+    ↑ OUT is shown while anything in the round is YOURS. You have spoken in here.
 
-    ↓ IN is shown as soon as they have ever written. Lit while their newest
-      letter is unopened, faded once you have read it.
+    ↓ IN is shown while anything in it is somebody else's. Somebody has spoken to
+      you in here.
 
-  ## TWO LIT COLOURS, AND THEY ARE NOT THE SAME COLOUR
+  So both means a conversation, ↓ alone means a round you have only watched, ↑
+  alone means one nobody has answered, and neither means nothing has been said.
 
-  Terracotta is this surface's word for LOOK HERE, and it is spent on the one
-  thing a row can be asking of you: an unopened letter. So ↓ lights terracotta,
-  the same colour the kind mark takes for the same reason.
+  ## THE ARROWS ARE STATES, NOT SUMMONSES
 
-  ↑ lit is not a request, it is a RECEIPT — they opened what you sent, and there
-  is nothing for you to do about it. Spending terracotta on that would put a
-  finished thing and a waiting thing in the same voice, and a list where
-  everything is urgent has no way left to say that something is. So it takes
-  sage, the theme's other hue, which appears nowhere else on this surface and
-  means only this. Warm asks, cool reports.
+  They said which way the last LETTERS went and whether they had been opened, and
+  a letter is not a thing this app has. What a round has instead is two counts —
+  said and heard — and neither of them is asking anything of you: they describe
+  the room, they do not knock. So both rest at their quiet strength.
 
-  Faded is the resting state of both and is deliberately very quiet: on a list
-  of nineteen rows these marks are almost always saying nothing has changed, and
-  a column of legible arrows down the right-hand side would be the loudest thing
-  on a page whose subject is the names.
+  THE ONE THING THAT ASKS IS THE COUNT BESIDE THEM. Terracotta is this surface's
+  word for LOOK HERE and it is spent on the deck of unseen words, which is the
+  only mark on a row that goes out once you have read it. The colours here are
+  the same two the palette has always meant — warm asks, cool reports — and are
+  kept for the day a round can be waiting on you in a way an arrow can say.
+
+  Faded is the resting state of both and is deliberately very quiet: on a list of
+  nineteen rows these marks are almost always saying nothing has changed, and a
+  column of legible arrows down the right-hand side would be the loudest thing on
+  a page whose subject is the names.
   """
-  attr :letter, :map, required: true
+  attr :words, :map, required: true
   attr :class, :any, default: nil
 
-  def letter_flow(assigns) do
+  def word_flow(assigns) do
     ~H"""
     <%!-- ON THE NAME'S LINE, not centred in the row. It used to stretch the
          row's full height, which put the pair below both lines of text and made
          them read as a third thing floating at the right rather than as the
          other half of what the kind mark on the left is saying. The two marks
          are one pair; a pair sits on one line. --%>
-    <span class={["letter-flow flex shrink-0 items-center gap-2", @class]}>
+    <span class={["word-flow flex shrink-0 items-center gap-2", @class]}>
       <.flow_arrow
-        :if={@letter.outgoing}
+        :if={@words.outgoing}
         dir="up"
-        lit={@letter.outgoing == :read}
-        label={(@letter.outgoing == :read && "Your letter has been read") || "Your letter is unread"}
+        lit={@words.outgoing == :unread}
+        label="You have spoken in this round"
       />
       <.flow_arrow
-        :if={@letter.incoming}
+        :if={@words.incoming}
         dir="down"
-        lit={@letter.incoming == :unread}
-        label={(@letter.incoming == :unread && "Unread letter from them") || "Their letter, read"}
+        lit={@words.incoming == :unread}
+        label="Somebody has spoken in this round"
       />
     </span>
     """
@@ -942,7 +946,7 @@ defmodule PeoplemediaWeb.CoreComponents do
 
   It is the whole argument of the product in one shape — people are the primary
   focus — so it is a FACE rather than a monogram or a glyph of a network. What
-  changed is HOW it draws one. This surface already had a face: `letter_glyph`
+  changed is HOW it draws one. This surface already had a face: `capture_glyph`
   says a face is TWO RECTANGLES and a voice is ONE, and those proportions are
   deliberate (the mouth is exactly as wide as the eyes' span). The mark used to
   answer the same question differently — a circle with two round eyes — so the

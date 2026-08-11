@@ -2,8 +2,8 @@ defmodule Peoplemedia.Clock do
   @moduledoc """
   HOW LONG AGO, IN ONE SHORT TOKEN — `2m`, `3h`, `4d`.
 
-  IT LIVED IN `Letters` AND HAD NOTHING TO DO WITH LETTERS. It was written there
-  because a letter was the first thing on this surface that needed an age, and it
+  IT LIVED IN THE LETTERS CONTEXT AND HAD NOTHING TO DO WITH LETTERS. It was
+  written there because a letter was the first thing that needed an age, and it
   stayed there after a ROUND became the second — so the item's head was reaching
   into the letters context to date a round. A shared answer belongs to neither of
   the things that share it.

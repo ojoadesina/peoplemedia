@@ -10,7 +10,7 @@
 
 import Ecto.Query
 
-alias Peoplemedia.{Identity, Letters, People, Relationships}
+alias Peoplemedia.{Identity, People, Presence, Relationships, Rounds, Words}
 alias Peoplemedia.People.Person
 alias Peoplemedia.Repo
 
@@ -72,21 +72,15 @@ held = [
     {"TEAMMATE", "CHIDI"}
 ]
 
-# AND A LETTER OR TWO EACH, in all three kinds and both directions. The row
-# summary has four arrow states, three marks and an unread signal; a cast whose
-# threads all looked the same would leave most of the surface drawing nothing.
+# AND A ROUND EACH, OR NOT. A row is drawn from a round, so a sheet where
+# everybody was round would show only one of the three things a row can be.
 #
-#   {who wrote it, whether the recipient opened it, what it arrived as}
-threads = [
-  [{:them, false, "voice"}],
-  [{:you, true, "face"}],
-  [{:them, true, "text"}, {:you, true, "voice"}],
-  [{:you, false, "text"}, {:them, true, "face"}],
-  [{:them, false, "face"}, {:you, true, "text"}],
-  [],
-  [{:them, true, "voice"}],
-  [{:you, true, "text"}]
-]
+# LIVE, EXPIRED, OR NONE AT ALL. Expiry is about VISIBILITY and never deletion —
+# an expired round keeps its words and its place in the person's history and
+# simply stops surfacing them — so the sheet has to carry one to show that the
+# list does not demote anybody for going quiet.
+#
+lives = [:live, :live, :live, :expired, :expired, :none, :live, :none]
 
 # ── AND WHAT THEY CAPTURED OF THEMSELVES ─────────────────────────────────────
 # A face, a voice or a still, on the PERSON — theirs, and the same whoever is
@@ -129,36 +123,6 @@ Repo.all(Person)
   |> Repo.update!()
 end)
 
-# ── WHAT THEY ARE UP TO WHEN THEY ARE NOT ROUND ──────────────────────────────
-# Most people are not in a round most of the time, and their item's second block
-# holds this instead. Short, standing, and plainly not an invitation — a status
-# says where somebody is, not that they want joining.
-#
-# NOT EVERYBODY HAS ONE. Having nothing to say is a real answer and the sheet has
-# to show it, or the design is only ever judged against a full column.
-statuses = [
-  "AT WORK",
-  "AT SCHOOL",
-  "COMMUTING",
-  nil,
-  "OFF TODAY",
-  "HEADS DOWN",
-  nil,
-  "ON THE ROAD",
-  "AT HOME",
-  nil,
-  "IN A MEETING",
-  "OUT WALKING"
-]
-
-Repo.all(Person)
-|> Enum.with_index()
-|> Enum.each(fn {person, i} ->
-  person
-  |> Ecto.Changeset.change(%{status: Enum.at(statuses, rem(i, length(statuses)))})
-  |> Repo.update!()
-end)
-
 # WHERE THEY LIVE, and most of them live where ojo does. The place box is the
 # list's parent now — pick Finland and you see Finland — so a cast spread evenly
 # over eighteen countries would give every place a list of one and the home page
@@ -181,36 +145,21 @@ held
     {:ok, _} = Relationships.accept(me.id, person.id)
   end
 
-  # Oldest written first, so the last one is the newest — the one the row speaks
-  # for. Skipped entirely if this thread already has letters, or a second run
-  # would double every conversation.
-  if Letters.thread(me.id, person.id) == [] do
-    face_clip =
-      "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
+  # ONE ROUND EACH. Skipped entirely if they already have one, or a second run
+  # would give everybody a fresh round and the sheet would never show an expired
+  # one. What gets SAID in them is filled in further down, once every round in
+  # the file exists.
+  if Enum.at(lives, rem(i, length(lives))) != :none and Rounds.history(person.id, me.id) == [] do
+    # PRIVATE, SO OJO IS IN THE AUDIENCE. A public round is seen by everybody and
+    # so proves nothing about the read that decides who may see one.
+    {:ok, _} = Rounds.go(person.id, %{"audience" => "private"})
 
-    voice_clip = "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"
-
-    for {who, read, kind} <- Enum.reverse(Enum.at(threads, rem(i, length(threads)))) do
-      sender = (who == :you && me) || person
-      recipient = (who == :you && person) || me
-
-      attrs =
-        case kind do
-          "text" -> %{kind: "text", body: "Thinking of you."}
-          # REAL FILES, BORROWED AND PUBLIC. Frames are CAPTURED and there is
-          # nothing in this app to capture with, so a face frame and a voice
-          # frame had nothing behind them and drew as empty blocks — the two
-          # states hardest to judge were the two nobody could see. These are
-          # small CC-licensed clips from test-videos.co.uk and a drawn still of
-          # our own; they go the day captures arrive, and until then this page
-          # needs a network to look right.
-          "face" -> %{kind: "face", media: face_clip}
-          "voice" -> %{kind: "voice", media: voice_clip}
-          other -> %{kind: other, media: nil}
-        end
-
-      {:ok, _} = Letters.write(sender.id, recipient.id, attrs)
-      if read, do: Letters.mark_read(recipient.id, sender.id)
+    # RUN OUT, NOT STOPPED. Stopping is somebody CHOOSING to stop surfacing; this
+    # is the clock, which is the state most rounds on a real list are in — and
+    # the two are the same column and a different act.
+    if Enum.at(lives, rem(i, length(lives))) == :expired do
+      from(r in Peoplemedia.Rounds.Round, where: r.person_id == ^person.id)
+      |> Repo.update_all(set: [expires_at: DateTime.utc_now() |> DateTime.add(-60, :second)])
     end
   end
 end)
@@ -241,6 +190,45 @@ strangers
 |> Enum.each(fn {name, i} ->
   find_or_create.(name, somewhere.(i, 9))
 end)
+
+# ── AND ONE PERSON WITH A HISTORY ────────────────────────────────────────────
+# EVERY OTHER PERSON HERE HAS AT MOST ONE ROUND, because the guard above gives
+# them one and then leaves them alone. That draws the LIST correctly and draws a
+# PAGE wrongly: a page is the rounds somebody has gone, newest first, and one
+# round is a page that cannot show it is a list at all.
+#
+# EXPIRED ONES ARE THE POINT OF IT. Law 4 — expiry is about visibility, never
+# deletion — so an old round keeps its words and comes back on the page after it
+# has stopped surfacing them on anybody's list. Nothing else in this file
+# demonstrates that.
+sarah = Repo.one(from p in Person, where: p.name == "SARAH")
+
+if sarah && length(Rounds.history(sarah.id, me.id)) < 2 do
+  {:ok, older} = Rounds.go(sarah.id, %{"audience" => "private"})
+  {:ok, _} = Words.say(older.id, sarah.id, "off to the market, back by two")
+  {:ok, _} = Words.say(older.id, me.id, "get me the good bread")
+  {:ok, _} = Words.say(older.id, sarah.id, "they had none left")
+
+  # OLDER IN EVERY SENSE. Setting only `expires_at` back made a round that was
+  # INSERTED after her live one and had already run out — which cannot happen,
+  # and which put the expired round above the live one on her page. A page is
+  # ordered by when each round was gone, so the age has to move too.
+  then = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(-3, :day)
+
+  from(r in Peoplemedia.Rounds.Round, where: r.id == ^older.id)
+  |> Repo.update_all(
+    set: [
+      inserted_at: then,
+      expires_at: DateTime.utc_now() |> DateTime.add(-3, :day) |> DateTime.truncate(:second)
+    ]
+  )
+
+  # AND THE WORDS WITH IT. Each word carries its own age on the page, so words
+  # left at today's clock inside a three-day-old round read as a conversation
+  # that happened after the round it is in.
+  from(w in Peoplemedia.Words.Word, where: w.round_id == ^older.id)
+  |> Repo.update_all(set: [inserted_at: then])
+end
 
 # ── THE MASTER PASSPORT ──────────────────────────────────────────────────────
 #
@@ -288,8 +276,9 @@ for {label, name} <- angel_held do
     {:ok, _} = Relationships.accept(angel.id, person.id)
   end
 
-  if Letters.thread(angel.id, person.id) == [] do
-    {:ok, _} = Letters.write(person.id, angel.id, %{kind: "text", body: "Are you around later?"})
+  if Rounds.history(person.id, angel.id) == [] do
+    {:ok, round} = Rounds.go(person.id, %{"audience" => "private"})
+    {:ok, _} = Words.say(round.id, person.id, "are you around later?")
   end
 end
 
@@ -307,39 +296,19 @@ if outgoing == [] do
     do: {:ok, _} = Relationships.request_scope(angel.id, asked.id, "CLASSMATE")
 end
 
-people = Repo.aggregate(Person, :count)
-scopes = Repo.aggregate(Peoplemedia.Relationships.Scope, :count)
-letters = Repo.aggregate(Peoplemedia.Letters.Letter, :count)
-
-IO.puts(
-  "seeded: " <>
-    to_string(people) <>
-    " people, " <> to_string(scopes) <> " scopes, " <> to_string(letters) <> " letters"
-)
-
 # ── WHO IS ROUND ──────────────────────────────────────────────────────────────
 # The list is people-first and never a feed, so what makes it worth looking at is
 # who has gone round. A seed in which nobody has would
 # draw the surface's newest boxes empty on every row — and `absent`, which is
 # half of what a row can say, would be the only half anybody saw.
-alias Peoplemedia.{Presence, Rounds}
-
-rounds = [
-  {"SARAH", %{mood: "happy"}},
-  {"KEMI", %{mood: "sad"}},
-  {"IBRAHIM", %{mood: "restless"}},
-  {"ELENA", %{mood: "content"}},
-  {"MICHAEL", :here_only},
-  {"ROSE", :here_only}
-]
-
-for {name, said} <- rounds,
+# PRESENCE, WHICH IS A DIFFERENT QUESTION FROM A ROUND. Being here is a state and
+# going round is an act — the rounds above are already made, and this is the other
+# half: who has the app open. Some of these are round and some are only here, so
+# the row's two answers are both on the sheet.
+for name <- ~w(SARAH KEMI IBRAHIM ELENA MICHAEL ROSE),
     person = Repo.one(from p in Person, where: p.name == ^name) do
   {:ok, _} = Presence.touch(person.id)
-  if said != :here_only, do: {:ok, _} = Rounds.go(person.id, said)
 end
-
-IO.puts("round: #{length(rounds)} of them")
 
 # ── AND WORDS INSIDE THE ROUNDS ───────────────────────────────────────────────
 # A round surfaces a person; the words are what gets said once they are surfaced.
@@ -354,8 +323,6 @@ IO.puts("round: #{length(rounds)} of them")
 # BOTH DIRECTIONS. Some are the creator's, some are ojo's, because the arrows on
 # an item say which way the conversation has gone and a thread that only ever ran
 # one way would draw one arrow for ever.
-alias Peoplemedia.Words
-
 said = [
   ["Nearly there. The beetroot is winning."],
   [],
@@ -369,6 +336,14 @@ said = [
 
 Peoplemedia.Repo.all(Peoplemedia.Rounds.Round)
 |> Enum.with_index()
+# SKIPPED IF SOMETHING IS ALREADY IN IT, or a second run doubles every round's
+# conversation — the same guard the rounds and the scopes above are written with,
+# and the reason this file can be run twice.
+#
+# THE GUARD IS OUT HERE, NOT IN THE COMPREHENSION. As a filter it would be asked
+# again for every word, and the first insert makes the answer no — so every round
+# in the file would get its opening line and nothing after it.
+|> Enum.reject(fn {round, _i} -> Words.thread(round.id) != [] end)
 |> Enum.each(fn {round, i} ->
   for {body, n} <- Enum.with_index(Enum.at(said, rem(i, length(said)))) do
     # EVERY OTHER ONE IS OJO'S, so both arrows have something to say.
@@ -387,3 +362,16 @@ Peoplemedia.Repo.all(Peoplemedia.Rounds.Round)
     {:ok, _} = Words.say(round.id, who, body, images: pictures)
   end
 end)
+
+# WHAT THIS FILE MADE, counted at the END of it. It sat above the words and so
+# reported a number taken before they existed — a fresh database seeded 675 words
+# and announced nought.
+people = Repo.aggregate(Person, :count)
+scopes = Repo.aggregate(Peoplemedia.Relationships.Scope, :count)
+words = Repo.aggregate(Peoplemedia.Words.Word, :count)
+
+IO.puts(
+  "seeded: " <>
+    to_string(people) <>
+    " people, " <> to_string(scopes) <> " scopes, " <> to_string(words) <> " words"
+)

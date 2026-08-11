@@ -13,7 +13,7 @@ defmodule PeoplemediaWeb.ActTest do
   import Phoenix.LiveViewTest
   import Peoplemedia.Fixtures
 
-  alias Peoplemedia.{Letters, Notifications, Relationships}
+  alias Peoplemedia.{Notifications, Rounds, Words}
 
   setup %{conn: conn} do
     me = cast()
@@ -35,26 +35,32 @@ defmodule PeoplemediaWeb.ActTest do
       refute has_element?(live, "#panel")
     end
 
-    test "it holds your letterheads, newest first, and nothing you wrote to one person", %{
+    test "it holds your rounds, newest first, with what you said in them", %{
       conn: conn,
       me: me
     } do
-      [{_scope, them} | _] = Relationships.held_by(me.id)
-      {:ok, _} = Letters.broadcast(me.id, "world", %{kind: "text", body: "the older one"})
-      {:ok, _} = Letters.broadcast(me.id, "world", %{kind: "text", body: "the newer one"})
-      {:ok, _} = Letters.write(me.id, them.id, %{kind: "text", body: "just for you"})
+      {:ok, older} = Rounds.go(me.id)
+      {:ok, _} = Words.say(older.id, me.id, "the older one")
+      {:ok, newer} = Rounds.go(me.id)
+      {:ok, _} = Words.say(newer.id, me.id, "the newer one")
 
       {:ok, live, _} = live(conn, ~p"/")
       page = live |> element("#self") |> render_click()
 
-      # Two rows, both yours, newest at the top — and the letter to one person
-      # is not among them. It lives on their page, where the answers to it are.
-      assert page |> String.split(~s(class="panel-item)) |> length() == 3
-      refute page =~ "just for you"
+      # NEWEST ROUND AT THE TOP, which is what a page is for: the last thing you
+      # did, and everything before it underneath.
+      assert page =~ "the newer one"
+      assert page =~ "the older one"
+
+      assert :binary.match(page, "the newer one") < :binary.match(page, "the older one")
+
+      # AND YOUR OWN WORDS SAY "YOU". A page read from where you stand is a
+      # conversation, not a transcript.
+      assert page =~ "YOU"
     end
 
-    # A page is the letters you have written, and a visitor cannot have written
-    # any — so there is no button rather than a button that says no.
+    # A page is the rounds you have gone, and a visitor cannot have gone any —
+    # so there is no button rather than a button that says no.
     test "a visitor has none", %{conn: _conn} do
       {:ok, live, _} = live(build_conn(), ~p"/")
       refute has_element?(live, "#self")
@@ -132,13 +138,18 @@ defmodule PeoplemediaWeb.ActTest do
              "the buttons must lose pointer-events, not the row — they opt back in"
     end
 
-    # An empty check invites an act and then refuses it, which is the fault the
-    # row's own SCOPE word was fixed for. The browser knows the field is empty;
-    # asking the server would be a round trip per keystroke.
-    test "the check is not offered until there is a letter" do
+    # THE WRITE ROOM IS GONE, and with it the field, the check that greyed out
+    # over an empty one, and the reserve the room kept for a growing letter.
+    # Words are said inside a round, on the surface, not in a room off to one
+    # side addressed to a person.
+    test "the launcher has no room for writing a letter" do
+      launcher = File.read!("lib/peoplemedia_web/components/launcher.ex")
       css = File.read!("assets/css/app.css")
-      assert css =~ ~s|:has(.compose-field:placeholder-shown)|
-      assert File.read!("lib/peoplemedia_web/components/launcher.ex") =~ "compose-field"
+
+      refute launcher =~ ~s(data-room="write")
+      refute launcher =~ "compose-field"
+      refute css =~ "compose-field"
+      refute css =~ "--compose-max"
     end
   end
 end

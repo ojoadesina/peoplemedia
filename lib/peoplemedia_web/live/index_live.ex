@@ -1,6 +1,6 @@
 defmodule PeoplemediaWeb.IndexLive do
   @moduledoc """
-  The people, the letters between them, and who is on the line right now.
+  The people, the rounds they are in, and who is on the line right now.
 
   This is the same surface HomeLive carries, with the same behaviour and the
   same hooks — the difference is entirely in how it is MEASURED. HomeLive grew
@@ -22,7 +22,7 @@ defmodule PeoplemediaWeb.IndexLive do
     frame, the counts). No word sits on it.
 
     `--list-pad` is THE LIST'S OWN INSET, one step in from that, and it is the
-    LIST'S alone now: the row labels, the band's label, the panel's letters, the
+    LIST'S alone now: the row labels, the band's label, the panel's rows, the
     line an empty list writes where a row would be. Rows and the band sharing it
     is what keeps a row's label exactly on top of the band's as it passes
     through, which is the only reason the second edge exists at all.
@@ -41,7 +41,7 @@ defmodule PeoplemediaWeb.IndexLive do
     sit in the mark's column because they are what a mark would arrive in.
 
     THE COLUMN IS ONLY RESERVED WHERE A MARK COULD GO. Every people row keeps
-    it whether or not it has a letter, because the SCOPED and UNSCOPED lists
+    it whether or not it has a capture, because the SCOPED and UNSCOPED lists
     share one scroller and a name that shifted sideways when you switched
     between them would make the two look like different columns. The picked
     header does NOT keep it: nothing can ever appear there, and an invisible
@@ -76,7 +76,6 @@ defmodule PeoplemediaWeb.IndexLive do
   alias Peoplemedia.{
     Clock,
     Directory,
-    Letters,
     Notifications,
     Presence,
     Relationships,
@@ -177,7 +176,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # ── WHO THE PANEL IS ABOUT ──────────────────────────────────────────────────
   # ONE PANEL, TWO WAYS TO BE IN IT. Picking a name out of the band opens it over
   # that person; pressing the self button opens it over you. They are the same
-  # room — a person's name and the letters under it — so the markup reads ONE
+  # room — a person's name and their rounds under it — so the markup reads ONE
   # assign rather than branching on the mode in a dozen places.
   #
   # STORED RATHER THAN COMPUTED IN THE TEMPLATE, for the reason `put_list/1`
@@ -191,15 +190,32 @@ defmodule PeoplemediaWeb.IndexLive do
         _list -> nil
       end
 
+    # THE PAGE IS READ WHEN THE PAGE OPENS, and only then. What is under a name
+    # used to ride on the row itself — a thread of letters per person, fetched
+    # for the whole country to fill a column exactly one of them is ever looked
+    # at through. A round's history belongs to whoever is being read, so it is
+    # fetched for whoever is being read.
+    subject = subject && Map.put(subject, :rounds, page_for(socket, subject))
+
     # WHAT THE PANEL'S IDS ARE KEYED ON, carried beside the subject because it
     # answers the same question. The ids exist to re-mount the hooks when the
     # subject changes, and `selected` is an index into a list your own page is
-    # not in — so on the self page it is nil or, worse, stale, and the letters
+    # not in — so on the self page it is nil or, worse, stale, and the rounds
     # would be patched into a scroller still holding the last person's scroll
     # position.
     key = (socket.assigns.mode == :self && "self") || socket.assigns.selected
 
     assign(socket, subject: subject, panel_key: key)
+  end
+
+  # WHOSE PAGE, READ BY WHOM. Both halves matter: a round's audience decides who
+  # may see it, so the same page is a different page depending on who is standing
+  # on it — and your own is always yours to read whole.
+  defp page_for(socket, subject) do
+    Directory.page_of(
+      subject[:id],
+      socket.assigns.current_person && socket.assigns.current_person.id
+    )
   end
 
   # Both lists are read for the same person, so they are reloaded together — a
@@ -219,9 +235,9 @@ defmodule PeoplemediaWeb.IndexLive do
 
     socket
     |> assign(scopes: Directory.scopes(me), unscopes: Directory.unscopes(me))
-    # YOUR OWN PAGE IS RE-READ WITH THE REST. It is where a letterhead you just
-    # wrote appears, and a page that only caught up on reload would be the one
-    # surface in this app that could not show you your own act.
+    # YOUR OWN PAGE IS RE-READ WITH THE REST. It is where a round you just went
+    # appears, and a page that only caught up on reload would be the one surface
+    # in this app that could not show you your own act.
     |> assign(me_page: Directory.me(me))
     |> assign(unread: unread_for(me), pending: pending_for(me))
   end
@@ -249,7 +265,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # SOMEBODY ELSE MOVED. Re-read everything this surface stands on; the message
   # carries nothing, so there is no version of this that can be out of step with
   # the database.
-  # YOUR OWN BUSINESS LANDS AT ONCE. A handshake answered, a letter arrived —
+  # YOUR OWN BUSINESS LANDS AT ONCE. A handshake answered, a round begun —
   # holding one of those back would be the app withholding your own post.
   @impl true
   def handle_info(:stir, socket),
@@ -380,7 +396,7 @@ defmodule PeoplemediaWeb.IndexLive do
 
   # ── YOUR OWN PAGE ───────────────────────────────────────────────────────────
   # NOT A ROW IN THE LIST AND NOT A ROOM IN THE LAUNCHER. What it holds is a
-  # person's name and the letters under it, which is exactly what the panel is
+  # person's name and their rounds under it, which is exactly what the panel is
   # for; the only unusual thing about it is that the person is you.
   #
   # IT WAS VERY NEARLY A ROW AT THE HEAD OF THE LIST, muted, with the composer
@@ -388,8 +404,8 @@ defmodule PeoplemediaWeb.IndexLive do
   # that has to stay a list of other people — and it made the list's own geometry
   # depend on how much you had typed, which the band measures rows against.
   #
-  # A VISITOR HAS NO PAGE, because a page is the letters you have written and
-  # they cannot have written any.
+  # A VISITOR HAS NO PAGE, because a page is the rounds you have gone and they
+  # cannot have gone any.
   def handle_event("open_self", _params, socket) do
     case {socket.assigns.current_person, socket.assigns.mode} do
       {nil, _} -> {:noreply, socket}
@@ -398,21 +414,6 @@ defmodule PeoplemediaWeb.IndexLive do
     end
   end
 
-  # ── THE ACT WRITES A LETTERHEAD ─────────────────────────────────────────────
-  # TWO HALVES OF ONE PRESS, the pattern the row's own buttons already use: the
-  # server is told WHO, and the hook opens the room — `data-open-room="write"` on
-  # the button. Neither can do this alone; the target lives in the process and
-  # the panel's open state lives in the browser.
-  #
-  # WHO IS READ OFF THE SURFACE, NOT SENT BY THE BROWSER, which is what makes
-  # the two impossible to disagree about — and it means nobody is ever asked to
-  # answer "who is this for?" in a form.
-  #
-  # AN OPEN PANEL TARGETS AND NOTHING ELSE DOES. Being IN somebody's page is the
-  # claim; a name merely passing under the band is not one, and a button whose
-  # meaning changed as the list scrolled would be a button you had to check
-  # before pressing. Your own page does not target either — that is the whole
-  # point of it.
   # ── GOING ROUND ─────────────────────────────────────────────────────────────
   # NO PANEL. It opened a room over the whole page, which is a great deal of
   # screen for four short answers — and it hid the very thing the round is about
@@ -508,22 +509,6 @@ defmodule PeoplemediaWeb.IndexLive do
     {:noreply, assign(socket, going: false)}
   end
 
-  def handle_event("write_head", _params, socket) do
-    them =
-      case socket.assigns do
-        %{mode: :open, current: %{id: id}} -> Peoplemedia.People.get_person(id)
-        _otherwise -> nil
-      end
-
-    {:noreply,
-     socket
-     |> assign(scope_target: them, scope_error: nil, scope_stage: :write)
-     # A FRESH ROOM EVERY TIME. What you were part way through saying an hour ago
-     # is not an answer to being asked again now — and an around left half filled
-     # in would send a mood you had forgotten choosing.
-     |> assign(going: false)}
-  end
-
   # THE ROOM'S BACK ARROW HAS NOTHING LEFT TO SHUT, and the handler stays anyway.
   # `foot/1` renders `phx-click="back"` unconditionally when asked for a back, and
   # the passport room — where that button was written — is a different LiveView
@@ -562,14 +547,8 @@ defmodule PeoplemediaWeb.IndexLive do
     them = Peoplemedia.People.get_person(id)
     me = socket.assigns.current_person
 
-    # OPENING A THREAD IS READING IT. Asking for a second press to admit you
-    # read something is asking you to do the app's bookkeeping.
-    if (act == "write" and me) && them, do: Letters.mark_read(me.id, them.id)
-
     {:noreply,
-     socket
-     |> assign(scope_target: them, scope_error: nil, scope_stage: stage_for(me, them, act))
-     |> then(&((act == "write" && reload_lists(&1)) || &1))}
+     assign(socket, scope_target: them, scope_error: nil, scope_stage: stage_for(me, them, act))}
   end
 
   # LOOKING AT IT IS READING IT. The badge counted rows that were still unread
@@ -577,7 +556,7 @@ defmodule PeoplemediaWeb.IndexLive do
   # count sat there claiming something was waiting in a room that was empty. A
   # badge that cannot go down is not a badge, it is a decoration.
   #
-  # Only the kinds this room actually answers for. A letter waiting elsewhere is
+  # Only the kinds this room actually answers for. A round waiting elsewhere is
   # not read by opening the scoping room, and clearing it here would lose it.
   def handle_event("seen_scoping", _params, socket) do
     me = socket.assigns.current_person
@@ -637,59 +616,6 @@ defmodule PeoplemediaWeb.IndexLive do
               })
 
             {:noreply, socket |> answered() |> push_event("launcher:room", %{room: "scoping"})}
-
-          {:error, _} ->
-            {:noreply, assign(socket, scope_error: "That did not go through.")}
-        end
-    end
-  end
-
-  # WRITING IS THE ONE ACT THIS APP IS FOR, and text is the whole of it for now:
-  # a voice and a face need a recorder, and this needs none. The write path is
-  # the same either way, so proving it with words proves it.
-  #
-  # ONE HANDLER, TWO KINDS OF LETTER, and the difference is entirely whether
-  # there is a target. `scope_target` being nil used to mean "nothing has been
-  # picked yet" and now also means "addressed to nobody" — which is safe only
-  # because `scope_stage` is what says the room is open for writing at all, so
-  # this is never reached by somebody who has simply not chosen.
-  def handle_event("write_letter", params, socket) do
-    me = socket.assigns.current_person
-    them = socket.assigns.scope_target
-    body = params |> Map.get("body", "") |> String.trim()
-
-    # HOW YOU ARE AND WHAT YOU ARE DOING COME THROUGH THE SAME PRESS. The room
-    # asks three things and the letter is only the last of them, so an answer to
-    # any one of them is a complete act — a mood on its own is a thing worth
-    # saying, and demanding a letter to go with it would make the quieter half of
-    # the feature unreachable.
-    standing = %{}
-    said = Enum.any?(Map.values(standing), &(&1 not in [nil, ""]))
-
-    cond do
-      is_nil(me) ->
-        {:noreply, assign(socket, scope_error: "Check in first.")}
-
-      body == "" and not said ->
-        {:noreply, assign(socket, scope_error: "Say something.")}
-
-      true ->
-        case around_then_letter(me, them, standing, said, body) do
-          {:ok, _} ->
-            # THEY ARE TOLD ONLY IF THERE IS A THEY. A letterhead is not
-            # addressed to anybody, so a badge for it would be the app inventing
-            # an obligation — and one nothing on their screen could discharge,
-            # which is the exact fault `seen_scoping` exists to prevent.
-            if them && body != "", do: {:ok, _} = Notifications.notify(them.id, "letter", me.id)
-
-            {:noreply,
-             socket
-             |> answered()
-             |> push_event("launcher:room", %{room: nil})
-             |> push_event("toast", %{words: receipt(them, body, standing)})}
-
-          {:error, :no_relationship} ->
-            {:noreply, assign(socket, scope_error: "Scope them first.")}
 
           {:error, _} ->
             {:noreply, assign(socket, scope_error: "That did not go through.")}
@@ -794,73 +720,6 @@ defmodule PeoplemediaWeb.IndexLive do
      socket
      |> assign(scope: other_scope(socket.assigns.scope))
      |> reset_list()}
-  end
-
-  # A LETTERHEAD GOES TO THE WORLD, and for now that is not a choice anybody is
-  # offered. The column holds `relationships` too, so the day the room grows a
-  # pair of words to pick between, this line is where the answer arrives — no
-  # migration, and nothing else moves.
-  # THE ROUND FIRST, THEN THE WORDS, and the order is the sentence: here I am and
-  # this is what it is about, and here is the first thing I have to say. It also
-  # means a bad mood word fails BEFORE anything is written, so nobody ends up
-  # having said something whose state they cannot see.
-  #
-  # GOING ROUND IS A NEW ROW EVERY TIME. It does not edit the last one and it
-  # does not revive an expired one — the old round keeps its words and its place
-  # in the history, and this one is simply newer.
-  #
-  # A ROUND EITHER WAY. How you are is about YOU, not about who the words are
-  # addressed to, so writing to one person while restless still puts you round
-  # restless. The audience of the ROUND and the address of the WORDS are two
-  # different questions and the surface answers both without asking.
-  defp around_then_letter(me, them, standing, said, body) do
-    with {:ok, _} <- go_round_if(me, them, standing, said) do
-      write_if(me, them, body)
-    end
-  end
-
-  defp go_round_if(_me, _them, _standing, false), do: {:ok, :nothing_said}
-
-  defp go_round_if(me, them, standing, true),
-    do: Rounds.go(me.id, Map.merge(standing, audience_for(them)))
-
-  # THE TAB, OR THE PERSON WHOSE PAGE YOU ARE ON. Nobody is ever asked who a
-  # round is for: standing on somebody's page aims it at them, and standing on
-  # the list means everyone.
-  defp audience_for(nil), do: %{"audience" => "public"}
-  defp audience_for(them), do: %{"audience" => "private", "target_id" => them.id}
-
-  # A ROOM ANSWERED WITH ONLY A MOOD IS A COMPLETE ACT. There is nothing to write
-  # and nothing has gone wrong.
-  defp write_if(_me, _them, ""), do: {:ok, :no_letter}
-
-  defp write_if(me, nil, body),
-    do: Letters.broadcast(me.id, "world", %{kind: "text", body: body})
-
-  defp write_if(me, them, body), do: Letters.write(me.id, them.id, %{kind: "text", body: body})
-
-  # THE ONE ACT WITH NOWHERE TO REPORT INTO. Everything else this app says is
-  # said in the place it is about — an error in the room that caused it, a count
-  # on the box it counts — and a send has no such place: the room it was written
-  # in closes on the way out, and the thing it is about has already gone.
-  #
-  # SO IT SAYS WHO IT WENT TO, which is the one fact you can no longer check by
-  # looking. The room said it while you were writing; this is the same sentence
-  # in the past tense, and the toast is the only screen the two of them share.
-  # WHAT ACTUALLY HAPPENED, and it has to be able to say all three. The room asks
-  # three questions and any one of them alone is a real answer, so a receipt that
-  # only ever reported the letter would leave the two quieter acts landing in
-  # silence — which, on a surface where the room closes on the way out, is
-  # indistinguishable from nothing having happened at all.
-  defp receipt(_them, "", standing), do: "ROUND — #{standing_words(standing)}"
-  defp receipt(nil, _body, _standing), do: "SENT TO THE WORLD"
-  defp receipt(them, _body, _standing), do: "SENT TO #{String.upcase(them.name)}"
-
-  defp standing_words(standing) do
-    []
-    |> Enum.map(&standing[&1])
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.map_join(" · ", &String.upcase/1)
   end
 
   # ── WHO A ROUND IS FOR IS THE TAB YOU ARE STANDING ON ───────────────────────
@@ -980,37 +839,25 @@ defmodule PeoplemediaWeb.IndexLive do
   # LiveView's change tracking off for the whole block.
   defp put_list(socket), do: assign(socket, :list, current_list(socket.assigns))
 
-  # WHAT THE WORD BLOCK SAYS, in order of what is actually there: the last thing
-  # said in the round, then the standing status if they are not round at all.
+  # WHAT THE WORD BLOCK SAYS: the last thing said in the round, and nothing else.
   #
-  # A ROUND WITH NOTHING SAID IN IT SAYS NOTHING, and the block stands empty. It
-  # used to fall back to the round's own NAME — a title given before anybody had
-  # spoken, which is the least informed sentence in the round given its most
-  # prominent line. There is no name to fall back to now, and an empty block under
-  # a name reads correctly: somebody is here and nobody has said anything yet.
-  defp plate_says(item) do
-    cond do
-      last = item[:round][:words][:last] -> String.upcase(last)
-      item[:round] -> nil
-      status = blank_to_nil(item[:status]) -> String.upcase(status)
-      true -> nil
-    end
-  end
+  # ONE SOURCE, AND NO FALLBACKS. It has had three. The round's own NAME — a title
+  # given before anybody had spoken, which is the least informed sentence in the
+  # round given its most prominent line. Then a standing STATUS for anyone not
+  # round at all, which read as a word somebody had said when it was nothing of
+  # the kind. Both are gone: with no word there is no block, so the second half of
+  # an item is only ever a word, and a block that is drawn is a thing that was
+  # said.
+  defp plate_says(item), do: item[:round][:words][:last] && String.upcase(item.round.words.last)
 
-  defp blank_to_nil(nil), do: nil
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(word), do: word
-
-  # WHEN, AND IT PREFERS THE ROUND'S OWN. A round is identified by when it was
-  # made, so on somebody who is round that is the timing the head should carry —
-  # it is the age of the thing you are being shown. Off-round it falls back to the
-  # last letter's, which is the only other clock an item has.
+  # WHEN, AND IT IS THE ROUND'S OWN. A round is identified by when it was made, so
+  # that is the timing the head carries — it is the age of the thing you are being
+  # shown, and it is the only clock an item has.
   defp item_age(item) do
-    case item[:round][:at] || item[:letter][:when] do
+    case item[:round][:at] do
       nil -> nil
       %NaiveDateTime{} = at -> at |> Clock.since() |> String.upcase()
       %DateTime{} = at -> at |> Clock.since() |> String.upcase()
-      word -> String.upcase(word)
     end
   end
 
@@ -1049,17 +896,19 @@ defmodule PeoplemediaWeb.IndexLive do
 
   defp word_images(item), do: item[:round][:words][:images] || 0
 
-  # THE DECK AND THE ↓ LIGHT FOR THE SAME REASON AND MUST AGREE. Both mean "an
-  # unopened letter is here", so the answer is read off the letter rather than
-  # stored twice — terracotta appearing on one but not the other is a bug nobody
-  # would spot on a still page.
-  defp unread?(%{letter: %{incoming: :unread}}), do: true
-  defp unread?(_read), do: false
+  # WHAT IS STILL WAITING FOR THIS READER, and it is the deck's whole colour
+  # rule: terracotta means "there is something here you have not seen".
+  #
+  # IT WAS READ OFF THE LETTER SUMMARY and stayed there after the letters went —
+  # `item[:letter]` is a key nothing sets any more, so the clause simply never
+  # matched and the deck went permanently grey. A pattern match on a key that has
+  # stopped existing does not fail, it silently answers no.
+  defp unread?(item), do: (item[:round][:words][:unseen] || 0) > 0
 
   # THE PAIR IS BUILT FROM THE TWO DIRECTIONS rather than stored, so it cannot
   # disagree with the count beside it. `:read` in both places because neither is
   # asking anything of you — see the note on the arrows.
-  defp word_flow(item) do
+  defp flow_of(item) do
     case item[:round][:words] do
       %{said: said, heard: heard} when said > 0 or heard > 0 ->
         %{outgoing: (said > 0 && :read) || nil, incoming: (heard > 0 && :read) || nil}
@@ -1130,14 +979,14 @@ defmodule PeoplemediaWeb.IndexLive do
   # the new entry there is the receipt.
   # AND WHERE IT DOES NOT LEAVE YOU: somewhere other than where you were. This
   # went through `reload_lists/1`, which drops the selection AND the mode — the
-  # right thing when the act changed the list under you, and quietly wrong now
-  # that a letter can be written from inside somebody's panel. You wrote to the
-  # person whose page you were on, and the page closed.
+  # right thing when the act changed the list under you, and wrong when the act
+  # happened from inside somebody's panel. You acted on the person whose page you
+  # were on, and the page closed.
   #
   # THE PANEL IS PUT BACK AFTERWARDS rather than the reload being made
-  # conditional, because the re-read is what makes the letter you just wrote
-  # appear in the list under it. Restoring is one line; a second reload path
-  # that could drift from the first is not.
+  # conditional, because the re-read is what makes what you just did appear in
+  # the list under it. Restoring is one line; a second reload path that could
+  # drift from the first is not.
   defp answered(socket) do
     %{mode: mode, selected: selected} = socket.assigns
 
@@ -1180,7 +1029,6 @@ defmodule PeoplemediaWeb.IndexLive do
   # A VISITOR ALWAYS GETS :ask, and the room disables itself for them. Their
   # pending list is empty by definition, so there is nothing else it could be.
   defp stage_for(_me, nil, _act), do: nil
-  defp stage_for(_me, _them, "write"), do: :write
   defp stage_for(nil, _them, _act), do: :ask
 
   defp stage_for(me, them, _act) do
@@ -1250,8 +1098,8 @@ defmodule PeoplemediaWeb.IndexLive do
            it had nothing to do with.
 
            CENTRED, THE TWO PIECES OF THE APP'S OWN FURNITURE — the mark at the
-           top and the act at the bottom — become one axis, and the band and the
-           letter box hang off it. It also settles what the launcher's entrance
+           top and the act at the bottom — become one axis, and the band hangs
+           off it. It also settles what the launcher's entrance
            should be: the mark no longer has anywhere to travel to, so it stops
            sliding and starts SCALING, which is a better answer anyway. A thing
            that comes forward is arriving; a thing that slides sideways is being
@@ -1390,8 +1238,8 @@ defmodule PeoplemediaWeb.IndexLive do
            MAKE SOMETHING, and what it did was open a drawer. The mark was
            honest about the app's intention and dishonest about the press.
 
-           SO THE PLUS KEEPS THE PROMISE AND LOSES THE DRAWER. It writes a
-           letterhead, which is the one act this app is for, and the launcher —
+           SO THE PLUS KEEPS THE PROMISE AND LOSES THE DRAWER. It goes round,
+           which is the one act this app is for, and the launcher —
            which is everything that would not fit down here — moves to a button
            that looks like what it is. Between them sits YOU: a door to your own
            page, drawn as a container rather than as an action, because it is a
@@ -1419,7 +1267,7 @@ defmodule PeoplemediaWeb.IndexLive do
                passport carries one.
 
                A VISITOR HAS NO PAGE, so there is no button. A page is the
-               letters you have written, and they cannot have written any. --%>
+               rounds you have gone, and they cannot have gone any. --%>
           <button
             :if={@current_person && !@going}
             id="self"
@@ -1654,9 +1502,6 @@ defmodule PeoplemediaWeb.IndexLive do
           @mode in [:open, :self] && "list-away"
         ]}>
           <div class="view-round relative h-full">
-            "stage-box relative mt-6 min-h-0 w-full flex-1",
-            @mode in [:open, :self] && "list-away"
-            ]}>
             <%!-- NO phx-update="ignore", and its going was the right call — the
                  whole list was frozen to protect two attributes. But "the server
                  may patch this" and "the server owns every attribute on it" are
@@ -1813,26 +1658,32 @@ defmodule PeoplemediaWeb.IndexLive do
                        What the home row adds is the FLOW, on the right — the
                        panel does not need it because a thread is already sorted
                        by direction and time, and a list of nineteen threads is
-                       not. See `letter_flow/1` for what the two arrows mean.
+                       not. See `word_flow/1` for what the two arrows mean.
 
-                       THE MARK COLUMN IS ON EVERY PEOPLE ROW, filled or not. A
-                       stranger has no letters — a letter is written to a SCOPE,
-                       not to a person — but their row still reserves the mark's
-                       width, because the SCOPED and UNSCOPED lists share one
-                       scroller and one band, and a name that jumps sideways when
-                       you switch between them would make the two look like
-                       different columns. A country gets no mark at all: that
-                       list is a roll of places, it never opens a header, and
-                       there is no name of a person for it to line up with. --%>
+                       THE MARK COLUMN IS ON EVERY PEOPLE ROW, filled or not.
+                       Most people have captured nothing, but their row still
+                       reserves the mark's width, because the SCOPED and UNSCOPED
+                       lists share one scroller and one band, and a name that
+                       jumps sideways when you switch between them would make the
+                       two look like different columns. A country gets no mark at
+                       all: that list is a roll of places, it never opens a
+                       header, and there is no name of a person for it to line up
+                       with. --%>
                 <li
                   :for={item <- @list}
                   data-state={item[:state] || "present"}
-                  data-letter-kind={item[:frame] || "empty"}
-                  data-media={item[:media]}
-                  data-body={item[:body]}
                   class={
                     [
-                      "scopes-item flex cursor-pointer whitespace-nowrap",
+                      # DOWN, NOT ACROSS, and the direction had to be said out
+                      # loud. An item is a FRAME with a stroke under it and a
+                      # WORD under that — three blocks in a column. They were
+                      # stacked by the swipe track that used to wrap them, and
+                      # when the swipe went the `flex` on this row was left
+                      # applying straight to the three of them: the frame
+                      # collapsed to the width of a name and the word block sat
+                      # beside it, which is the item saying two things where it
+                      # means one.
+                      "scopes-item flex flex-col cursor-pointer whitespace-nowrap",
                       # JUST ARRIVED. Sage, which on this surface reports rather
                       # than asks — terracotta is for the one thing wanting
                       # something from you, and somebody turning up wants nothing.
@@ -1972,9 +1823,9 @@ defmodule PeoplemediaWeb.IndexLive do
                            than on what they said. The head is always there; a word
                            block is not, so a pair drawn on it left half the column
                            carrying no marks at all. --%>
-                    <.letter_flow
-                      :if={word_flow(item)}
-                      letter={word_flow(item)}
+                    <.word_flow
+                      :if={flow_of(item)}
+                      words={flow_of(item)}
                       class="relative shrink-0 text-xl"
                     />
 
@@ -2126,68 +1977,25 @@ defmodule PeoplemediaWeb.IndexLive do
               </p>
             </div>
 
-            <%!-- ── THE TRAILING BOXES ─────────────────────────────────────────
-                 THREE BOXES ON ONE LINE, and between them they answer the only
-                 question worth asking about the person under the band: what are
-                 they doing, how are they, and what have they sent.
+            <%!-- ── THE TRAILING BOXES ARE GONE, AND SO IS THE TRACK THEY RODE ──
+                 THREE OF THEM SAT HERE and between them they were meant to answer
+                 the one question worth asking about whoever is under the band:
+                 what they are doing, how they are, and what they have sent. Two
+                 of those questions were withdrawn — a doing and a mood are things
+                 the app asked you to declare about yourself, and a round is
+                 something you DO — and the third, the box holding the last letter
+                 somebody had sent you, was the reason this surface existed back
+                 when a letter was the thing that passed between two people. Words
+                 pass between them now, and they are IN the round rather than
+                 beside it.
 
-                 THEY ANSWER THE BAND — and until now only one of them did. The
-                 first two were WHERE you are and WHICH population you are looking
-                 at, which are facts about the LIST: the same whichever name has
-                 scrolled in. They read as part of this cluster and answered to
-                 nothing in it. They are a caption at the head of the list now, and
-                 what is left here really is aimed.
-
-                 WHY THIS AND NOT A ROLL OF NAMES. Showing that six people are
-                 around is a museum — objects to look at, nothing to join. What
-                 makes presence worth having is the second half: they are here AND
-                 they are watching something, reading something, out somewhere. The
-                 boxes are that second half, which is why they took the rail.
-
-                 WORDS, NOT ICONS, AND THE SET IS THE ARGUMENT. `heartbroken` and
-                 `low` are different things and no pair of drawings says which is
-                 which; at the size a mark reads on this row they collapse into the
-                 same face, and that is exactly the distinction worth showing. See
-                 `Peoplemedia.Around` for both vocabularies.
-
-                 SIDE BY SIDE AND FLUSH, in one row, with the letter box last so it
-                 keeps the rail's right edge — the app's right bound, which nothing
-                 crosses.
-
-                 FIXED WIDTHS, AND EMPTY ONES KEEP THEIR SLOT. Most people are
-                 around silently: here, and saying nothing about it. Collapsing the
-                 two empty boxes would slide the letter box sideways on every
-                 settle, so an empty box goes invisible rather than going away and
-                 the one box that is always the same object stays where the eye
-                 left it.
-
-                 NO BRACKETS ON THE FIRST TWO. Brackets on this surface mean
-                 AIMING, and these are already aimed by the band — the letter box
-                 wears them because it holds a thing you can open, and these hold a
-                 word. --%>
-            <%!-- IT FILLS WHAT IS BESIDE THE BAND. Three fixed boxes left a strip
-                 of empty rail on a narrow desktop while the doing box — the only
-                 one carrying somebody's own words — truncated inside ten rems. The
-                 two short answers keep their slots; the one with no fixed length
-                 takes the rest. --%>
-            <%!-- A GROUND WHILE THE FORM IS IN IT, because the doing box grows
-                 downward as you write and the names are directly underneath. --%>
-            <%!-- THE TRAILING BOX IS GONE, AND SO IS THE TRACK IT RODE ON. It held
-                 the last letter somebody had sent you — the reason this surface
-                 existed, back when a letter was the thing that passed between two
-                 people. Words pass between them now, and they are IN the round
-                 rather than beside it.
-
-                 THE CAPTURE DID NOT GO WITH IT. A face, a voice or a still fills
-                 the frame block on the item itself, which is where it belongs: a
-                 capture is of the PERSON, and the person is the line with their
-                 name on it. Nothing is lost by taking the box away.
+                 THE CAPTURE DID NOT GO WITH THEM. A face, a voice or a still
+                 fills the frame block on the item itself, which is where it
+                 belongs: a capture is of the PERSON, and the person is the line
+                 with their name on it. Nothing is lost by taking the boxes away.
 
                  WHAT TAKES THIS RAIL NOW is the launcher — see .view-launcher. --%>
 
-            <%!-- BAND AND FRAME ARE ONE ROW, so the two can never fall out of line.
-                 The band answers "which one", the frame answers "and what are they
-                 sending". Both appear only on a settled selection. --%>
             <%!-- ── GOING ROUND, IN PLACE ──────────────────────────────────
                  IT TAKES THE BAND'S LINE, and the list goes on underneath. That is
                  the whole reason it is not a panel: a room over the page would
@@ -2389,7 +2197,7 @@ defmodule PeoplemediaWeb.IndexLive do
                      yet, and something is expected" — exactly the empty band's
                      state — and it is the one shape in this vocabulary that is
                      neither a rectangle nor made of them, so it can never be
-                     mistaken for a face, a voice, a letter or the mark. --%>
+                     mistaken for a face, a voice, a still or the mark. --%>
                 <%!-- ── AND WHEN THE LIST IS LIVE, THEY BREATHE ────────────────
                      THE WORD "LIVE" WAS THE INDICATOR, sitting in the tags as one
                      more piece of text. Text is what this surface uses for FACTS
@@ -2445,7 +2253,7 @@ defmodule PeoplemediaWeb.IndexLive do
                      column it is standing in for — which is the whole of what this
                      slot exists to prevent. The name beside it sets the same size
                      on itself; the empty box has no text to inherit it from. --%>
-                <.letter_glyph
+                <.capture_glyph
                   :if={@subject && @list_mode == :people}
                   kind={nil}
                   class="mr-3 text-(length:--row-type)"
@@ -2496,20 +2304,24 @@ defmodule PeoplemediaWeb.IndexLive do
            is positioned against the list's box, so a collapsing container would
            drag the header off its own line mid-flight.
 
-           TWO VIEWS, ONE ROOM: LETTERS on the left is what has passed between
-           you — held, finished, re-readable — and LIVE on the right is who is
-           on the line right now. It wears the same .rail, so LETTERS lands on
-           the very edge the mark, the line, the tags and the rows all use.
+           TWO VIEWS, ONE ROOM: ROUNDS on the left is what they have been up
+           to — each one carrying what was said in it — and LIVE on the right is
+           who is on the line right now. It wears the same .rail, so ROUNDS lands
+           on the very edge the mark, the line, the tags and the rows all use.
 
-           IT USED TO SAY RECORD, and the word was wrong in a way that only
-           showed once a third kind arrived. "Record" names the ACT OF
-           CAPTURING, which a face and a voice share and words do not, so a
-           typed letter could not be filed under it without the heading lying.
-           A LETTER names what the thing IS rather than how it was made, and
-           all three are letters: one carries a face, one carries a voice, one
-           carries only itself. It is also written TO A SCOPE and not to a
-           person — the scope is the relationship, and the relationship is what
-           the correspondence belongs to. --%>
+           IT SAID RECORD, THEN LETTERS, AND NOW SAYS WHAT IS ACTUALLY LISTED.
+           "Record" named the ACT OF CAPTURING, which is one way a thing gets
+           made and not what a thing IS. "Letters" named what the thing was —
+           until words replaced them, and a word is not a letter: it is said
+           INSIDE A ROUND, to whoever is in that round's audience, rather than
+           written to one person. So the heading names the block: a round, with
+           its words under it.
+
+           THE PAGE IS HELD, and this is the honest half of it. The guide asks
+           for every round between you and them, yours and theirs, interleaved by
+           time; what is here is theirs, as they may be seen. Interleaving is a
+           question about whose page this is, and that is a design decision
+           nobody has taken yet. --%>
       <div
         :if={@subject}
         id="panel"
@@ -2549,86 +2361,41 @@ defmodule PeoplemediaWeb.IndexLive do
           </div>
           <div class="panel-views flex h-full items-start gap-14 pt-8">
             <div
-              id="panel-letters"
+              id="panel-words"
               phx-hook="SubPanel"
-              class="panel-letters relative h-full w-full shrink-0 lg:w-(--list-w)"
+              class="panel-words relative h-full w-full shrink-0 lg:w-(--list-w)"
             >
-              <%!-- THE HANDLE, phone only. The letters list rides OVER the live
-                   view there, so it needs somewhere to be taken hold of — and a
+              <%!-- THE HANDLE, phone only. The rounds ride OVER the live view
+                   there, so they need somewhere to be taken hold of — and a
                    handle is also the only honest way to say "this moves", which
                    a panel that simply sits there does not. --%>
               <div class="sub-handle lg:hidden" aria-hidden="true"><span></span></div>
-              <%!-- WHAT THEY ARE DOING, ON THE PANEL'S OWN LINE.
-                   THE BOXES CANNOT REACH IN HERE. They answer the BAND, and
-                   opening a panel is exactly the act that takes the band away —
-                   so without this, walking into somebody's page LOSES the one
-                   thing the rail had just told you about them. It is worse on
-                   your own page, which has no row in the list at all: your
-                   around would be a thing you could set and never once see.
-
-                   BESIDE THE HEADING, NOT ABOVE THE LETTERS. It belongs to the
-                   person the panel is about rather than to the correspondence
-                   under it, which is the same reason it is on this line and in
-                   this voice — the small tracked one every caption here uses. --%>
+              <%!-- WHAT IS UNDER THE NAME, said in the small tracked voice every
+                   caption on this surface uses. ROUNDS rather than WORDS because
+                   rounds are what is listed: a round is the block, and the words
+                   are what is inside one. --%>
               <p class="absolute top-6 left-0 z-20 flex items-center gap-4 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
-                <span>LETTERS</span>
-                <span
-                  :if={@subject[:round][:doing] || @subject[:round][:mood]}
-                  class="panel-around flex items-center gap-3 px-3 py-1 text-light-900 dark:text-dark-100"
-                  data-family={@subject[:round][:family]}
-                >
-                  <span :if={@subject[:round][:mood]}>{String.upcase(@subject.round.mood)}</span>
-                  <span
-                    :if={@subject[:round][:doing]}
-                    class="text-neutral-500 dark:text-neutral-400"
-                  >
-                    {String.upcase(
-                      [@subject.round.doing, @subject.round[:about]]
-                      |> Enum.reject(&(&1 in [nil, ""]))
-                      |> Enum.join(" · ")
-                    )}
-                  </span>
-                </span>
+                <span>ROUNDS</span>
               </p>
 
-              <%!-- THE BOX — the list's own selection box kept whole: the wash,
-                   the brackets, the "--" for an empty band. What is different is
-                   that its job is not delegated to a frame off to the side; the
-                   box IS the player. A voice fills it as a bar, a face shows in
-                   it. It sits BEHIND the rows (z-0 to their z-10) so the chosen
-                   row's name reads over whatever is playing, and the brackets,
-                   being at the corners, clear the words entirely. --%>
+              <%!-- THE BOX — the list's own selection box, in the panel's own
+                   place: a wash and a pair of brackets that stand at the band
+                   while the rows scroll through them. It sits BEHIND the rows
+                   (z-0 to their z-10) so the chosen word reads over it, and the
+                   brackets, being at the corners, clear the words entirely.
+
+                   IT WAS A PLAYER AND IS NOT ONE ANY MORE. It held a video, an
+                   audio element and a progress bar, and every one of them was
+                   fed by a LETTER'S media — the box played the correspondence.
+                   Words are made, not captured (Law 5): there is no file on one
+                   to play. What a round carries instead is a CAPTURE, and that
+                   is drawn on the item's own frame out in the list. So the box
+                   keeps the one job it can honestly do, which is to say where
+                   you are. --%>
               <div
                 id={"stage-#{@panel_key}"}
                 class="stage w-full px-(--list-pad) lg:w-(--list-w) pointer-events-none absolute top-[calc(var(--panel-row-h)*1.5)] left-0 z-0 flex h-(--panel-row-h) -translate-y-10 items-center overflow-hidden bg-primary-600/15 dark:bg-primary-500/20"
               >
-                <video
-                  id={"stage-video-#{@panel_key}"}
-                  phx-hook="Media"
-                  class="stage-video absolute inset-0 h-full w-full object-cover"
-                  playsinline
-                  preload="metadata"
-                >
-                </video>
-                <div class="stage-fill absolute inset-0"></div>
-                <%!-- A voice's play effect: a translucent layer whose WIDTH is
-                     the fraction played, so the box fills like a bar. --%>
-                <div class="stage-progress absolute inset-y-0 left-0"></div>
-                <%!-- The list's own empty mark, for the same reason and in the
-                     same shape — see the band above. --%>
-                <span
-                  class="focus-empty flex items-center gap-[0.3em] text-(length:--row-type) text-primary-600 opacity-0 transition-opacity duration-200 dark:text-primary-500"
-                  aria-hidden="true"
-                >
-                  <span class="focus-dot"></span><span class="focus-dot"></span><span class="focus-dot"></span>
-                </span>
-                <audio
-                  id={"stage-audio-#{@panel_key}"}
-                  phx-hook="Media"
-                  class="stage-audio"
-                  preload="none"
-                >
-                </audio>
               </div>
 
               <%!-- Lead and trail here are set by the hook, not the markup, so
@@ -2637,7 +2404,7 @@ defmodule PeoplemediaWeb.IndexLive do
                    outside, exempted for the same reason — see the long note on
                    the scroller above. The Tailwind padding on the ul is the
                    pre-measurement estimate the hook then replaces; without the
-                   exemption a patch reverted to it and the letters jumped. --%>
+                   exemption a patch reverted to it and the rows jumped. --%>
               <div
                 id={"panel-scroll-#{@panel_key}"}
                 phx-hook="Panel"
@@ -2648,27 +2415,77 @@ defmodule PeoplemediaWeb.IndexLive do
                   phx-mounted={JS.ignore_attributes(["style"])}
                   class="pt-[calc(34vh+4rem)] pb-[30vh]"
                 >
-                  <li
-                    :for={letter <- @subject.letters}
-                    data-kind={letter.kind}
-                    data-media={letter.media}
-                    class="panel-item flex h-(--panel-row-h) cursor-pointer items-start px-(--list-pad) whitespace-nowrap pt-[1.15rem] text-(length:--row-type) tracking-(--row-track) text-neutral-900 dark:text-neutral-100"
-                  >
-                    <%!-- The kind mark leads — two eyes for a face, one mouth for
-                         a voice, the mouth struck through for a letter that is
-                         only words — pinned to the TOP beside the name rather
-                         than centred against the two-line block, so it reads on
-                         the name's line and the age hangs below it. --%>
-                    <.letter_glyph
-                      kind={letter.kind}
-                      class="mr-3 -mt-[0.125em] text-neutral-400 dark:text-neutral-500"
-                    />
-                    <div class="flex flex-col leading-tight">
-                      <span>{letter.by}</span>
-                      <span class="panel-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/55 dark:text-neutral-500/60">
-                        {letter.when}
+                  <%!-- ROUNDS ARE THE BLOCKS AND WORDS ARE THE ROWS, which is
+                       the shape the app itself has: a round surfaces a person,
+                       it does not contain the conversation — the conversation is
+                       the words inside it. So a round is a heading with what was
+                       said under it, newest round at the top and, within one, the
+                       words in the order they were said.
+
+                       ONLY THE WORDS ARE `.panel-item`. The hook measures its
+                       band off the first row and snaps rows to it, so a heading
+                       of a different height must not be one of them — it flows
+                       past the band like the page it belongs to. --%>
+                  <li :for={round <- @subject.rounds}>
+                    <p class="panel-round flex items-center gap-3 px-(--list-pad) pt-8 pb-3 text-(length:--sub-type) tracking-[0.22em] text-neutral-400 dark:text-neutral-500">
+                      <span>{round.when}</span>
+                      <%!-- LIVE IS THE ONE THING A ROUND'S HEADING HAS TO SAY,
+                           because it is the difference between reading what
+                           somebody did and being able to join it. Expired rounds
+                           carry no mark at all — absence is silent. --%>
+                      <span :if={round.live} class="panel-live" aria-label="Live"></span>
+                      <span :if={round.direct} class="text-neutral-300 dark:text-neutral-600">
+                        DIRECT
                       </span>
-                    </div>
+                    </p>
+                    <ul>
+                      <li
+                        :for={word <- round.words}
+                        data-mine={to_string(word.mine?)}
+                        class="panel-item flex h-(--panel-row-h) cursor-pointer items-start gap-3 px-(--list-pad) pt-[1.15rem] text-(length:--row-type) tracking-(--row-track) text-neutral-900 dark:text-neutral-100"
+                      >
+                        <div class="flex min-w-0 flex-col leading-tight">
+                          <%!-- NOT UPPERCASED, and it is the only text on this
+                               surface that is not. Everything else is set in
+                               capitals because it is the app talking; a word is
+                               a person talking, and shouting it would be the app
+                               raising its voice on somebody's behalf. --%>
+                          <span class="truncate normal-case">{word.body}</span>
+                          <span class="panel-when mt-1 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400/55 dark:text-neutral-500/60">
+                            {word.by} · {word.when}
+                          </span>
+                        </div>
+                        <%!-- HOW MANY PICTURES CAME WITH IT. A count rather than
+                             the pictures themselves: this is a list of what was
+                             said, and a row that opened out into a gallery would
+                             stop being one. --%>
+                        <span
+                          :if={word.images != []}
+                          class="ml-auto shrink-0 text-(length:--sub-type) tracking-(--sub-track) text-neutral-400 tabular-nums dark:text-neutral-500"
+                        >
+                          {length(word.images)}
+                        </span>
+                      </li>
+                    </ul>
+                    <%!-- A ROUND NOBODY SPOKE IN IS STILL A ROUND. It says they
+                         were here and open to being joined, which is the
+                         smallest true thing anybody can say on this surface —
+                         drawing nothing would make the quietest version of the
+                         act unreadable. --%>
+                    <p
+                      :if={round.words == []}
+                      class="px-(--list-pad) pb-2 text-(length:--sub-type) tracking-[0.22em] text-neutral-300 dark:text-neutral-600"
+                    >
+                      NOTHING SAID
+                    </p>
+                  </li>
+                  <%!-- AND A PERSON WITH NO ROUNDS AT ALL. Not an error and not
+                       an empty page — most people have not gone round today. --%>
+                  <li
+                    :if={@subject.rounds == []}
+                    class="px-(--list-pad) pt-8 text-(length:--sub-type) tracking-[0.22em] text-neutral-300 dark:text-neutral-600"
+                  >
+                    NO ROUNDS YET
                   </li>
                 </ul>
               </div>
@@ -2712,25 +2529,26 @@ defmodule PeoplemediaWeb.IndexLive do
                 <div
                   :for={{person, i} <- Enum.with_index(@live)}
                   class="live-cell"
-                  data-speaks={to_string(person.frame != "empty")}
+                  data-speaks={to_string(not is_nil(person[:capture_kind]))}
                   style={"--i: #{i}"}
                 >
-                  <%!-- `frame`, NOT `letterbox`, and the difference was a crash
-                       waiting for the day presence became real. `Directory`
-                       merges `letterbox(letters)` into the row, which adds
-                       `frame`/`media`/`body` — there has never been a
-                       `letterbox` key on it. Nothing raised only because `@live`
-                       filters on a state nothing ever set, so this markup had
-                       never once been rendered. A rename is not a safe operation
-                       on a key nothing exercises. --%>
+                  <%!-- THE CAPTURE, WHICH IS A FACT ABOUT THEM. It used to read
+                       `frame`/`media`, which `Directory` derived from the last
+                       LETTER somebody had sent you — so a cell in the live room
+                       showed the correspondence rather than the person, and went
+                       blank for anyone you had never written to. Nothing raised
+                       when the letters went because `@live` filters on a state
+                       nothing ever sets, so this markup has never once been
+                       rendered — which is exactly why it had to be repointed by
+                       hand rather than left to fail on the day presence lands. --%>
                   <div class={[
                     "live-frame is-live relative aspect-square w-full overflow-hidden",
-                    "is-#{person.frame}"
+                    "is-#{person[:capture_kind] || "empty"}"
                   ]}>
                     <video
-                      :if={person.frame == "face"}
+                      :if={person[:capture_kind] == "face"}
                       class="live-video absolute inset-0 h-full w-full object-cover"
-                      src={person.media}
+                      src={person[:capture]}
                       autoplay
                       muted
                       loop

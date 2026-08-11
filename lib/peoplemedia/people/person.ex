@@ -25,10 +25,6 @@ defmodule Peoplemedia.People.Person do
     # expire along with the thing it was protecting, which is the one moment it
     # must not. See `Peoplemedia.Around`, which is the only place it is read.
     field(:around_hidden, :boolean, default: false)
-    # STANDING, AND NOT AN INVITATION. A round is made and expires; this simply
-    # is. See the migration for why the two can share a block without being
-    # mistaken for one another.
-    field(:status, :string)
     # WHAT THEY CAPTURED OF THEMSELVES — a face, a voice or a still. Theirs, and
     # the same whoever is looking, which is why it hangs off the person rather
     # than off a correspondence. See the migration.
@@ -40,7 +36,7 @@ defmodule Peoplemedia.People.Person do
 
   def changeset(person, attrs) do
     person
-    |> cast(attrs, [:name, :country, :status, :capture_kind, :capture])
+    |> cast(attrs, [:name, :country, :capture_kind, :capture])
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 60)
   end
